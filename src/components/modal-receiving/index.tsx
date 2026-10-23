@@ -338,11 +338,17 @@ const ModalReceiving: React.FC<ModalReceivingProps> = ({ open, onClose }) => {
               </Button>
             </div>
             {cameraActive && (
-              <div className="relative h-[260px] overflow-hidden rounded-lg border bg-black">
+              <div className="relative h-[320px] overflow-hidden rounded-lg border bg-black">
                 <Scanner
-                  constraints={{ facingMode: "environment" }}
+                  constraints={{
+                    facingMode: { ideal: "environment" },
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                  }}
+                  formats={["qr_code", "code_128", "code_39", "ean_13", "ean_8"]}
+                  scanDelay={100}
                   onScan={(results) => {
-                    const value = results[0]?.rawValue?.trim();
+                    const value = results.find((result) => result.rawValue)?.rawValue?.trim();
                     if (value) enqueueCameraScan(value);
                   }}
                   onError={() => message.error("Kamera tidak dapat digunakan")}
