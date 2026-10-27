@@ -165,4 +165,5 @@ export enum EnumActions {
   MarkCardCompletion = "mark.card.completion",
   SetCardDateStatus = "set.card.date.status",
   MoveCardDateStatus = "move.card.date.status",
+  ResetBarcodePacking = "reset.barcode.packing",
 }

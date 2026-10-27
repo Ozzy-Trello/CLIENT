@@ -241,6 +241,7 @@ export enum ActionType {
   // Telegram notifications
   SendTelegramChannelNotification = `send-telegram-notification-to-<${EnumSelectionType.TelegramChannel}>-with-message-<${EnumSelectionType.TextInput}>-and-custom-fields-<${EnumSelectionType.MultiFields}>`,
   SendTelegramForumNotification = `send-telegram-forum-notification-to-<${EnumSelectionType.TelegramChannel}>-thread-<${EnumSelectionType.ThreadId}>-with-message-<${EnumSelectionType.TextInput}>-and-custom-fields-<${EnumSelectionType.MultiFields}>`,
+  ResetBarcodePacking = "reset-barcode-packing",
 }
 
 // filter type

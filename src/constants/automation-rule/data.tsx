@@ -2236,6 +2236,22 @@ export const actions: AutomationRuleAction[] = [
           isRichText: true, // Special flag to indicate this should use rich text editor
         },
       },
+      {
+        type: ActionType.ResetBarcodePacking,
+        label: "Reset QR Packing",
+        [EnumSelectionType.Action]: {
+          options: [
+            {
+              value: EnumActions.ResetBarcodePacking,
+              label: "Reset",
+            },
+          ],
+          value: {
+            value: EnumActions.ResetBarcodePacking,
+            label: "Reset",
+          },
+        },
+      },
     ],
   },
   {
