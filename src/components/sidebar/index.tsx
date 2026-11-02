@@ -239,6 +239,15 @@ const Sidebar = () => {
         icon: <ClipboardList size={16} />,
       },
       {
+        key: `/workspace/${resolvedWorkspaceId}/daily-activity`,
+        label: (
+          <Link className="block w-full" href={`/workspace/${resolvedWorkspaceId}/daily-activity`}>
+            Daily Activity
+          </Link>
+        ),
+        icon: <ClipboardList size={16} />,
+      },
+      {
         key: `/workspace/${resolvedWorkspaceId}/cek-ongkir`,
         label: (
           <Link
