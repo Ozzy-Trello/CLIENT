@@ -6,6 +6,7 @@ import Sidebar from "@components/sidebar";
 import ChatWidget from "@components/chat/chat-widget";
 import ChatNotificationToast from "@components/chat/chat-notification-toast";
 import NotulensiToast from "@components/notifications/notulensi-toast";
+import DailyActivityLockBanner from "@components/daily-activity/daily-activity-lock-banner";
 import { UnreadCommentGate } from "@components/notifications/unread-comment-gate";
 import "./style.css";
 import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
@@ -79,6 +80,7 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
       </Layout>
       <ChatWidget />
       <ChatNotificationToast />
+      <DailyActivityLockBanner />
       <NotulensiToast />
       <UnreadCommentGate />
     </Layout>
