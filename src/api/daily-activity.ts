@@ -5,7 +5,6 @@ import {
   DailyActivityConfiguration,
   DailyActivityDay,
   DailyActivityReport,
-  DailyActivityRole,
   DailyActivityUser,
 } from "@myTypes/daily-activity";
 
@@ -14,17 +13,22 @@ export async function getDailyActivityAccessStatus(): Promise<DailyActivityAcces
   return data.data;
 }
 
+export async function simulateDailyActivityAccess(userId: string, date: string, time: string) {
+  const { data } = await api.post("/daily-activity/access-simulation", { user_id: userId, date, time });
+  return data.data as DailyActivityAccessStatus & { user_id: string; username: string; date: string; time: string };
+}
+
 export async function getMyDailyActivity(workDate: string) {
   const { data } = await api.get("/daily-activity/my-report", { params: { work_date: workDate } });
   return data.data as { work_date: string; required: boolean; report: DailyActivityReport | null };
 }
 
-export async function saveDailyActivityDraft(workDate: string, activities: Array<{ content: string }>) {
+export async function saveDailyActivityDraft(workDate: string, activities: Array<{ id?: string; content: string }>) {
   const { data } = await api.put("/daily-activity/my-report/draft", { work_date: workDate, activities });
   return data.data as DailyActivityReport;
 }
 
-export async function submitDailyActivity(workDate: string, activities: Array<{ content: string }>) {
+export async function submitDailyActivity(workDate: string, activities: Array<{ id?: string; content: string }>) {
   const { data } = await api.post("/daily-activity/my-report/submit", { work_date: workDate, activities });
   return data.data as DailyActivityReport;
 }
@@ -41,12 +45,27 @@ export async function getDailyActivityReport(id: string) {
 
 export async function getDailyActivityStructure() {
   const { data } = await api.get("/daily-activity/structure");
-  return data.data as DailyActivityRole[];
+  return data.data as DailyActivityUser[];
 }
 
-export async function updateDailyActivityRoleManager(roleId: string, managerRoleId: string | null) {
-  const { data } = await api.put(`/daily-activity/structure/roles/${roleId}`, { manager_role_id: managerRoleId });
-  return data.data as { role_id: string; manager_role_id: string | null };
+export async function updateDailyActivityManager(userId: string, managerId: string | null) {
+  const { data } = await api.put(`/daily-activity/structure/${userId}`, { manager_id: managerId });
+  return data.data as { user_id: string; manager_id: string | null };
+}
+
+export async function previewDailyActivityScope(userId: string) {
+  const { data } = await api.post("/daily-activity/structure/scope-preview", { user_id: userId });
+  return data.data as { viewer: { id: string; username: string }; user_ids: string[]; users: DailyActivityUser[] };
+}
+
+export async function addDailyActivityReference(itemId: string, reference: { type: "link" | "card"; url?: string; display_text?: string; card_id?: string }) {
+  const { data } = await api.post(`/daily-activity/items/${itemId}/references`, reference);
+  return data.data;
+}
+
+export async function removeDailyActivityReference(itemId: string, referenceId: string) {
+  const { data } = await api.delete(`/daily-activity/items/${itemId}/references/${referenceId}`);
+  return data.data;
 }
 
 export async function getDailyActivityConfiguration() {
