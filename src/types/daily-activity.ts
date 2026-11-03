@@ -8,6 +8,7 @@ export interface DailyActivityReference {
   url?: string | null;
   display_text?: string | null;
   card_id?: string | null;
+  file_url?: string | null;
 }
 
 export interface DailyActivityItem {
@@ -24,6 +25,7 @@ export interface DailyActivityReport {
   status: "draft" | "submitted";
   first_submitted_at: string | null;
   activities: DailyActivityItem[];
+  history?: Array<{ action: string; snapshot: unknown; created_at: string }>;
 }
 
 export interface DailyActivityDay {
@@ -34,6 +36,9 @@ export interface DailyActivityDay {
   required: boolean;
   status: DailyActivityStatus;
   report_id: string | null;
+  submitted_at?: string | null;
+  deadline_time?: string;
+  activities: Array<{ id: string; content: string; references: DailyActivityReference[] }>;
 }
 
 export interface DailyActivityAccessStatus {
@@ -47,12 +52,7 @@ export interface DailyActivityUser {
   username: string;
   role_id: string | null;
   role_name?: string | null;
-}
-
-export interface DailyActivityRole {
-  id: string;
-  name: string;
-  manager_role_id: string | null;
+  manager_id: string | null;
 }
 
 export interface DailyActivityConfiguration {
