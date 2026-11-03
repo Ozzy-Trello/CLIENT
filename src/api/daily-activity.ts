@@ -5,6 +5,7 @@ import {
   DailyActivityConfiguration,
   DailyActivityDay,
   DailyActivityReport,
+  DailyActivityRole,
   DailyActivityUser,
 } from "@myTypes/daily-activity";
 
@@ -40,12 +41,12 @@ export async function getDailyActivityReport(id: string) {
 
 export async function getDailyActivityStructure() {
   const { data } = await api.get("/daily-activity/structure");
-  return data.data as DailyActivityUser[];
+  return data.data as DailyActivityRole[];
 }
 
-export async function updateDailyActivityManager(userId: string, managerId: string | null) {
-  const { data } = await api.put(`/daily-activity/structure/${userId}`, { manager_id: managerId });
-  return data.data as { user_id: string; manager_id: string | null };
+export async function updateDailyActivityRoleManager(roleId: string, managerRoleId: string | null) {
+  const { data } = await api.put(`/daily-activity/structure/roles/${roleId}`, { manager_role_id: managerRoleId });
+  return data.data as { role_id: string; manager_role_id: string | null };
 }
 
 export async function getDailyActivityConfiguration() {
