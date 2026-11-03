@@ -47,11 +47,17 @@ export interface DailyActivityUser {
   username: string;
   role_id: string | null;
   role_name?: string | null;
-  manager_id: string | null;
+}
+
+export interface DailyActivityRole {
+  id: string;
+  name: string;
+  manager_role_id: string | null;
 }
 
 export interface DailyActivityConfiguration {
   roles: Array<{ id: string; name: string }>;
+  users: DailyActivityUser[];
   role_rules: Array<{ id: string; role_id: string; is_required: boolean; effective_from: string }>;
   user_overrides: Array<{ id: string; user_id: string; rule: "follow_role" | "required" | "exempt"; effective_from: string }>;
   settings: Array<{ id: number; deadline_time: string; effective_from: string }>;

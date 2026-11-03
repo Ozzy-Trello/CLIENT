@@ -14,9 +14,9 @@ import {
   setDailyActivityUserOverride,
   submitDailyActivity,
   uploadDailyActivityImage,
-  updateDailyActivityManager,
+  updateDailyActivityRoleManager,
 } from "@api/daily-activity";
-import { DailyActivityTab, DailyActivityUser } from "@myTypes/daily-activity";
+import { DailyActivityRole, DailyActivityTab } from "@myTypes/daily-activity";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, DatePicker, Input, Select, Spin, Table, Tabs, Tag, TimePicker, Typography, message } from "antd";
 import dayjs from "dayjs";
@@ -38,7 +38,7 @@ export default function DailyActivityPage() {
   const [holidayDate, setHolidayDate] = useState(today());
   const [effectiveFrom, setEffectiveFrom] = useState(today());
   const [deadline, setDeadline] = useState("18:00");
-  const [managerByUser, setManagerByUser] = useState<Record<string, string | null>>({});
+  const [managerByRole, setManagerByRole] = useState<Record<string, string | null>>({});
   const [overrideUserId, setOverrideUserId] = useState<string>();
   const [overrideRule, setOverrideRule] = useState<"follow_role" | "required" | "exempt">("follow_role");
   const queryClient = useQueryClient();
@@ -48,8 +48,8 @@ export default function DailyActivityPage() {
   const accessQuery = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus });
   const reportQuery = useQuery({ queryKey: ["daily-activity-my-report", workDate], queryFn: () => getMyDailyActivity(workDate), enabled: tab === "mine" });
   const teamQuery = useQuery({ queryKey: ["daily-activity-reports", workDate, reportSearch], queryFn: () => getDailyActivityReports(workDate, workDate, reportSearch), enabled: tab === "team" });
-  const structureQuery = useQuery({ queryKey: ["daily-activity-structure"], queryFn: getDailyActivityStructure, enabled: isAdmin && ["structure", "settings"].includes(tab) });
-  const configQuery = useQuery({ queryKey: ["daily-activity-configuration"], queryFn: getDailyActivityConfiguration, enabled: isAdmin && ["settings", "calendar"].includes(tab) });
+  const structureQuery = useQuery({ queryKey: ["daily-activity-structure"], queryFn: getDailyActivityStructure, enabled: isAdmin && tab === "structure" });
+  const configQuery = useQuery({ queryKey: ["daily-activity-configuration"], queryFn: getDailyActivityConfiguration, enabled: isAdmin && ["settings", "structure", "calendar"].includes(tab) });
 
   useEffect(() => {
     const report = reportQuery.data?.report;
@@ -74,15 +74,17 @@ export default function DailyActivityPage() {
     onError: (error: any) => message.error(error?.response?.data?.message || "Gagal menyimpan Daily Activity"),
   });
 
-  const managerMutation = useMutation({ mutationFn: ({ id, managerId }: { id: string; managerId: string | null }) => updateDailyActivityManager(id, managerId), onSuccess: () => { message.success("Atasan diperbarui"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] }); }, onError: (error: any) => { message.error(error?.response?.data?.message || "Gagal memperbarui atasan"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] }); } });
+  const managerMutation = useMutation({ mutationFn: ({ roleId, managerRoleId }: { roleId: string; managerRoleId: string | null }) => updateDailyActivityRoleManager(roleId, managerRoleId), onSuccess: () => { message.success("Atasan role diperbarui"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] }); }, onError: (error: any) => { message.error(error?.response?.data?.message || "Gagal memperbarui atasan role"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] }); } });
   const roleRuleMutation = useMutation({ mutationFn: ({ roleId, required }: { roleId: string; required: boolean }) => setDailyActivityRoleRule(roleId, required, effectiveFrom), onSuccess: () => { message.success("Aturan role tersimpan"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); } });
   const overrideMutation = useMutation({ mutationFn: ({ userId, rule }: { userId: string; rule: "follow_role" | "required" | "exempt" }) => setDailyActivityUserOverride(userId, rule, effectiveFrom), onSuccess: () => { message.success("Pengecualian disimpan"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); } });
   const deadlineMutation = useMutation({ mutationFn: () => setDailyActivityDeadline(deadline, effectiveFrom), onSuccess: () => { message.success("Batas kirim disimpan"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); } });
   const holidayMutation = useMutation({ mutationFn: () => addDailyActivityHoliday(holidayDate, holidayName), onSuccess: () => { setHolidayName(""); message.success("Hari libur ditambahkan"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); } });
   const deleteHolidayMutation = useMutation({ mutationFn: removeDailyActivityHoliday, onSuccess: () => { message.success("Hari libur dihapus"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); } });
 
-  const users = structureQuery.data || [];
+  const users = configQuery.data?.users || [];
+  const roles = structureQuery.data || [];
   const userOptions = useMemo(() => users.map((user) => ({ value: user.id, label: user.username })), [users]);
+  const roleOptions = useMemo(() => roles.map((role) => ({ value: role.id, label: role.name })), [roles]);
   const holidayRows = configQuery.data?.holidays || [];
   const roleRows = configQuery.data?.roles || [];
   const rulesByRole = new Map<string, Array<{ id: string; role_id: string; is_required: boolean; effective_from: string }>>();
@@ -101,50 +103,50 @@ export default function DailyActivityPage() {
     .sort((left, right) => left.effective_from.localeCompare(right.effective_from))
     .at(-1);
   const childrenByManager = useMemo(() => {
-    const result = new Map<string | null, DailyActivityUser[]>();
-    for (const user of users) {
-      const managerId = user.manager_id || null;
-      result.set(managerId, [...(result.get(managerId) || []), user]);
+    const result = new Map<string | null, DailyActivityRole[]>();
+    for (const role of roles) {
+      const managerRoleId = role.manager_role_id || null;
+      result.set(managerRoleId, [...(result.get(managerRoleId) || []), role]);
     }
     return result;
-  }, [users]);
-  const getDescendantIds = (userId: string) => {
+  }, [roles]);
+  const getDescendantRoleIds = (roleId: string) => {
     const descendants = new Set<string>();
-    const visit = (managerId: string) => {
-      for (const child of childrenByManager.get(managerId) || []) {
+    const visit = (parentRoleId: string) => {
+      for (const child of childrenByManager.get(parentRoleId) || []) {
         if (descendants.has(child.id)) continue;
         descendants.add(child.id);
         visit(child.id);
       }
     };
-    visit(userId);
+    visit(roleId);
     return descendants;
   };
-  const renderOrgNode = (user: DailyActivityUser, depth = 0, ancestors = new Set<string>()): React.ReactNode => {
-    if (ancestors.has(user.id)) return null;
-    const nextAncestors = new Set(ancestors).add(user.id);
-    const children = childrenByManager.get(user.id) || [];
-    const descendantIds = getDescendantIds(user.id);
+  const renderOrgNode = (role: DailyActivityRole, depth = 0, ancestors = new Set<string>()): React.ReactNode => {
+    if (ancestors.has(role.id)) return null;
+    const nextAncestors = new Set(ancestors).add(role.id);
+    const children = childrenByManager.get(role.id) || [];
+    const descendantIds = getDescendantRoleIds(role.id);
     return (
-      <div key={user.id} className="min-w-0">
+      <div key={role.id} className="min-w-0">
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-3" style={{ marginLeft: depth * 24 }}>
           <div className="min-w-40">
-            <Typography.Text strong>{user.username}</Typography.Text>
-            <div><Typography.Text type="secondary">{user.role_name || (user as any).role?.name || "Tanpa role"}</Typography.Text></div>
+            <Typography.Text strong>{role.name}</Typography.Text>
+            <div><Typography.Text type="secondary">{users.filter((user) => user.role_id === role.id).length} orang</Typography.Text></div>
           </div>
           <Select
-            aria-label={`Atasan langsung ${user.username}`}
+            aria-label={`Parent role ${role.name}`}
             allowClear
             showSearch
             optionFilterProp="label"
             className="w-full max-w-xs"
-            value={managerByUser[user.id] !== undefined ? managerByUser[user.id] || undefined : user.manager_id || undefined}
-            options={userOptions.filter((option) => option.value !== user.id && !descendantIds.has(option.value))}
-            placeholder="Pilih atasan; kosong = root"
-            onChange={(managerId) => {
-              const resolved = managerId || null;
-              setManagerByUser((state) => ({ ...state, [user.id]: resolved }));
-              managerMutation.mutate({ id: user.id, managerId: resolved });
+            value={managerByRole[role.id] !== undefined ? managerByRole[role.id] || undefined : role.manager_role_id || undefined}
+            options={roleOptions.filter((option) => option.value !== role.id && !descendantIds.has(option.value))}
+            placeholder="Pilih parent role; kosong = root"
+            onChange={(managerRoleId) => {
+              const resolved = managerRoleId || null;
+              setManagerByRole((state) => ({ ...state, [role.id]: resolved }));
+              managerMutation.mutate({ roleId: role.id, managerRoleId: resolved });
             }}
           />
         </div>
@@ -228,14 +230,14 @@ export default function DailyActivityPage() {
 
       {tab === "structure" && isAdmin && (
         <section className="flex flex-col gap-3">
-          <Alert type="info" showIcon message="Struktur adalah per orang. Setiap user punya satu atasan langsung; bawahannya ditampilkan sebagai tree." />
-          {structureQuery.isLoading ? <Spin /> : <div className="flex flex-col gap-3">{(childrenByManager.get(null) || []).map((root) => renderOrgNode(root))}</div>}
+          <Alert type="info" showIcon message="Struktur pelaporan disusun per Role. Semua orang dalam role mengikuti posisi role tersebut; atasan bertingkat dihitung dari parent role." />
+          {structureQuery.isLoading || configQuery.isLoading ? <Spin /> : <div className="flex flex-col gap-3">{(childrenByManager.get(null) || []).map((root) => renderOrgNode(root))}</div>}
         </section>
       )}
 
       {tab === "settings" && isAdmin && (
         <section className="flex flex-col gap-6">
-          <Alert type="info" showIcon message="Struktur organisasi diatur per orang. Kewajiban harian memiliki default per role, dan tiap orang bisa diberi override." />
+          <Alert type="info" showIcon message="Struktur pelaporan ditentukan oleh tree Role. Kewajiban default juga ditentukan per Role, dengan pengecualian wajib/tidak wajib untuk orang tertentu." />
           <div className="flex flex-wrap items-end gap-3 rounded-xl border p-4">
             <label className="flex flex-col gap-1">Berlaku mulai<DatePicker value={dayjs(effectiveFrom)} onChange={(value) => value && setEffectiveFrom(value.format("YYYY-MM-DD"))} /></label>
             <label className="flex flex-col gap-1">Batas kirim WIB<TimePicker format="HH:mm" value={dayjs(`2000-01-01T${deadline}`)} onChange={(value) => value && setDeadline(value.format("HH:mm"))} /></label>
