@@ -16,7 +16,7 @@ import {
   uploadDailyActivityImage,
   updateDailyActivityManager,
 } from "@api/daily-activity";
-import { DailyActivityTab } from "@myTypes/daily-activity";
+import { DailyActivityTab, DailyActivityUser } from "@myTypes/daily-activity";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, DatePicker, Input, Select, Spin, Table, Tabs, Tag, TimePicker, Typography, message } from "antd";
 import dayjs from "dayjs";
@@ -39,7 +39,8 @@ export default function DailyActivityPage() {
   const [effectiveFrom, setEffectiveFrom] = useState(today());
   const [deadline, setDeadline] = useState("18:00");
   const [managerByUser, setManagerByUser] = useState<Record<string, string | null>>({});
-  const [userOverride, setUserOverride] = useState<Record<string, string>>({});
+  const [overrideUserId, setOverrideUserId] = useState<string>();
+  const [overrideRule, setOverrideRule] = useState<"follow_role" | "required" | "exempt">("follow_role");
   const queryClient = useQueryClient();
   const { isSuperAdmin } = usePermissions();
   const isAdmin = isSuperAdmin();
@@ -47,7 +48,7 @@ export default function DailyActivityPage() {
   const accessQuery = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus });
   const reportQuery = useQuery({ queryKey: ["daily-activity-my-report", workDate], queryFn: () => getMyDailyActivity(workDate), enabled: tab === "mine" });
   const teamQuery = useQuery({ queryKey: ["daily-activity-reports", workDate, reportSearch], queryFn: () => getDailyActivityReports(workDate, workDate, reportSearch), enabled: tab === "team" });
-  const structureQuery = useQuery({ queryKey: ["daily-activity-structure"], queryFn: getDailyActivityStructure, enabled: tab === "structure" });
+  const structureQuery = useQuery({ queryKey: ["daily-activity-structure"], queryFn: getDailyActivityStructure, enabled: isAdmin && ["structure", "settings"].includes(tab) });
   const configQuery = useQuery({ queryKey: ["daily-activity-configuration"], queryFn: getDailyActivityConfiguration, enabled: isAdmin && ["settings", "calendar"].includes(tab) });
 
   useEffect(() => {
@@ -73,7 +74,7 @@ export default function DailyActivityPage() {
     onError: (error: any) => message.error(error?.response?.data?.message || "Gagal menyimpan Daily Activity"),
   });
 
-  const managerMutation = useMutation({ mutationFn: ({ id, managerId }: { id: string; managerId: string | null }) => updateDailyActivityManager(id, managerId), onSuccess: () => { message.success("Atasan diperbarui"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] }); } });
+  const managerMutation = useMutation({ mutationFn: ({ id, managerId }: { id: string; managerId: string | null }) => updateDailyActivityManager(id, managerId), onSuccess: () => { message.success("Atasan diperbarui"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] }); }, onError: (error: any) => { message.error(error?.response?.data?.message || "Gagal memperbarui atasan"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] }); } });
   const roleRuleMutation = useMutation({ mutationFn: ({ roleId, required }: { roleId: string; required: boolean }) => setDailyActivityRoleRule(roleId, required, effectiveFrom), onSuccess: () => { message.success("Aturan role tersimpan"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); } });
   const overrideMutation = useMutation({ mutationFn: ({ userId, rule }: { userId: string; rule: "follow_role" | "required" | "exempt" }) => setDailyActivityUserOverride(userId, rule, effectiveFrom), onSuccess: () => { message.success("Pengecualian disimpan"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); } });
   const deadlineMutation = useMutation({ mutationFn: () => setDailyActivityDeadline(deadline, effectiveFrom), onSuccess: () => { message.success("Batas kirim disimpan"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); } });
@@ -84,7 +85,73 @@ export default function DailyActivityPage() {
   const userOptions = useMemo(() => users.map((user) => ({ value: user.id, label: user.username })), [users]);
   const holidayRows = configQuery.data?.holidays || [];
   const roleRows = configQuery.data?.roles || [];
-  const ruleByRole = new Map((configQuery.data?.role_rules || []).map((rule) => [rule.role_id, rule]));
+  const rulesByRole = new Map<string, Array<{ id: string; role_id: string; is_required: boolean; effective_from: string }>>();
+  for (const rule of configQuery.data?.role_rules || []) {
+    if (rule.effective_from > effectiveFrom) continue;
+    const rules = rulesByRole.get(rule.role_id) || [];
+    rules.push(rule);
+    rulesByRole.set(rule.role_id, rules);
+  }
+  const ruleByRole = new Map(Array.from(rulesByRole.entries()).map(([roleId, rules]) => [
+    roleId,
+    rules.sort((left, right) => left.effective_from.localeCompare(right.effective_from)).at(-1),
+  ]));
+  const selectedOverride = (configQuery.data?.user_overrides || [])
+    .filter((override) => override.user_id === overrideUserId && override.effective_from <= effectiveFrom)
+    .sort((left, right) => left.effective_from.localeCompare(right.effective_from))
+    .at(-1);
+  const childrenByManager = useMemo(() => {
+    const result = new Map<string | null, DailyActivityUser[]>();
+    for (const user of users) {
+      const managerId = user.manager_id || null;
+      result.set(managerId, [...(result.get(managerId) || []), user]);
+    }
+    return result;
+  }, [users]);
+  const getDescendantIds = (userId: string) => {
+    const descendants = new Set<string>();
+    const visit = (managerId: string) => {
+      for (const child of childrenByManager.get(managerId) || []) {
+        if (descendants.has(child.id)) continue;
+        descendants.add(child.id);
+        visit(child.id);
+      }
+    };
+    visit(userId);
+    return descendants;
+  };
+  const renderOrgNode = (user: DailyActivityUser, depth = 0, ancestors = new Set<string>()): React.ReactNode => {
+    if (ancestors.has(user.id)) return null;
+    const nextAncestors = new Set(ancestors).add(user.id);
+    const children = childrenByManager.get(user.id) || [];
+    const descendantIds = getDescendantIds(user.id);
+    return (
+      <div key={user.id} className="min-w-0">
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-3" style={{ marginLeft: depth * 24 }}>
+          <div className="min-w-40">
+            <Typography.Text strong>{user.username}</Typography.Text>
+            <div><Typography.Text type="secondary">{user.role_name || (user as any).role?.name || "Tanpa role"}</Typography.Text></div>
+          </div>
+          <Select
+            aria-label={`Atasan langsung ${user.username}`}
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            className="w-full max-w-xs"
+            value={managerByUser[user.id] !== undefined ? managerByUser[user.id] || undefined : user.manager_id || undefined}
+            options={userOptions.filter((option) => option.value !== user.id && !descendantIds.has(option.value))}
+            placeholder="Pilih atasan; kosong = root"
+            onChange={(managerId) => {
+              const resolved = managerId || null;
+              setManagerByUser((state) => ({ ...state, [user.id]: resolved }));
+              managerMutation.mutate({ id: user.id, managerId: resolved });
+            }}
+          />
+        </div>
+        {children.length > 0 && <div className="mt-2 flex flex-col gap-2">{children.map((child) => renderOrgNode(child, depth + 1, nextAncestors))}</div>}
+      </div>
+    );
+  };
 
   return (
     <div className="flex min-w-0 flex-col gap-4 p-4 md:p-6">
@@ -161,31 +228,45 @@ export default function DailyActivityPage() {
 
       {tab === "structure" && isAdmin && (
         <section className="flex flex-col gap-3">
-          <Alert type="info" showIcon message="Atur atasan langsung. Bawahan bertingkat dihitung otomatis." />
-          <Table rowKey="id" loading={structureQuery.isLoading} dataSource={users} pagination={{ pageSize: 30 }} columns={[
-            { title: "Nama", dataIndex: "username" },
-            { title: "Role", dataIndex: "role_name", render: (value, row: any) => value || row.role?.name || "-" },
-            { title: "Atasan langsung", dataIndex: "manager_id", render: (value, row: any) => <Select allowClear showSearch optionFilterProp="label" className="w-full max-w-sm" value={managerByUser[row.id] !== undefined ? managerByUser[row.id] : value || undefined} options={userOptions.filter((item) => item.value !== row.id)} placeholder="Root / tidak ada atasan" onChange={(managerId) => { const resolved = managerId || null; setManagerByUser((state) => ({ ...state, [row.id]: resolved })); managerMutation.mutate({ id: row.id, managerId: resolved }); }} /> },
-          ]} />
+          <Alert type="info" showIcon message="Struktur adalah per orang. Setiap user punya satu atasan langsung; bawahannya ditampilkan sebagai tree." />
+          {structureQuery.isLoading ? <Spin /> : <div className="flex flex-col gap-3">{(childrenByManager.get(null) || []).map((root) => renderOrgNode(root))}</div>}
         </section>
       )}
 
       {tab === "settings" && isAdmin && (
         <section className="flex flex-col gap-6">
+          <Alert type="info" showIcon message="Struktur organisasi diatur per orang. Kewajiban harian memiliki default per role, dan tiap orang bisa diberi override." />
           <div className="flex flex-wrap items-end gap-3 rounded-xl border p-4">
             <label className="flex flex-col gap-1">Berlaku mulai<DatePicker value={dayjs(effectiveFrom)} onChange={(value) => value && setEffectiveFrom(value.format("YYYY-MM-DD"))} /></label>
             <label className="flex flex-col gap-1">Batas kirim WIB<TimePicker format="HH:mm" value={dayjs(`2000-01-01T${deadline}`)} onChange={(value) => value && setDeadline(value.format("HH:mm"))} /></label>
             <Button type="primary" loading={deadlineMutation.isPending} onClick={() => deadlineMutation.mutate()}>Simpan Batas</Button>
           </div>
-          <Table rowKey="id" loading={configQuery.isLoading} dataSource={roleRows} pagination={false} columns={[
+          <div>
+            <Typography.Title level={5}>Default berdasarkan role</Typography.Title>
+            <Table rowKey="id" loading={configQuery.isLoading} dataSource={roleRows} pagination={false} columns={[
             { title: "Role", dataIndex: "name" },
-            { title: "Wajib mengisi", render: (_value, role: any) => <Select className="w-48" value={ruleByRole.get(role.id)?.is_required ?? false} onChange={(required) => roleRuleMutation.mutate({ roleId: role.id, required })} options={[{ value: true, label: "Wajib" }, { value: false, label: "Tidak Wajib" }]} /> },
+            { title: "Default wajib isi", render: (_value, role: any) => <Select className="w-48" value={ruleByRole.get(role.id)?.is_required ?? false} onChange={(required) => roleRuleMutation.mutate({ roleId: role.id, required })} options={[{ value: true, label: "Wajib" }, { value: false, label: "Tidak Wajib" }]} /> },
           ]} />
-          <div className="flex flex-wrap items-end gap-3 rounded-xl border p-4">
-            <label className="flex flex-col gap-1">User<Select showSearch optionFilterProp="label" className="w-56" options={userOptions} value={Object.keys(userOverride)[0]} onChange={(id) => setUserOverride({ [id]: userOverride[id] || "follow_role" })} /></label>
-            <Select className="w-48" value={userOverride[Object.keys(userOverride)[0]] || "follow_role"} onChange={(value) => setUserOverride((state) => ({ ...state, [Object.keys(state)[0]]: value }))} options={[{ value: "follow_role", label: "Ikuti role" }, { value: "required", label: "Wajibkan" }, { value: "exempt", label: "Kecualikan" }]} />
-            <Button disabled={!Object.keys(userOverride).length} onClick={() => { const userId = Object.keys(userOverride)[0]; overrideMutation.mutate({ userId, rule: userOverride[userId] as any }); }}>Simpan Pengecualian</Button>
           </div>
+          <div className="flex flex-wrap items-end gap-3 rounded-xl border p-4">
+            <label className="flex flex-col gap-1">Orang<Select showSearch optionFilterProp="label" className="w-56" options={userOptions} value={overrideUserId} onChange={(id) => {
+              setOverrideUserId(id);
+              const current = (configQuery.data?.user_overrides || [])
+                .filter((override) => override.user_id === id && override.effective_from <= effectiveFrom)
+                .sort((left, right) => left.effective_from.localeCompare(right.effective_from))
+                .at(-1);
+              setOverrideRule(current?.rule || "follow_role");
+            }} placeholder="Pilih user" /></label>
+            <label className="flex flex-col gap-1">Aturan orang ini<Select className="w-48" value={overrideRule} onChange={(value) => setOverrideRule(value)} options={[{ value: "follow_role", label: "Ikuti default role" }, { value: "required", label: "Wajibkan" }, { value: "exempt", label: "Tidak wajib" }]} /></label>
+            <Button type="primary" disabled={!overrideUserId} loading={overrideMutation.isPending} onClick={() => overrideUserId && overrideMutation.mutate({ userId: overrideUserId, rule: overrideRule })}>Simpan Override Orang</Button>
+            {overrideUserId && <Typography.Text type="secondary">{users.find((user) => user.id === overrideUserId)?.role_name || (users.find((user) => user.id === overrideUserId) as any)?.role?.name || "Role belum diset"} · {selectedOverride ? `Override aktif: ${selectedOverride.rule}` : "Saat ini mengikuti default role"}</Typography.Text>}
+          </div>
+          <Table rowKey="id" size="small" loading={configQuery.isLoading || structureQuery.isLoading} dataSource={configQuery.data?.user_overrides || []} pagination={{ pageSize: 10 }} columns={[
+            { title: "Orang", dataIndex: "user_id", render: (userId) => users.find((user) => user.id === userId)?.username || userId },
+            { title: "Role", dataIndex: "user_id", render: (userId) => users.find((user) => user.id === userId)?.role_name || (users.find((user) => user.id === userId) as any)?.role?.name || "-" },
+            { title: "Aturan orang", dataIndex: "rule", render: (value) => value === "required" ? "Wajib" : value === "exempt" ? "Tidak wajib" : "Ikuti role" },
+            { title: "Berlaku mulai", dataIndex: "effective_from" },
+          ]} />
         </section>
       )}
 
