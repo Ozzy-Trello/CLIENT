@@ -8,6 +8,8 @@ import {
   DailyActivityUser,
 } from "@myTypes/daily-activity";
 
+const asArray = <T>(value: unknown): T[] => Array.isArray(value) ? value : [];
+
 export async function getDailyActivityAccessStatus(): Promise<DailyActivityAccessStatus> {
   const { data } = await api.get("/daily-activity/access-status");
   return data.data;
@@ -45,7 +47,8 @@ export async function getDailyActivityReport(id: string) {
 
 export async function getDailyActivityStructure() {
   const { data } = await api.get("/daily-activity/structure");
-  return data.data as DailyActivityUser[];
+  const payload = data?.data?.data ?? data?.data ?? data;
+  return asArray<DailyActivityUser>(payload);
 }
 
 export async function updateDailyActivityManager(userId: string, managerId: string | null) {
@@ -70,7 +73,15 @@ export async function removeDailyActivityReference(itemId: string, referenceId: 
 
 export async function getDailyActivityConfiguration() {
   const { data } = await api.get("/daily-activity/configuration");
-  return data.data as DailyActivityConfiguration;
+  const payload = data?.data?.data ?? data?.data ?? data;
+  return {
+    roles: asArray<DailyActivityConfiguration["roles"][number]>(payload?.roles),
+    users: asArray<DailyActivityConfiguration["users"][number]>(payload?.users),
+    role_rules: asArray<DailyActivityConfiguration["role_rules"][number]>(payload?.role_rules ?? payload?.roleRules),
+    user_overrides: asArray<DailyActivityConfiguration["user_overrides"][number]>(payload?.user_overrides ?? payload?.userOverrides),
+    settings: asArray<DailyActivityConfiguration["settings"][number]>(payload?.settings),
+    holidays: asArray<DailyActivityConfiguration["holidays"][number]>(payload?.holidays),
+  } as DailyActivityConfiguration;
 }
 
 export async function setDailyActivityRoleRule(roleId: string, isRequired: boolean, effectiveFrom: string) {
