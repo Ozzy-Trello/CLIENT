@@ -9,56 +9,126 @@ import {
 } from "@myTypes/daily-activity";
 
 const asArray = <T>(value: unknown): T[] => Array.isArray(value) ? value : [];
+const payloadOf = (value: any) => value?.data?.data ?? value?.data ?? value;
+const field = (value: any, snake: string, camel: string) => value?.[snake] ?? value?.[camel];
+
+function normalizeUser(value: any): DailyActivityUser {
+  return {
+    ...value,
+    role_id: field(value, "role_id", "roleId") ?? null,
+    role_name: field(value, "role_name", "roleName") ?? value?.role?.name ?? null,
+    manager_id: field(value, "manager_id", "managerId") ?? null,
+  };
+}
+
+function normalizeReference(value: any) {
+  return {
+    ...value,
+    reference_type: field(value, "reference_type", "referenceType"),
+    file_id: field(value, "file_id", "fileId") ?? null,
+    card_id: field(value, "card_id", "cardId") ?? null,
+    display_text: field(value, "display_text", "displayText") ?? null,
+    file_url: field(value, "file_url", "fileUrl") ?? null,
+  };
+}
+
+function normalizeActivity(value: any) {
+  return {
+    ...value,
+    report_id: field(value, "report_id", "reportId"),
+    references: asArray<any>(value?.references).map(normalizeReference),
+  };
+}
+
+function normalizeReport(value: any): DailyActivityReport {
+  return {
+    ...value,
+    user_id: field(value, "user_id", "userId"),
+    work_date: field(value, "work_date", "workDate"),
+    first_submitted_at: field(value, "first_submitted_at", "firstSubmittedAt") ?? null,
+    activities: asArray<any>(value?.activities).map(normalizeActivity),
+    history: asArray<any>(value?.history).map((entry) => ({
+      ...entry,
+      created_at: field(entry, "created_at", "createdAt"),
+    })),
+  };
+}
+
+function normalizeDay(value: any): DailyActivityDay {
+  return {
+    ...value,
+    user_id: field(value, "user_id", "userId"),
+    role_name: field(value, "role_name", "roleName") ?? null,
+    work_date: field(value, "work_date", "workDate"),
+    report_id: field(value, "report_id", "reportId") ?? null,
+    submitted_at: field(value, "submitted_at", "submittedAt") ?? null,
+    deadline_time: field(value, "deadline_time", "deadlineTime"),
+    activities: asArray<any>(value?.activities).map(normalizeActivity),
+  };
+}
 
 export async function getDailyActivityAccessStatus(): Promise<DailyActivityAccessStatus> {
   const { data } = await api.get("/daily-activity/access-status");
-  return data.data;
+  const payload = payloadOf(data);
+  return {
+    ...payload,
+    missed_dates: asArray<string>(field(payload, "missed_dates", "missedDates")),
+    oldest_missed_date: field(payload, "oldest_missed_date", "oldestMissedDate") ?? null,
+  };
 }
 
 export async function simulateDailyActivityAccess(userId: string, date: string, time: string) {
   const { data } = await api.post("/daily-activity/access-simulation", { user_id: userId, date, time });
-  return data.data as DailyActivityAccessStatus & { user_id: string; username: string; date: string; time: string };
+  const payload = payloadOf(data);
+  return {
+    ...payload,
+    user_id: field(payload, "user_id", "userId"),
+    missed_dates: asArray<string>(field(payload, "missed_dates", "missedDates")),
+    oldest_missed_date: field(payload, "oldest_missed_date", "oldestMissedDate") ?? null,
+  } as DailyActivityAccessStatus & { user_id: string; username: string; date: string; time: string };
 }
 
 export async function getMyDailyActivity(workDate: string) {
   const { data } = await api.get("/daily-activity/my-report", { params: { work_date: workDate } });
-  return data.data as { work_date: string; required: boolean; report: DailyActivityReport | null };
+  const payload = payloadOf(data);
+  return { ...payload, work_date: field(payload, "work_date", "workDate"), report: payload?.report ? normalizeReport(payload.report) : null } as { work_date: string; required: boolean; report: DailyActivityReport | null };
 }
 
 export async function saveDailyActivityDraft(workDate: string, activities: Array<{ id?: string; content: string }>) {
   const { data } = await api.put("/daily-activity/my-report/draft", { work_date: workDate, activities });
-  return data.data as DailyActivityReport;
+  return normalizeReport(payloadOf(data));
 }
 
 export async function submitDailyActivity(workDate: string, activities: Array<{ id?: string; content: string }>) {
   const { data } = await api.post("/daily-activity/my-report/submit", { work_date: workDate, activities });
-  return data.data as DailyActivityReport;
+  return normalizeReport(payloadOf(data));
 }
 
 export async function getDailyActivityReports(from: string, to: string, search?: string) {
   const { data } = await api.get("/daily-activity/reports", { params: { from, to, search } });
-  return data.data as DailyActivityDay[];
+  return asArray<any>(payloadOf(data)).map(normalizeDay);
 }
 
 export async function getDailyActivityReport(id: string) {
   const { data } = await api.get(`/daily-activity/reports/${id}`);
-  return data.data as DailyActivityReport;
+  return normalizeReport(payloadOf(data));
 }
 
 export async function getDailyActivityStructure() {
   const { data } = await api.get("/daily-activity/structure");
-  const payload = data?.data?.data ?? data?.data ?? data;
-  return asArray<DailyActivityUser>(payload);
+  return asArray<any>(payloadOf(data)).map(normalizeUser);
 }
 
 export async function updateDailyActivityManager(userId: string, managerId: string | null) {
   const { data } = await api.put(`/daily-activity/structure/${userId}`, { manager_id: managerId });
-  return data.data as { user_id: string; manager_id: string | null };
+  const payload = payloadOf(data);
+  return { user_id: field(payload, "user_id", "userId"), manager_id: field(payload, "manager_id", "managerId") ?? null };
 }
 
 export async function previewDailyActivityScope(userId: string) {
   const { data } = await api.post("/daily-activity/structure/scope-preview", { user_id: userId });
-  return data.data as { viewer: { id: string; username: string }; user_ids: string[]; users: DailyActivityUser[] };
+  const payload = payloadOf(data);
+  return { ...payload, user_ids: asArray<string>(field(payload, "user_ids", "userIds")), users: asArray<any>(payload?.users).map(normalizeUser) } as { viewer: { id: string; username: string }; user_ids: string[]; users: DailyActivityUser[] };
 }
 
 export async function addDailyActivityReference(itemId: string, reference: { type: "link" | "card"; url?: string; display_text?: string; card_id?: string }) {
@@ -73,14 +143,14 @@ export async function removeDailyActivityReference(itemId: string, referenceId: 
 
 export async function getDailyActivityConfiguration() {
   const { data } = await api.get("/daily-activity/configuration");
-  const payload = data?.data?.data ?? data?.data ?? data;
+  const payload = payloadOf(data);
   return {
     roles: asArray<DailyActivityConfiguration["roles"][number]>(payload?.roles),
-    users: asArray<DailyActivityConfiguration["users"][number]>(payload?.users),
-    role_rules: asArray<DailyActivityConfiguration["role_rules"][number]>(payload?.role_rules ?? payload?.roleRules),
-    user_overrides: asArray<DailyActivityConfiguration["user_overrides"][number]>(payload?.user_overrides ?? payload?.userOverrides),
-    settings: asArray<DailyActivityConfiguration["settings"][number]>(payload?.settings),
-    holidays: asArray<DailyActivityConfiguration["holidays"][number]>(payload?.holidays),
+    users: asArray<any>(payload?.users).map(normalizeUser),
+    role_rules: asArray<any>(payload?.role_rules ?? payload?.roleRules).map((rule) => ({ ...rule, role_id: field(rule, "role_id", "roleId"), effective_from: field(rule, "effective_from", "effectiveFrom"), is_required: field(rule, "is_required", "isRequired") })),
+    user_overrides: asArray<any>(payload?.user_overrides ?? payload?.userOverrides).map((rule) => ({ ...rule, user_id: field(rule, "user_id", "userId"), effective_from: field(rule, "effective_from", "effectiveFrom") })),
+    settings: asArray<any>(payload?.settings).map((setting) => ({ ...setting, deadline_time: field(setting, "deadline_time", "deadlineTime"), effective_from: field(setting, "effective_from", "effectiveFrom") })),
+    holidays: asArray<any>(payload?.holidays).map((holiday) => ({ ...holiday, holiday_date: field(holiday, "holiday_date", "holidayDate") })),
   } as DailyActivityConfiguration;
 }
 
