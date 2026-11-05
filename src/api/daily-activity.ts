@@ -29,6 +29,8 @@ function normalizeReference(value: any) {
     card_id: field(value, "card_id", "cardId") ?? null,
     display_text: field(value, "display_text", "displayText") ?? null,
     file_url: field(value, "file_url", "fileUrl") ?? null,
+    file_mime_type: field(value, "file_mime_type", "fileMimeType") ?? null,
+    card: value?.card ?? null,
   };
 }
 
@@ -179,8 +181,7 @@ export async function attachDailyActivityFile(itemId: string, fileId: string) {
   return data.data;
 }
 
-export async function uploadDailyActivityImage(itemId: string, file: File) {
-  if (!file.type.startsWith("image/")) throw new Error("Pilih file gambar");
+export async function uploadDailyActivityAttachment(itemId: string, file: File) {
   if (file.size > 50 * 1024 * 1024) throw new Error("Ukuran file maksimal 50 MB");
   const uploaded = await uploadFile(file);
   const fileId = (uploaded.data as any)?.id;

@@ -9,6 +9,15 @@ export interface DailyActivityReference {
   display_text?: string | null;
   card_id?: string | null;
   file_url?: string | null;
+  file_mime_type?: string | null;
+  card?: {
+    id: string;
+    name: string;
+    list?: {
+      id: string;
+      board?: { id: string; workspace_id?: string; workspaceId?: string } | null;
+    } | null;
+  } | null;
 }
 
 export interface DailyActivityItem {
