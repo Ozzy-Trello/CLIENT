@@ -18,14 +18,19 @@ import {
   setDailyActivityRoleRule,
   setDailyActivityUserOverride,
   submitDailyActivity,
-  uploadDailyActivityImage,
+  uploadDailyActivityAttachment,
   updateDailyActivityManager,
 } from "@api/daily-activity";
+import { searchCards } from "@api/card";
+import { getNotulensiList } from "@api/notulensi";
 import { DailyActivityDay, DailyActivityTab, DailyActivityUser } from "@myTypes/daily-activity";
+import { Card } from "@myTypes/card";
+import { NotulensiSummary } from "@myTypes/notulensi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Checkbox, DatePicker, Input, Select, Spin, Table, Tabs, Tag, TimePicker, Typography, message } from "antd";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
 import { usePermissions } from "@hooks/account";
 import { useCurrentAccount } from "@hooks/account";
 
@@ -40,17 +45,34 @@ const wasSubmittedLate = (row: { work_date: string; submitted_at?: string | null
   const sent = wibDateAndTime(row.submitted_at);
   return sent.date > row.work_date || (sent.date === row.work_date && sent.time > String(row.deadline_time || "17:00").slice(0, 5));
 };
+type PendingReference = { id: string; reference: { type: "link" | "card"; url?: string; display_text?: string; card_id?: string } };
+type PendingAttachment = { id: string; file: File };
+const referenceCardHref = (reference: any, fallbackWorkspaceId: string) => {
+  const card = reference.card;
+  const boardId = card?.list?.board?.id ?? card?.list?.boardId;
+  const listId = card?.list?.id;
+  const workspaceId = card?.list?.board?.workspace_id ?? card?.list?.board?.workspaceId ?? fallbackWorkspaceId;
+  return boardId && listId && workspaceId
+    ? `/workspace/${workspaceId}/board/${boardId}?cardId=${reference.card_id || card.id}&listId=${listId}`
+    : null;
+};
 
 export default function DailyActivityPage() {
+  const routeParams = useParams<{ workspaceId: string }>();
+  const workspaceId = routeParams.workspaceId;
   const [tab, setTab] = useState<DailyActivityTab>("team");
   const [workDate, setWorkDate] = useState(today());
   const [activities, setActivities] = useState<string[]>([""]);
   const [activityIds, setActivityIds] = useState<string[]>([]);
-  const [referenceDrafts, setReferenceDrafts] = useState<Record<number, { url: string; title: string; cardId: string }>>({});
+  const [referenceDrafts, setReferenceDrafts] = useState<Record<number, string>>({});
+  const [pendingReferences, setPendingReferences] = useState<Record<number, PendingReference[]>>({});
+  const [pendingAttachments, setPendingAttachments] = useState<Record<number, PendingAttachment[]>>({});
   const [attachmentBusy, setAttachmentBusy] = useState(false);
+  const [cardSearch, setCardSearch] = useState("");
+  const [taskSearch, setTaskSearch] = useState("");
   const [reportSearch, setReportSearch] = useState("");
   const [divisionFilter, setDivisionFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("");
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [selectedTeamDay, setSelectedTeamDay] = useState<DailyActivityDay | null>(null);
   const [scopeViewerId, setScopeViewerId] = useState<string>();
@@ -70,12 +92,14 @@ export default function DailyActivityPage() {
   const [userOverrideBaseline, setUserOverrideBaseline] = useState<Record<string, "follow_role" | "required" | "exempt">>({});
   const [overrideSearch, setOverrideSearch] = useState("");
   const [overrideRoleFilter, setOverrideRoleFilter] = useState<string>();
+  const [filterStorageReady, setFilterStorageReady] = useState<string | null>(null);
   const [managerByUser, setManagerByUser] = useState<Record<string, string | null>>({});
   const queryClient = useQueryClient();
   const { isSuperAdmin } = usePermissions();
   const accountQuery = useCurrentAccount();
   const currentUserId = accountQuery.data?.data?.id;
   const isAdmin = isSuperAdmin();
+  const activityFilterStorageKey = currentUserId && workspaceId ? `ozzy_daily_activity_filters_${currentUserId}_${workspaceId}` : null;
 
   const accessQuery = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus });
   const reportQuery = useQuery({ queryKey: ["daily-activity-my-report", workDate], queryFn: () => getMyDailyActivity(workDate), enabled: tab === "mine" });
@@ -83,6 +107,36 @@ export default function DailyActivityPage() {
   const detailQuery = useQuery({ queryKey: ["daily-activity-report", selectedReportId], queryFn: () => getDailyActivityReport(selectedReportId!), enabled: !!selectedReportId });
   const structureQuery = useQuery({ queryKey: ["daily-activity-structure"], queryFn: getDailyActivityStructure, enabled: isAdmin && tab === "structure" });
   const configQuery = useQuery({ queryKey: ["daily-activity-configuration"], queryFn: getDailyActivityConfiguration, enabled: isAdmin && ["settings", "structure", "calendar"].includes(tab) });
+  const cardSearchQuery = useQuery({
+    queryKey: ["daily-activity-card-search", cardSearch],
+    queryFn: async () => (await searchCards({ name: cardSearch, description: cardSearch })).data || [],
+    enabled: tab === "mine" && cardSearch.trim().length >= 3,
+  });
+  const taskSearchQuery = useQuery({
+    queryKey: ["daily-activity-task-search", workspaceId, taskSearch],
+    queryFn: () => getNotulensiList(workspaceId, { search: taskSearch, page: 1, limit: 50 }),
+    enabled: tab === "mine" && !!workspaceId && taskSearch.trim().length >= 2,
+  });
+
+  useEffect(() => {
+    if (!activityFilterStorageKey) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem(activityFilterStorageKey) || "{}");
+      setStatusFilter(stored.statusFilter === "all" ? "" : stored.statusFilter || "");
+      setDivisionFilter(stored.divisionFilter || "");
+      setReportSearch(stored.reportSearch || "");
+    } catch {
+      setStatusFilter("");
+      setDivisionFilter("");
+      setReportSearch("");
+    }
+    setFilterStorageReady(activityFilterStorageKey);
+  }, [activityFilterStorageKey]);
+
+  useEffect(() => {
+    if (!activityFilterStorageKey || filterStorageReady !== activityFilterStorageKey) return;
+    localStorage.setItem(activityFilterStorageKey, JSON.stringify({ statusFilter, divisionFilter, reportSearch }));
+  }, [activityFilterStorageKey, divisionFilter, filterStorageReady, reportSearch, statusFilter]);
 
   useEffect(() => {
     if (!configQuery.data) return;
@@ -124,12 +178,51 @@ export default function DailyActivityPage() {
   };
 
   const saveMutation = useMutation({
-    mutationFn: (submit: boolean) => submit
-      ? submitDailyActivity(workDate, activities.map((content, index) => ({ id: activityIds[index] || undefined, content })))
-      : saveDailyActivityDraft(workDate, activities.map((content, index) => ({ id: activityIds[index] || undefined, content }))),
-    onSuccess: (data, submit) => {
-      message.success(submit ? "Daily Activity terkirim" : "Draft tersimpan");
-      setActivityIds(data.activities.map((item) => item.id));
+    mutationFn: async (submit: boolean) => {
+      const report = submit
+        ? await submitDailyActivity(workDate, activities.map((content, index) => ({ id: activityIds[index] || undefined, content })))
+        : await saveDailyActivityDraft(workDate, activities.map((content, index) => ({ id: activityIds[index] || undefined, content })));
+      const failedReferences: Array<{ index: number; pending: PendingReference }> = [];
+      const failedAttachments: Array<{ index: number; pending: PendingAttachment }> = [];
+      for (let index = 0; index < activities.length; index += 1) {
+        const itemId = report.activities.find((item) => item.order === index)?.id;
+        for (const pending of pendingReferences[index] || []) {
+          if (!itemId) {
+            failedReferences.push({ index, pending });
+            continue;
+          }
+          try {
+            await addDailyActivityReference(itemId, pending.reference);
+          } catch {
+            failedReferences.push({ index, pending });
+          }
+        }
+        for (const pending of pendingAttachments[index] || []) {
+          if (!itemId) {
+            failedAttachments.push({ index, pending });
+            continue;
+          }
+          try {
+            await uploadDailyActivityAttachment(itemId, pending.file);
+          } catch {
+            failedAttachments.push({ index, pending });
+          }
+        }
+      }
+      return { report, submit, failedReferences, failedAttachments };
+    },
+    onSuccess: ({ report, submit, failedReferences, failedAttachments }) => {
+      const idsByOrder = new Map(report.activities.map((item) => [item.order, item.id]));
+      setActivityIds(activities.map((_, index) => idsByOrder.get(index) || ""));
+      const failedReferenceIds = new Set(failedReferences.map(({ pending }) => pending.id));
+      const failedAttachmentIds = new Set(failedAttachments.map(({ pending }) => pending.id));
+      setPendingReferences((current) => Object.fromEntries(Object.entries(current).map(([index, items]) => [Number(index), items.filter((item) => failedReferenceIds.has(item.id))])));
+      setPendingAttachments((current) => Object.fromEntries(Object.entries(current).map(([index, items]) => [Number(index), items.filter((item) => failedAttachmentIds.has(item.id))])));
+      if (failedReferences.length || failedAttachments.length) {
+        message.warning(`${submit ? "Daily terkirim" : "Draft tersimpan"}, tetapi ${failedReferences.length + failedAttachments.length} referensi/lampiran gagal ditambahkan. Coba simpan lagi.`);
+      } else {
+        message.success(submit ? "Daily Activity terkirim" : "Draft tersimpan");
+      }
       invalidateFeature();
       void queryClient.invalidateQueries({ queryKey: ["daily-activity-my-report", workDate] });
     },
@@ -150,19 +243,20 @@ export default function DailyActivityPage() {
   });
   const holidayMutation = useMutation({ mutationFn: () => addDailyActivityHoliday(holidayDate, holidayName), onSuccess: () => { setHolidayName(""); message.success("Hari libur ditambahkan"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); } });
   const deleteHolidayMutation = useMutation({ mutationFn: removeDailyActivityHoliday, onSuccess: () => { message.success("Hari libur dihapus"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); } });
-  const referenceMutation = useMutation({ mutationFn: ({ itemId, reference }: { itemId: string; reference: { type: "link" | "card"; url?: string; display_text?: string; card_id?: string } }) => addDailyActivityReference(itemId, reference), onSuccess: () => { message.success("Referensi ditambahkan"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-my-report", workDate] }); if (selectedReportId) void queryClient.invalidateQueries({ queryKey: ["daily-activity-report", selectedReportId] }); } });
   const removeReferenceMutation = useMutation({ mutationFn: ({ itemId, referenceId }: { itemId: string; referenceId: string }) => removeDailyActivityReference(itemId, referenceId), onSuccess: () => { message.success("Lampiran dihapus"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-my-report", workDate] }); if (selectedReportId) void queryClient.invalidateQueries({ queryKey: ["daily-activity-report", selectedReportId] }); } });
   const scopePreviewMutation = useMutation({ mutationFn: previewDailyActivityScope, onSuccess: (result) => { setScopePreview(result.user_ids); setTeamScopePreviewIds(result.user_ids); }, onError: (error: any) => message.error(error?.response?.data?.message || "Gagal memuat cakupan") });
   const lockSimulationMutation = useMutation({ mutationFn: ({ userId, date, time }: { userId: string; date: string; time: string }) => simulateDailyActivityAccess(userId, date, time), onSuccess: setLockSimulation, onError: (error: any) => message.error(error?.response?.data?.message || "Simulasi gagal") });
 
   const users = configQuery.data?.users || [];
+  const cardResults = ((cardSearchQuery.data || []) as Card[]).filter((card) => !card.archive);
+  const taskResults: NotulensiSummary[] = taskSearchQuery.data?.data || [];
   const activityRows = teamQuery.data || [];
   const divisions = Array.from(new Set(activityRows.map((row) => row.role_name).filter(Boolean))) as string[];
   const normalizedSearch = reportSearch.trim().toLowerCase();
   const filteredActivityRows = activityRows.filter((row) => {
     const matchesDivision = !divisionFilter || row.role_name === divisionFilter;
     const matchesSearch = !normalizedSearch || `${row.username} ${row.role_name || ""} ${row.activities.map((item) => item.content).join(" ")}`.toLowerCase().includes(normalizedSearch);
-    const matchesStatus = statusFilter === "all" || (statusFilter === "pending" ? ["missing", "draft"].includes(row.status) : row.status === statusFilter);
+    const matchesStatus = !statusFilter || (statusFilter === "pending" ? ["missing", "draft"].includes(row.status) : row.status === statusFilter);
     const matchesScope = !teamScopePreviewIds || teamScopePreviewIds.includes(row.user_id);
     return matchesDivision && matchesSearch && matchesStatus && matchesScope;
   });
@@ -219,32 +313,72 @@ export default function DailyActivityPage() {
   };
   const uploadActivityImage = async (index: number, file?: File) => {
     const itemId = activityIds[index];
-    if (!file || !itemId) return;
+    if (!file) return;
+    if (file.size > 50 * 1024 * 1024) {
+      message.error("Ukuran file maksimal 50 MB");
+      return;
+    }
+    if (!itemId) {
+      setPendingAttachments((current) => ({
+        ...current,
+        [index]: [...(current[index] || []), { id: crypto.randomUUID(), file }],
+      }));
+      return;
+    }
     setAttachmentBusy(true);
     try {
-      await uploadDailyActivityImage(itemId, file);
+      await uploadDailyActivityAttachment(itemId, file);
       message.success("Attachment ditambahkan");
       await queryClient.invalidateQueries({ queryKey: ["daily-activity-my-report", workDate] });
     } catch (error: any) {
-      message.error(error?.response?.data?.message || error?.message || "Upload gambar gagal");
+      message.error(error?.response?.data?.message || error?.message || "Upload lampiran gagal");
     } finally {
       setAttachmentBusy(false);
     }
   };
-  const saveActivityReference = async (index: number, type: "link" | "card") => {
+  const saveActivityReference = async (index: number, reference: PendingReference["reference"]) => {
     const itemId = activityIds[index];
-    if (!itemId) return message.info("Simpan draft dulu untuk menambahkan referensi.");
-    const draft = referenceDrafts[index] || { url: "", title: "", cardId: "" };
+    if (!itemId) {
+      setPendingReferences((current) => ({
+        ...current,
+        [index]: [...(current[index] || []), { id: crypto.randomUUID(), reference }],
+      }));
+      return;
+    }
     try {
-      await addDailyActivityReference(itemId, type === "link"
-        ? { type, url: draft.url, display_text: draft.title }
-        : { type, card_id: draft.cardId, display_text: draft.title });
-      message.success(type === "link" ? "Link ditambahkan" : "Card ditambahkan");
-      setReferenceDrafts((state) => ({ ...state, [index]: { url: "", title: "", cardId: "" } }));
+      await addDailyActivityReference(itemId, reference);
+      message.success(reference.type === "link" ? "Link ditambahkan" : "Referensi ditambahkan");
       await queryClient.invalidateQueries({ queryKey: ["daily-activity-my-report", workDate] });
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Gagal menambahkan referensi");
     }
+  };
+  const saveLinkDraft = (index: number) => {
+    const [rawUrl, ...labelParts] = (referenceDrafts[index] || "").split("|");
+    const url = rawUrl.trim();
+    if (!/^https?:\/\//i.test(url)) {
+      message.error("Masukkan link yang diawali http:// atau https://");
+      return;
+    }
+    const displayText = labelParts.join("|").trim() || undefined;
+    void saveActivityReference(index, { type: "link", url, display_text: displayText });
+    setReferenceDrafts((current) => ({ ...current, [index]: "" }));
+  };
+  const saveCardReference = (index: number, card: Card, label = card.name) => {
+    void saveActivityReference(index, { type: "card", card_id: card.id, display_text: label });
+    setCardSearch("");
+  };
+  const saveTaskReference = (index: number, task: NotulensiSummary) => {
+    if (task.cardId) {
+      void saveActivityReference(index, { type: "card", card_id: task.cardId, display_text: `${task.code} · ${task.title}` });
+    } else {
+      void saveActivityReference(index, {
+        type: "link",
+        url: `${window.location.origin}/workspace/${workspaceId}/notulensi/${task.id}`,
+        display_text: `${task.code} · ${task.title}`,
+      });
+    }
+    setTaskSearch("");
   };
 
   return (
@@ -257,7 +391,8 @@ export default function DailyActivityPage() {
       #ozdaily .oztoolbar{display:flex;align-items:end;gap:12px;flex-wrap:wrap;padding:16px;background:var(--ozpanel);border:1px solid var(--ozline);border-radius:10px;margin-bottom:16px}#ozdaily .oztoolbar label{flex:1;min-width:130px;font-size:12px}#ozdaily .ozsummary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 13px;font-size:12px}#ozdaily .ozpills{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:15px}#ozdaily .ozpills button{font-size:12px;background:var(--ozpanel);padding:6px 10px;border:1px solid var(--ozline);border-radius:6px}#ozdaily .ozpills button[aria-pressed=true]{border-color:#9bc1ff;background:var(--ozsoft);color:var(--ozblue)}
       #ozdaily .ozpanel{background:var(--ozpanel);border:1px solid var(--ozline);border-radius:10px;padding:18px;margin-bottom:15px}#ozdaily .ozactivity{background:var(--ozbg);border:1px solid var(--ozline);border-radius:8px;padding:15px;margin-bottom:12px}#ozdaily .ozidentity{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:18px}#ozdaily .ozactions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:20px}#ozdaily .oznotice{background:var(--ozsoft);color:#2762a9;border:1px solid #c7dcff;border-radius:6px;padding:10px 13px;font-size:12px;margin-bottom:15px}#ozdaily .ozpolicy{padding:12px 0;border-top:1px solid var(--ozline);font-size:12px}#ozdaily .ozpolicy p{color:var(--ozmuted);margin-top:4px}#ozdaily .ozfooter{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--ozmuted)}#ozdaily .ozgatepanel{display:grid;gap:16px;justify-items:center;text-align:center;padding:40px 20px;background:var(--ozpanel);border:1px solid var(--ozline);border-radius:12px}
       #ozdaily .ozsettinggrid,#ozdaily .ozstructuregrid{display:grid;grid-template-columns:1.2fr 1fr;gap:18px}#ozdaily .ozcheck{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--ozline)}#ozdaily input[type=checkbox]{width:16px;height:16px;accent-color:var(--ozblue)}#ozdaily .ozdays{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}#ozdaily .ozdays .ozday{display:flex;align-items:center;gap:4px;font-size:11px}#ozdaily .ozorgwrap{background:var(--ozpanel);padding:16px;border:1px solid var(--ozline);border-radius:10px;min-width:0}#ozdaily .ozorg ul{list-style:none;margin:0;padding:0}#ozdaily .ozorg ul ul{margin-left:14px;padding-left:18px;border-left:1px solid #cbd2dc}#ozdaily .ozorg li{position:relative;padding-top:10px}#ozdaily .ozorg ul ul>li:before{content:'';position:absolute;left:-18px;top:32px;width:18px;border-top:1px solid #cbd2dc}#ozdaily .ozorgnode{display:flex;flex-direction:column;align-items:flex-start;gap:0;white-space:normal;text-align:left;width:100%;padding:9px 12px;background:var(--ozbg)}#ozdaily .ozorgname{font-size:12px;font-weight:600}#ozdaily .ozorgnode small{font-size:11px}#ozdaily .ozorgnode.ozorgselected{background:var(--ozblue);border-color:var(--ozblue);color:#fff}#ozdaily .ozorgnode.ozorgselected small{color:#e4efff}#ozdaily .ozorgnode.ozorgvisible{background:var(--ozsoft);border-color:#bfd6f7}#ozdaily .ozorgnode.ozorghidden{background:var(--ozbg);color:var(--ozmuted)}#ozdaily .ozaccessrow{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:10px 0;border-top:1px solid var(--ozline);font-size:12px}#ozdaily .ozaccessrow small{display:block;font-size:11px}#ozdaily .ozaccessstate{font-size:11px;white-space:nowrap}#ozdaily .ozallowed{color:var(--ozgreen)}#ozdaily .ozdenied{color:var(--ozmuted)}
-      #ozdaily .ant-table-wrapper{border:1px solid var(--ozline);border-radius:10px;overflow:hidden}#ozdaily .ant-table-thead>tr>th{background:#f3f4f6;color:var(--oztext);font-size:12px;font-weight:500}#ozdaily .ant-table-tbody>tr>td{font-size:12px;vertical-align:top}#ozdaily .ant-alert{border-radius:6px}#ozdaily .ant-input,#ozdaily .ant-picker,#ozdaily .ant-select-selector,#ozdaily .ant-btn{border-radius:6px}
+       #ozdaily .ant-table-wrapper{border:1px solid var(--ozline);border-radius:10px;overflow:hidden}#ozdaily .ant-table-thead>tr>th{background:#f3f4f6;color:var(--oztext);font-size:12px;font-weight:500}#ozdaily .ant-table-tbody>tr>td{font-size:12px;vertical-align:top}#ozdaily .ant-alert{border-radius:6px}#ozdaily .ant-input,#ozdaily .ant-picker,#ozdaily .ant-select-selector,#ozdaily .ant-btn{border-radius:6px}
+      #ozdaily .ozpills button{min-height:44px}#ozdaily .ozpills .ant-btn{height:44px}#ozdaily .ozactivity .ant-select-selector,#ozdaily .ozactivity .ant-input:not(textarea),#ozdaily .ozactivity .ant-btn{min-height:44px}#ozdaily .ozactivity label:focus-within{outline:2px solid var(--ozblue);outline-offset:2px}
       @media(max-width:850px){#ozdaily .ozmain{padding:20px 16px}#ozdaily .ozsettinggrid,#ozdaily .ozstructuregrid{grid-template-columns:1fr}}@media(max-width:650px){#ozdaily .ozmain{padding:15px 12px}#ozdaily .ozheading{align-items:start}#ozdaily h2{font-size:23px}#ozdaily .ozidentity{grid-template-columns:1fr}#ozdaily .oztoolbar{padding:12px}#ozdaily .oztabs button{padding:9px;font-size:12px}#ozdaily .ozorg ul ul{margin-left:7px;padding-left:13px}#ozdaily .ozorg ul ul>li:before{left:-13px;width:13px}}
     `}</style>
     <div id="ozdaily">
@@ -275,9 +410,9 @@ export default function DailyActivityPage() {
         <>
           {simulatedLocked && <Alert type="warning" showIcon message={`Akses terkunci karena Daily Activity tanggal ${simulationSession ? lockSimulation?.oldest_missed_date : accessQuery.data?.oldest_missed_date} belum dikirim.`} />}
           {!simulatedLocked && <nav className="oztabs" role="tablist" aria-label="Daily Activity">
-            <button role="tab" aria-selected={tab === "team"} onClick={() => setTab("team")}>Monitoring Tim</button>
             <button role="tab" aria-selected={tab === "mine"} onClick={() => setTab("mine")}>Daily Saya</button>
-            {isAdmin && <><button role="tab" aria-selected={tab === "settings"} onClick={() => setTab("settings")}>Pengaturan</button><button role="tab" aria-selected={tab === "structure"} onClick={() => setTab("structure")}>Struktur</button><button role="tab" aria-selected={tab === "calendar"} onClick={() => setTab("calendar")}>Hari Libur & Kunci</button></>}
+            <button role="tab" aria-selected={tab === "team"} onClick={() => setTab("team")}>Monitoring Tim</button>
+            {isAdmin && <><button role="tab" aria-selected={tab === "structure"} onClick={() => setTab("structure")}>Struktur</button><button role="tab" aria-selected={tab === "settings" || tab === "calendar"} onClick={() => setTab("settings")}>Pengaturan</button></>}
           </nav>}
         </>
       )}
@@ -295,25 +430,62 @@ export default function DailyActivityPage() {
             {activities.map((content, index) => {
               const activityId = activityIds[index];
               const savedActivity = reportQuery.data?.report?.activities.find((item) => item.id === activityId);
-              const referenceDraft = referenceDrafts[index] || { url: "", title: "", cardId: "" };
-              return <div key={activityId || `new-${index}`} className="ozactivity" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void uploadActivityImage(index, event.dataTransfer.files?.[0]); }} onPaste={(event) => { const file = Array.from(event.clipboardData.files || []).find((item) => item.type.startsWith("image/")); if (file) { event.preventDefault(); void uploadActivityImage(index, file); } }}>
+              const referenceDraft = referenceDrafts[index] || "";
+              const queuedReferences = pendingReferences[index] || [];
+              const queuedAttachments = pendingAttachments[index] || [];
+                return <div key={activityId || `new-${index}`} className="ozactivity" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); Array.from(event.dataTransfer.files || []).forEach((file) => void uploadActivityImage(index, file)); }} onPaste={(event) => { const file = Array.from(event.clipboardData.files || [])[0]; if (file) { event.preventDefault(); void uploadActivityImage(index, file); } }}>
                 <div className="flex gap-2">
                   <Input.TextArea aria-label={`Aktivitas ${index + 1}`} autoSize={{ minRows: 2 }} maxLength={20000} value={content} onChange={(event) => setActivities((items) => items.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder="Tuliskan aktivitas yang dikerjakan..." disabled={saveMutation.isPending} />
-                  <Button danger disabled={activities.length === 1 || saveMutation.isPending} onClick={() => { setActivities((items) => items.filter((_, itemIndex) => itemIndex !== index)); setActivityIds((items) => items.filter((_, itemIndex) => itemIndex !== index)); }}>Hapus</Button>
+                  <Button danger disabled={activities.length === 1 || saveMutation.isPending} onClick={() => {
+                    setActivities((items) => items.filter((_, itemIndex) => itemIndex !== index));
+                    setActivityIds((items) => items.filter((_, itemIndex) => itemIndex !== index));
+                    const shiftIndexes = <T,>(current: Record<number, T>) => Object.fromEntries(Object.entries(current).filter(([key]) => Number(key) !== index).map(([key, value]) => [Number(key) > index ? Number(key) - 1 : Number(key), value])) as Record<number, T>;
+                    setPendingReferences(shiftIndexes);
+                    setPendingAttachments(shiftIndexes);
+                    setReferenceDrafts(shiftIndexes);
+                  }}>Hapus</Button>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                  <label className="cursor-pointer rounded border px-2 py-1 hover:bg-slate-50">Pilih file<input type="file" accept="image/*" className="sr-only" disabled={attachmentBusy || !activityId} onChange={(event) => { void uploadActivityImage(index, event.target.files?.[0]); event.target.value = ""; }} /></label>
-                  <span>Drop gambar atau paste saat menulis · Maks 50 MB/file</span>
+                  <label className="inline-flex min-h-11 cursor-pointer items-center rounded border px-3 py-2 hover:bg-slate-50">Pilih file<input type="file" className="sr-only" disabled={attachmentBusy || saveMutation.isPending} onChange={(event) => { Array.from(event.target.files || []).forEach((file) => void uploadActivityImage(index, file)); event.target.value = ""; }} /></label>
+                  <span>Drop atau paste file saat menulis · Maks 50 MB/file</span>
                 </div>
-                {savedActivity?.references?.length ? <div className="flex flex-wrap gap-2">{savedActivity.references.map((reference) => <span key={reference.id} className="inline-flex items-center gap-1 rounded border border-slate-200 bg-white px-2 py-1">{reference.reference_type === "link" ? <a href={reference.url || "#"} target="_blank" rel="noreferrer">{reference.display_text || reference.url}</a> : reference.reference_type === "file" && reference.file_url ? <a href={reference.file_url} target="_blank" rel="noreferrer"><img className="max-h-28 rounded object-cover" src={reference.file_url} alt={reference.display_text || "Activity attachment"} /></a> : <Tag>{reference.reference_type === "card" ? `Card ${reference.display_text || reference.card_id}` : reference.display_text || "Attachment"}</Tag>}<Button type="text" size="small" danger aria-label="Hapus referensi" loading={removeReferenceMutation.isPending} onClick={() => void removeReferenceMutation.mutateAsync({ itemId: activityId!, referenceId: reference.id }).catch((error: any) => message.error(error?.response?.data?.message || "Gagal menghapus referensi"))}>×</Button></span>)}</div> : null}
-                {activityId && <div className="ozref">
-                  <Input aria-label="Link dokumen atau link lain" placeholder="https:// link dokumen / lainnya" value={referenceDraft.url} onChange={(event) => setReferenceDrafts((state) => ({ ...state, [index]: { ...referenceDraft, url: event.target.value } }))} />
-                  <Input aria-label="Judul link" placeholder="Nama link" value={referenceDraft.title} onChange={(event) => setReferenceDrafts((state) => ({ ...state, [index]: { ...referenceDraft, title: event.target.value } }))} />
-                  <Button disabled={!referenceDraft.url} loading={referenceMutation.isPending} onClick={() => void saveActivityReference(index, "link")}>Tambah Link</Button>
-                  <Input aria-label="Referensi card" placeholder="Card ID" value={referenceDraft.cardId} onChange={(event) => setReferenceDrafts((state) => ({ ...state, [index]: { ...referenceDraft, cardId: event.target.value } }))} />
-                  <span className="self-center text-xs text-slate-500">Referensi card opsional</span>
-                  <Button disabled={!referenceDraft.cardId} loading={referenceMutation.isPending} onClick={() => void saveActivityReference(index, "card")}>Tambah Card</Button>
-                </div>}
+                {(savedActivity?.references?.length || queuedReferences.length || queuedAttachments.length) ? <div className="flex flex-wrap gap-2" aria-label="Lampiran dan referensi aktivitas">
+                  {savedActivity?.references?.map((reference) => {
+                    const cardHref = referenceCardHref(reference, workspaceId);
+                    return <span key={reference.id} className="inline-flex items-center gap-1 rounded border border-slate-200 bg-white px-2 py-1">{reference.reference_type === "link" ? <a href={reference.url || "#"} target="_blank" rel="noreferrer">{reference.display_text || reference.url}</a> : reference.reference_type === "file" && reference.file_url && reference.file_mime_type?.startsWith("image/") ? <a href={reference.file_url} target="_blank" rel="noreferrer"><img className="max-h-28 rounded object-cover" src={reference.file_url} alt={reference.display_text || "Activity attachment"} /></a> : reference.reference_type === "file" && reference.file_url ? <a href={reference.file_url} target="_blank" rel="noreferrer">{reference.display_text || "Unduh lampiran"}</a> : reference.reference_type === "card" && cardHref ? <a href={cardHref}>{reference.display_text || reference.card?.name || reference.card_id}</a> : <Tag>{reference.display_text || reference.card_id || "Attachment"}</Tag>}<Button type="text" size="small" danger aria-label="Hapus referensi" loading={removeReferenceMutation.isPending} onClick={() => void removeReferenceMutation.mutateAsync({ itemId: activityId!, referenceId: reference.id }).catch((error: any) => message.error(error?.response?.data?.message || "Gagal menghapus referensi"))}>×</Button></span>;
+                  })}
+                  {queuedReferences.map((pending) => <span key={pending.id} className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1">{pending.reference.display_text || pending.reference.url || "Card terkait"}<Typography.Text type="secondary">Belum disimpan</Typography.Text><Button type="text" size="small" danger aria-label="Hapus referensi yang belum disimpan" onClick={() => setPendingReferences((current) => ({ ...current, [index]: (current[index] || []).filter((item) => item.id !== pending.id) }))}>×</Button></span>)}
+                  {queuedAttachments.map((pending) => <span key={pending.id} className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1">{pending.file.name}<Typography.Text type="secondary">Belum disimpan</Typography.Text><Button type="text" size="small" danger aria-label={`Hapus lampiran ${pending.file.name}`} onClick={() => setPendingAttachments((current) => ({ ...current, [index]: (current[index] || []).filter((item) => item.id !== pending.id) }))}>×</Button></span>)}
+                </div> : null}
+                <div className="mt-2 grid gap-2">
+                  <div className="flex flex-wrap gap-2"><Input className="min-w-0 flex-1" aria-label="Link dan nama tampilan" placeholder="https://link... | nama link (opsional)" value={referenceDraft} onChange={(event) => setReferenceDrafts((current) => ({ ...current, [index]: event.target.value }))} onPressEnter={saveLinkDraft.bind(null, index)} /><Button disabled={!referenceDraft.trim()} onClick={() => saveLinkDraft(index)}>Tambah Link</Button></div>
+                  <Select
+                    showSearch
+                    filterOption={false}
+                    allowClear
+                    value={undefined}
+                    placeholder="Cari card di board"
+                    searchValue={cardSearch}
+                    onSearch={setCardSearch}
+                    onChange={(cardId) => { const card = cardResults.find((candidate) => candidate.id === cardId); if (card) saveCardReference(index, card); }}
+                    loading={cardSearchQuery.isFetching}
+                    notFoundContent={cardSearch.trim().length < 3 ? "Ketik minimal 3 karakter" : cardSearchQuery.isError ? "Gagal mencari card" : "Card tidak ditemukan"}
+                    options={cardResults.map((card) => ({ value: card.id, label: `${card.name}${card.boardName ? ` · ${card.boardName}` : ""}` }))}
+                  />
+                  <Select
+                    showSearch
+                    filterOption={false}
+                    allowClear
+                    value={undefined}
+                    placeholder="Cari Task / Project"
+                    searchValue={taskSearch}
+                    onSearch={setTaskSearch}
+                    onChange={(taskId) => { const task = taskResults.find((candidate) => candidate.id === taskId); if (task) saveTaskReference(index, task); }}
+                    loading={taskSearchQuery.isFetching}
+                    notFoundContent={taskSearch.trim().length < 2 ? "Ketik minimal 2 karakter" : taskSearchQuery.isError ? "Gagal mencari Task / Project" : "Task / Project tidak ditemukan"}
+                    options={taskResults.map((task) => ({ value: task.id, label: `${task.code} · ${task.title}` }))}
+                  />
+                </div>
               </div>;
             })}
             <div className="ozactions">
@@ -338,7 +510,7 @@ export default function DailyActivityPage() {
               </div>
               {selectedReportId && detailQuery.isLoading ? <Spin /> : selectedReportId && detailQuery.data ? <>
                 <Typography.Title level={4}>{selectedTeamDay.username} · {dayjs(selectedTeamDay.work_date).format("DD MMMM YYYY")}</Typography.Title>
-                {detailQuery.data.activities.map((activity, index) => <article key={activity.id} className="mb-3 rounded-lg border p-3"><Typography.Text type="secondary">Aktivitas {index + 1}</Typography.Text><p className="whitespace-pre-wrap">{activity.content}</p><div className="mt-2 flex flex-wrap gap-2">{activity.references?.map((reference) => reference.reference_type === "link" ? <a key={reference.id} href={reference.url || "#"} target="_blank" rel="noreferrer">{reference.display_text || reference.url}</a> : reference.reference_type === "file" && reference.file_url ? <a key={reference.id} href={reference.file_url} target="_blank" rel="noreferrer"><img className="max-h-28 rounded border object-cover" src={reference.file_url} alt={reference.display_text || "Activity attachment"} /></a> : <Tag key={reference.id}>{reference.display_text || reference.card_id || "Attachment"}</Tag>)}</div></article>)}
+                {detailQuery.data.activities.map((activity, index) => <article key={activity.id} className="mb-3 rounded-lg border p-3"><Typography.Text type="secondary">Aktivitas {index + 1}</Typography.Text><p className="whitespace-pre-wrap">{activity.content}</p><div className="mt-2 flex flex-wrap gap-2">{activity.references?.map((reference) => { const cardHref = referenceCardHref(reference, workspaceId); return reference.reference_type === "link" ? <a key={reference.id} href={reference.url || "#"} target="_blank" rel="noreferrer">{reference.display_text || reference.url}</a> : reference.reference_type === "file" && reference.file_url && reference.file_mime_type?.startsWith("image/") ? <a key={reference.id} href={reference.file_url} target="_blank" rel="noreferrer"><img className="max-h-28 rounded border object-cover" src={reference.file_url} alt={reference.display_text || "Activity attachment"} /></a> : reference.reference_type === "file" && reference.file_url ? <a key={reference.id} href={reference.file_url} target="_blank" rel="noreferrer">{reference.display_text || "Unduh lampiran"}</a> : reference.reference_type === "card" && cardHref ? <a key={reference.id} href={cardHref}>{reference.display_text || reference.card?.name || reference.card_id}</a> : <Tag key={reference.id}>{reference.display_text || reference.card_id || "Attachment"}</Tag>; })}</div></article>)}
                 {detailQuery.data.history?.length ? <details className="mt-4"><summary>Riwayat laporan</summary><ul>{detailQuery.data.history.map((entry, index) => <li key={`${entry.created_at}:${index}`}>{dayjs(entry.created_at).format("DD MMM YYYY HH:mm")} · {entry.action.replaceAll("_", " ")}</li>)}</ul></details> : null}
                 {detailQuery.data.user_id === currentUserId && <Button type="primary" className="mt-3" onClick={() => { setWorkDate(detailQuery.data!.work_date); setTab("mine"); }}>Edit Daily Saya</Button>}
               </> : !selectedTeamDay.report_id ? <><Typography.Title level={4}>{selectedTeamDay.username} · {dayjs(selectedTeamDay.work_date).format("DD MMMM YYYY")}</Typography.Title><Tag color={selectedTeamDay.status === "missing" ? "red" : "default"}>{selectedTeamDay.status === "missing" ? "Belum Isi" : "Tidak Wajib"}</Tag><Typography.Paragraph className="mt-3">{selectedTeamDay.status === "not_required" ? "Tidak ada kewajiban Daily Activity pada tanggal ini." : "Laporan belum diisi."}</Typography.Paragraph></> : null}
@@ -351,7 +523,7 @@ export default function DailyActivityPage() {
               <label className="flex flex-col gap-1 text-xs">Divisi / role<Select allowClear className="min-w-40" placeholder="Semua" value={divisionFilter || undefined} onChange={(value) => setDivisionFilter(value || "")} options={divisions.map((division) => ({ value: division, label: division }))} /></label>
             </div>
             <div className="ozsummary"><strong>Total {statusCounts.all}</strong><span className="ozsep">·</span><span>Sudah Kirim {statusCounts.sent || 0}</span><span className="ozsep">·</span><span>Belum Kirim {rawStatusCounts.pending || 0}</span><span className="ozsep">·</span><span>Terlambat {rawStatusCounts.late || 0}</span><span className="ozsep">·</span><span>Tidak Wajib {rawStatusCounts.not_required || 0}</span></div>
-            <div className="ozpills" aria-label="Filter status laporan">{[["all", "Semua"], ["pending", "Belum Kirim"], ["submitted", "Sudah Kirim"], ["draft", "Draft"], ["missing", "Belum Isi"], ["not_required", "Tidak Wajib"]].map(([value, label]) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value)}>{label}</button>)}</div>
+            <div className="ozpills" aria-label="Filter status laporan">{[["pending", "Belum Kirim"], ["submitted", "Sudah Kirim"], ["not_required", "Tidak Wajib"]].map(([value, label]) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value)}>{label}</button>)}<Button size="small" onClick={() => { setStatusFilter(""); setDivisionFilter(""); setReportSearch(""); }}>Clear Filter</Button></div>
             <div className="oztablewrap"><Table rowKey={(row) => `${row.user_id}:${row.work_date}`} loading={teamQuery.isLoading} dataSource={filteredActivityRows} pagination={{ pageSize: 20 }} columns={[
               { title: "Nama / jabatan", width: "25%", render: (_value, row) => <div><Typography.Text strong>{row.username}</Typography.Text><br /><Typography.Text type="secondary">{row.role_name || "-"}</Typography.Text></div> },
               { title: "Status laporan", width: "20%", dataIndex: "status", render: (value, row) => <div><Tag color={value === "submitted" ? (wasSubmittedLate(row) ? "orange" : "green") : value === "missing" ? "red" : value === "draft" ? "gold" : "default"}>{value === "submitted" ? (wasSubmittedLate(row) ? "Terlambat" : "✓ Sudah Kirim") : value === "missing" ? "Belum Isi" : value === "draft" ? "Draft" : "Tidak Wajib"}</Tag>{row.submitted_at && <div className="mt-1 text-xs text-slate-500">{wasSubmittedLate(row) ? "Terlambat · " : "Dikirim "}{wibDateAndTime(row.submitted_at).time} WIB</div>}</div> },
@@ -387,6 +559,7 @@ export default function DailyActivityPage() {
 
       {tab === "settings" && isAdmin && (
         <section className="flex flex-col gap-6">
+          <Button className="self-start" onClick={() => setTab("calendar")}>Hari Libur & Kunci Akses</Button>
           <div className="ozsettinggrid">
             <section className="ozpanel">
               <Typography.Title level={4}>Siapa yang wajib mengisi?</Typography.Title>
@@ -417,6 +590,7 @@ export default function DailyActivityPage() {
 
       {tab === "calendar" && isAdmin && (
         <section className="flex flex-col gap-4">
+          <Button className="self-start" onClick={() => setTab("settings")}>Kembali ke Pengaturan</Button>
           <Alert type="info" showIcon message="Hari Minggu otomatis libur. Hari libur lainnya dikelola di sini." />
           <div className="flex flex-wrap items-end gap-3 rounded-xl border p-4">
             <label className="flex flex-col gap-1">Tanggal<DatePicker value={dayjs(holidayDate)} onChange={(value) => value && setHolidayDate(value.format("YYYY-MM-DD"))} /></label>
