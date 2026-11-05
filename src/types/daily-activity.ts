@@ -61,11 +61,17 @@ export interface DailyActivityUser {
   username: string;
   role_id: string | null;
   role_name?: string | null;
-  manager_id: string | null;
+}
+
+export interface DailyActivityStructureRole {
+  id: string;
+  name: string;
+  manager_role_id: string | null;
+  members: DailyActivityUser[];
 }
 
 export interface DailyActivityConfiguration {
-  roles: Array<{ id: string; name: string }>;
+  roles: Array<{ id: string; name: string; manager_role_id: string | null }>;
   users: DailyActivityUser[];
   role_rules: Array<{ id: string; role_id: string; is_required: boolean; effective_from: string }>;
   user_overrides: Array<{ id: string; user_id: string; rule: "follow_role" | "required" | "exempt"; effective_from: string }>;

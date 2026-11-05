@@ -19,15 +19,15 @@ import {
   setDailyActivityUserOverride,
   submitDailyActivity,
   uploadDailyActivityAttachment,
-  updateDailyActivityManager,
+  updateDailyActivityRoleManager,
 } from "@api/daily-activity";
 import { searchCards } from "@api/card";
 import { getNotulensiList } from "@api/notulensi";
-import { DailyActivityDay, DailyActivityTab, DailyActivityUser } from "@myTypes/daily-activity";
+import { DailyActivityDay, DailyActivityTab, DailyActivityUser, DailyActivityStructureRole } from "@myTypes/daily-activity";
 import { Card } from "@myTypes/card";
 import { NotulensiSummary } from "@myTypes/notulensi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Checkbox, DatePicker, Input, Select, Spin, Table, Tabs, Tag, TimePicker, Typography, message } from "antd";
+import { Alert, Button, Checkbox, DatePicker, Input, Select, Spin, Table, Tag, TimePicker, Typography, message } from "antd";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
@@ -60,7 +60,7 @@ const referenceCardHref = (reference: any, fallbackWorkspaceId: string) => {
 export default function DailyActivityPage() {
   const routeParams = useParams<{ workspaceId: string }>();
   const workspaceId = routeParams.workspaceId;
-  const [tab, setTab] = useState<DailyActivityTab>("team");
+  const [tab, setTab] = useState<DailyActivityTab>("mine");
   const [workDate, setWorkDate] = useState(today());
   const [activities, setActivities] = useState<string[]>([""]);
   const [activityIds, setActivityIds] = useState<string[]>([]);
@@ -93,7 +93,6 @@ export default function DailyActivityPage() {
   const [overrideSearch, setOverrideSearch] = useState("");
   const [overrideRoleFilter, setOverrideRoleFilter] = useState<string>();
   const [filterStorageReady, setFilterStorageReady] = useState<string | null>(null);
-  const [managerByUser, setManagerByUser] = useState<Record<string, string | null>>({});
   const queryClient = useQueryClient();
   const { isSuperAdmin } = usePermissions();
   const accountQuery = useCurrentAccount();
@@ -122,7 +121,7 @@ export default function DailyActivityPage() {
     if (!activityFilterStorageKey) return;
     try {
       const stored = JSON.parse(localStorage.getItem(activityFilterStorageKey) || "{}");
-      setStatusFilter(stored.statusFilter === "all" ? "" : stored.statusFilter || "");
+      setStatusFilter(["pending", "submitted"].includes(stored.statusFilter) ? stored.statusFilter : "");
       setDivisionFilter(stored.divisionFilter || "");
       setReportSearch(stored.reportSearch || "");
     } catch {
@@ -229,7 +228,7 @@ export default function DailyActivityPage() {
     onError: (error: any) => message.error(error?.response?.data?.message || "Gagal menyimpan Daily Activity"),
   });
 
-  const managerMutation = useMutation({ mutationFn: ({ userId, managerId }: { userId: string; managerId: string | null }) => updateDailyActivityManager(userId, managerId), onSuccess: () => { message.success("Atasan diperbarui"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] }); }, onError: (error: any) => { message.error(error?.response?.data?.message || "Gagal memperbarui atasan"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] }); } });
+  const roleManagerMutation = useMutation({ mutationFn: ({ roleId, managerRoleId }: { roleId: string; managerRoleId: string | null }) => updateDailyActivityRoleManager(roleId, managerRoleId), onSuccess: () => { message.success("Atasan role diperbarui"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] }); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); }, onError: (error: any) => { message.error(error?.response?.data?.message || "Gagal memperbarui atasan role"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] }); } });
   const savePolicyMutation = useMutation({
     mutationFn: async () => {
       await Promise.all([
@@ -250,7 +249,7 @@ export default function DailyActivityPage() {
   const users = configQuery.data?.users || [];
   const cardResults = ((cardSearchQuery.data || []) as Card[]).filter((card) => !card.archive);
   const taskResults: NotulensiSummary[] = taskSearchQuery.data?.data || [];
-  const activityRows = teamQuery.data || [];
+  const activityRows = (teamQuery.data || []).filter((row) => row.status !== "not_required");
   const divisions = Array.from(new Set(activityRows.map((row) => row.role_name).filter(Boolean))) as string[];
   const normalizedSearch = reportSearch.trim().toLowerCase();
   const filteredActivityRows = activityRows.filter((row) => {
@@ -265,11 +264,10 @@ export default function DailyActivityPage() {
     if (row.status === "missing" || row.status === "draft") counts.pending += 1;
     if (wasSubmittedLate(row)) counts.late += 1;
     return counts;
-  }, { submitted: 0, draft: 0, missing: 0, not_required: 0, pending: 0, late: 0 } as Record<string, number>);
+  }, { submitted: 0, draft: 0, missing: 0, pending: 0, late: 0 } as Record<string, number>);
   const statusCounts = { ...rawStatusCounts, all: activityRows.length, sent: rawStatusCounts.submitted || 0 };
   const simulatedLocked = simulationSession ? !!lockSimulation?.locked : !!accessQuery.data?.locked;
   const userOptions = useMemo(() => users.map((user) => ({ value: user.id, label: user.username })), [users]);
-  const managerOptions = useMemo(() => (structureQuery.data || []).map((user) => ({ value: user.id, label: `${user.username}${user.role_name ? ` · ${user.role_name}` : ""}` })), [structureQuery.data]);
   const holidayRows = configQuery.data?.holidays || [];
   const roleRows = configQuery.data?.roles || [];
   const filteredOverrideUsers = users.filter((user) => {
@@ -277,35 +275,39 @@ export default function DailyActivityPage() {
     const matchesSearch = !query || `${user.username} ${user.role_name || ""}`.toLowerCase().includes(query);
     return matchesSearch && (!overrideRoleFilter || user.role_id === overrideRoleFilter);
   });
-  const childrenByManager = useMemo(() => {
-    const result = new Map<string | null, DailyActivityUser[]>();
-    for (const person of structureQuery.data || []) {
-      const managerId = person.manager_id || null;
-      result.set(managerId, [...(result.get(managerId) || []), person]);
+  const structureRoles = structureQuery.data || [];
+  const childrenByRole = useMemo(() => {
+    const result = new Map<string | null, DailyActivityStructureRole[]>();
+    for (const role of structureRoles) {
+      const managerRoleId = role.manager_role_id || null;
+      result.set(managerRoleId, [...(result.get(managerRoleId) || []), role]);
     }
     return result;
-  }, [structureQuery.data]);
-  const getDescendantIds = (userId: string) => {
+  }, [structureRoles]);
+  const getDescendantRoleIds = (roleId: string) => {
     const descendants = new Set<string>();
-    const visit = (managerId: string) => {
-      for (const child of childrenByManager.get(managerId) || []) {
+    const visit = (parentRoleId: string) => {
+      for (const child of childrenByRole.get(parentRoleId) || []) {
         if (descendants.has(child.id)) continue;
         descendants.add(child.id);
         visit(child.id);
       }
     };
-    visit(userId);
+    visit(roleId);
     return descendants;
   };
-  const renderOrgNode = (person: DailyActivityUser, depth = 0, ancestors = new Set<string>()): React.ReactNode => {
-    if (ancestors.has(person.id)) return null;
-    const nextAncestors = new Set(ancestors).add(person.id);
-    const children = childrenByManager.get(person.id) || [];
-    const inScope = scopePreview.includes(person.id);
+  const renderOrgNode = (role: DailyActivityStructureRole, depth = 0, ancestors = new Set<string>()): React.ReactNode => {
+    if (ancestors.has(role.id)) return null;
+    const nextAncestors = new Set(ancestors).add(role.id);
+    const children = childrenByRole.get(role.id) || [];
+    const memberIds = role.members.map((member) => member.id);
+    const viewerId = memberIds[0];
+    const selected = !!scopeViewerId && memberIds.includes(scopeViewerId);
+    const inScope = memberIds.some((id) => scopePreview.includes(id));
     return (
-      <li key={person.id}>
-        <button type="button" className={`ozorgnode ${scopeViewerId === person.id ? "ozorgselected" : inScope ? "ozorgvisible" : "ozorghidden"}`} aria-pressed={scopeViewerId === person.id} onClick={() => { setScopeViewerId(person.id); scopePreviewMutation.mutate(person.id); }} style={{ marginLeft: depth ? 0 : undefined }}>
-          <span className="ozorgname">{person.username}</span><small>{person.role_name || "-"}</small>
+      <li key={role.id}>
+        <button type="button" className={`ozorgnode ${selected ? "ozorgselected" : inScope ? "ozorgvisible" : "ozorghidden"}`} aria-pressed={selected} disabled={!viewerId} onClick={() => { if (viewerId) { setScopeViewerId(viewerId); scopePreviewMutation.mutate(viewerId); } }} style={{ marginLeft: depth ? 0 : undefined }}>
+          <span className="ozorgname">{role.name}</span><small>{role.members.length ? role.members.map((member) => member.username).join(", ") : "Belum ada user"}</small>
         </button>
         {children.length > 0 && <ul>{children.map((child) => renderOrgNode(child, depth + 1, nextAncestors))}</ul>}
       </li>
@@ -397,7 +399,7 @@ export default function DailyActivityPage() {
     `}</style>
     <div id="ozdaily">
     <div className="ozmain flex min-w-0 flex-col gap-4">
-      <div className="ozheading"><div><div className="ozeyebrow">WORKSPACE DAILY ACTIVITY</div><h2>Daily Activity</h2></div><span className="ozdemo">Dev · Data live</span></div>
+      <div className="ozheading"><h2>Daily Activity</h2></div>
       {simulationSession && <div className="flex items-center justify-between gap-2 border-b bg-amber-50 px-4 py-2 text-xs text-amber-900"><span>Simulasi akses · {users.find((user) => user.id === simulationSession.userId)?.username} · {simulationSession.date}, {simulationSession.time} WIB</span><Button size="small" onClick={() => { setSimulationSession(null); setLockSimulation(null); setTeamScopePreviewIds(null); setTab("team"); }}>Akhiri Simulasi</Button></div>}
       {simulatedLocked && tab !== "mine" ? (
         <section className="grid justify-items-center gap-4 rounded-xl border border-red-200 bg-slate-50 px-5 py-10 text-center">
@@ -410,8 +412,8 @@ export default function DailyActivityPage() {
         <>
           {simulatedLocked && <Alert type="warning" showIcon message={`Akses terkunci karena Daily Activity tanggal ${simulationSession ? lockSimulation?.oldest_missed_date : accessQuery.data?.oldest_missed_date} belum dikirim.`} />}
           {!simulatedLocked && <nav className="oztabs" role="tablist" aria-label="Daily Activity">
-            <button role="tab" aria-selected={tab === "mine"} onClick={() => setTab("mine")}>Daily Saya</button>
-            <button role="tab" aria-selected={tab === "team"} onClick={() => setTab("team")}>Monitoring Tim</button>
+            <button role="tab" aria-selected={tab === "mine"} onClick={() => setTab("mine")}>Saya</button>
+            <button role="tab" aria-selected={tab === "team"} onClick={() => setTab("team")}>Tim</button>
             {isAdmin && <><button role="tab" aria-selected={tab === "structure"} onClick={() => setTab("structure")}>Struktur</button><button role="tab" aria-selected={tab === "settings" || tab === "calendar"} onClick={() => setTab("settings")}>Pengaturan</button></>}
           </nav>}
         </>
@@ -419,13 +421,11 @@ export default function DailyActivityPage() {
 
       {tab === "mine" && (
         <section className="flex flex-col gap-4">
-          <Alert className="oznotice" type="info" showIcon message="Catat aktivitas hari ini. Link, card, dan attachment bisa ditambahkan jika diperlukan." />
           <div className="ozidentity">
             <div><Typography.Text type="secondary">Pengisi</Typography.Text><Typography.Title level={4} className="!mb-0">{accountQuery.data?.data?.username || ""}</Typography.Title><Typography.Text type="secondary">{accountQuery.data?.data?.role?.name || ""}</Typography.Text></div>
             <label className="flex flex-col gap-1 text-xs">Tanggal kerja<DatePicker value={dayjs(workDate)} onChange={(value) => value && setWorkDate(value.format("YYYY-MM-DD"))} disabledDate={(date) => date.isAfter(dayjs(), "day")} /></label>
           </div>
           {reportQuery.isLoading ? <Spin /> : <>
-            {!reportQuery.data?.required && <Alert type="info" showIcon message="Pengisian tidak wajib pada tanggal ini" />}
             <div className="mb-1 flex items-center justify-between"><Typography.Title level={4} className="!mb-0">Aktivitas yang dikerjakan</Typography.Title>{reportQuery.data?.report && <Tag color={reportQuery.data.report.status === "submitted" ? "green" : "gold"}>{reportQuery.data.report.status === "submitted" ? "Sudah Kirim" : "Draft"}</Tag>}</div>
             {activities.map((content, index) => {
               const activityId = activityIds[index];
@@ -457,34 +457,34 @@ export default function DailyActivityPage() {
                   {queuedReferences.map((pending) => <span key={pending.id} className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1">{pending.reference.display_text || pending.reference.url || "Card terkait"}<Typography.Text type="secondary">Belum disimpan</Typography.Text><Button type="text" size="small" danger aria-label="Hapus referensi yang belum disimpan" onClick={() => setPendingReferences((current) => ({ ...current, [index]: (current[index] || []).filter((item) => item.id !== pending.id) }))}>×</Button></span>)}
                   {queuedAttachments.map((pending) => <span key={pending.id} className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1">{pending.file.name}<Typography.Text type="secondary">Belum disimpan</Typography.Text><Button type="text" size="small" danger aria-label={`Hapus lampiran ${pending.file.name}`} onClick={() => setPendingAttachments((current) => ({ ...current, [index]: (current[index] || []).filter((item) => item.id !== pending.id) }))}>×</Button></span>)}
                 </div> : null}
-                <div className="mt-2 grid gap-2">
-                  <div className="flex flex-wrap gap-2"><Input className="min-w-0 flex-1" aria-label="Link dan nama tampilan" placeholder="https://link... | nama link (opsional)" value={referenceDraft} onChange={(event) => setReferenceDrafts((current) => ({ ...current, [index]: event.target.value }))} onPressEnter={saveLinkDraft.bind(null, index)} /><Button disabled={!referenceDraft.trim()} onClick={() => saveLinkDraft(index)}>Tambah Link</Button></div>
-                  <Select
+                <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
+                  <div className="flex flex-wrap gap-2 sm:col-span-2"><Input className="min-w-0 flex-1" aria-label="Link dan nama tampilan" placeholder="https://link... | nama link (opsional)" value={referenceDraft} onChange={(event) => setReferenceDrafts((current) => ({ ...current, [index]: event.target.value }))} onPressEnter={saveLinkDraft.bind(null, index)} /><Button disabled={!referenceDraft.trim()} onClick={() => saveLinkDraft(index)}>Tambah Link</Button></div>
+                  <label className="min-w-0 space-y-1"><Typography.Text type="secondary">Card di board</Typography.Text><Select
+                    className="w-full"
                     showSearch
                     filterOption={false}
                     allowClear
                     value={undefined}
                     placeholder="Cari card di board"
-                    searchValue={cardSearch}
                     onSearch={setCardSearch}
                     onChange={(cardId) => { const card = cardResults.find((candidate) => candidate.id === cardId); if (card) saveCardReference(index, card); }}
                     loading={cardSearchQuery.isFetching}
                     notFoundContent={cardSearch.trim().length < 3 ? "Ketik minimal 3 karakter" : cardSearchQuery.isError ? "Gagal mencari card" : "Card tidak ditemukan"}
                     options={cardResults.map((card) => ({ value: card.id, label: `${card.name}${card.boardName ? ` · ${card.boardName}` : ""}` }))}
-                  />
-                  <Select
+                  /></label>
+                  <label className="min-w-0 space-y-1"><Typography.Text type="secondary">Task / Project</Typography.Text><Select
+                    className="w-full"
                     showSearch
                     filterOption={false}
                     allowClear
                     value={undefined}
                     placeholder="Cari Task / Project"
-                    searchValue={taskSearch}
                     onSearch={setTaskSearch}
                     onChange={(taskId) => { const task = taskResults.find((candidate) => candidate.id === taskId); if (task) saveTaskReference(index, task); }}
                     loading={taskSearchQuery.isFetching}
                     notFoundContent={taskSearch.trim().length < 2 ? "Ketik minimal 2 karakter" : taskSearchQuery.isError ? "Gagal mencari Task / Project" : "Task / Project tidak ditemukan"}
                     options={taskResults.map((task) => ({ value: task.id, label: `${task.code} · ${task.title}` }))}
-                  />
+                  /></label>
                 </div>
               </div>;
             })}
@@ -494,7 +494,6 @@ export default function DailyActivityPage() {
               <Button type="primary" onClick={() => saveMutation.mutate(true)} loading={saveMutation.isPending}>{reportQuery.data?.report?.status === "submitted" ? "Simpan Perubahan" : "Kirim Daily"}</Button>
               {reportQuery.data?.report?.status === "submitted" && <Tag color="green">Sudah Kirim</Tag>}
             </div>
-            <Typography.Text type="secondary">Satu Daily per orang per tanggal kerja. Draft belum dianggap sudah mengirim. Edit setelah kirim tetap tercatat dalam riwayat.</Typography.Text>
           </>}
         </section>
       )}
@@ -513,7 +512,7 @@ export default function DailyActivityPage() {
                 {detailQuery.data.activities.map((activity, index) => <article key={activity.id} className="mb-3 rounded-lg border p-3"><Typography.Text type="secondary">Aktivitas {index + 1}</Typography.Text><p className="whitespace-pre-wrap">{activity.content}</p><div className="mt-2 flex flex-wrap gap-2">{activity.references?.map((reference) => { const cardHref = referenceCardHref(reference, workspaceId); return reference.reference_type === "link" ? <a key={reference.id} href={reference.url || "#"} target="_blank" rel="noreferrer">{reference.display_text || reference.url}</a> : reference.reference_type === "file" && reference.file_url && reference.file_mime_type?.startsWith("image/") ? <a key={reference.id} href={reference.file_url} target="_blank" rel="noreferrer"><img className="max-h-28 rounded border object-cover" src={reference.file_url} alt={reference.display_text || "Activity attachment"} /></a> : reference.reference_type === "file" && reference.file_url ? <a key={reference.id} href={reference.file_url} target="_blank" rel="noreferrer">{reference.display_text || "Unduh lampiran"}</a> : reference.reference_type === "card" && cardHref ? <a key={reference.id} href={cardHref}>{reference.display_text || reference.card?.name || reference.card_id}</a> : <Tag key={reference.id}>{reference.display_text || reference.card_id || "Attachment"}</Tag>; })}</div></article>)}
                 {detailQuery.data.history?.length ? <details className="mt-4"><summary>Riwayat laporan</summary><ul>{detailQuery.data.history.map((entry, index) => <li key={`${entry.created_at}:${index}`}>{dayjs(entry.created_at).format("DD MMM YYYY HH:mm")} · {entry.action.replaceAll("_", " ")}</li>)}</ul></details> : null}
                 {detailQuery.data.user_id === currentUserId && <Button type="primary" className="mt-3" onClick={() => { setWorkDate(detailQuery.data!.work_date); setTab("mine"); }}>Edit Daily Saya</Button>}
-              </> : !selectedTeamDay.report_id ? <><Typography.Title level={4}>{selectedTeamDay.username} · {dayjs(selectedTeamDay.work_date).format("DD MMMM YYYY")}</Typography.Title><Tag color={selectedTeamDay.status === "missing" ? "red" : "default"}>{selectedTeamDay.status === "missing" ? "Belum Isi" : "Tidak Wajib"}</Tag><Typography.Paragraph className="mt-3">{selectedTeamDay.status === "not_required" ? "Tidak ada kewajiban Daily Activity pada tanggal ini." : "Laporan belum diisi."}</Typography.Paragraph></> : null}
+              </> : !selectedTeamDay.report_id ? <><Typography.Title level={4}>{selectedTeamDay.username} · {dayjs(selectedTeamDay.work_date).format("DD MMMM YYYY")}</Typography.Title><Tag color="red">Belum Isi</Tag><Typography.Paragraph className="mt-3">Laporan belum diisi.</Typography.Paragraph></> : null}
             </section>
           )}
           {!selectedReportId && <>
@@ -522,12 +521,12 @@ export default function DailyActivityPage() {
               <label className="flex min-w-56 flex-1 flex-col gap-1 text-xs">Nama / aktivitas<Input.Search allowClear placeholder="Cari nama atau isi laporan…" value={reportSearch} onChange={(event) => setReportSearch(event.target.value)} /></label>
               <label className="flex flex-col gap-1 text-xs">Divisi / role<Select allowClear className="min-w-40" placeholder="Semua" value={divisionFilter || undefined} onChange={(value) => setDivisionFilter(value || "")} options={divisions.map((division) => ({ value: division, label: division }))} /></label>
             </div>
-            <div className="ozsummary"><strong>Total {statusCounts.all}</strong><span className="ozsep">·</span><span>Sudah Kirim {statusCounts.sent || 0}</span><span className="ozsep">·</span><span>Belum Kirim {rawStatusCounts.pending || 0}</span><span className="ozsep">·</span><span>Terlambat {rawStatusCounts.late || 0}</span><span className="ozsep">·</span><span>Tidak Wajib {rawStatusCounts.not_required || 0}</span></div>
-            <div className="ozpills" aria-label="Filter status laporan">{[["pending", "Belum Kirim"], ["submitted", "Sudah Kirim"], ["not_required", "Tidak Wajib"]].map(([value, label]) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value)}>{label}</button>)}<Button size="small" onClick={() => { setStatusFilter(""); setDivisionFilter(""); setReportSearch(""); }}>Clear Filter</Button></div>
+            <div className="ozsummary"><strong>Total {statusCounts.all}</strong><span className="ozsep">·</span><span>Sudah Kirim {statusCounts.sent || 0}</span><span className="ozsep">·</span><span>Belum Kirim {rawStatusCounts.pending || 0}</span><span className="ozsep">·</span><span>Terlambat {rawStatusCounts.late || 0}</span></div>
+            <div className="ozpills" aria-label="Filter status laporan">{[["pending", "Belum Kirim"], ["submitted", "Sudah Kirim"]].map(([value, label]) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value)}>{label}</button>)}<Button size="small" onClick={() => { setStatusFilter(""); setDivisionFilter(""); setReportSearch(""); }}>Clear Filter</Button></div>
             <div className="oztablewrap"><Table rowKey={(row) => `${row.user_id}:${row.work_date}`} loading={teamQuery.isLoading} dataSource={filteredActivityRows} pagination={{ pageSize: 20 }} columns={[
               { title: "Nama / jabatan", width: "25%", render: (_value, row) => <div><Typography.Text strong>{row.username}</Typography.Text><br /><Typography.Text type="secondary">{row.role_name || "-"}</Typography.Text></div> },
-              { title: "Status laporan", width: "20%", dataIndex: "status", render: (value, row) => <div><Tag color={value === "submitted" ? (wasSubmittedLate(row) ? "orange" : "green") : value === "missing" ? "red" : value === "draft" ? "gold" : "default"}>{value === "submitted" ? (wasSubmittedLate(row) ? "Terlambat" : "✓ Sudah Kirim") : value === "missing" ? "Belum Isi" : value === "draft" ? "Draft" : "Tidak Wajib"}</Tag>{row.submitted_at && <div className="mt-1 text-xs text-slate-500">{wasSubmittedLate(row) ? "Terlambat · " : "Dikirim "}{wibDateAndTime(row.submitted_at).time} WIB</div>}</div> },
-              { title: "Aktivitas hari ini", width: "39%", render: (_value, row) => row.activities.length ? <div><p className="line-clamp-2">{row.activities[0].content}</p><Typography.Text type="secondary">{row.activities.length} aktivitas</Typography.Text></div> : <Typography.Text type="secondary">{row.status === "not_required" ? "—" : "Belum ada aktivitas tercatat."}</Typography.Text> },
+              { title: "Status laporan", width: "20%", dataIndex: "status", render: (value, row) => <div><Tag color={value === "submitted" ? (wasSubmittedLate(row) ? "orange" : "green") : value === "missing" ? "red" : "gold"}>{value === "submitted" ? (wasSubmittedLate(row) ? "Terlambat" : "✓ Sudah Kirim") : value === "missing" ? "Belum Isi" : "Draft"}</Tag>{row.submitted_at && <div className="mt-1 text-xs text-slate-500">{wasSubmittedLate(row) ? "Terlambat · " : "Dikirim "}{wibDateAndTime(row.submitted_at).time} WIB</div>}</div> },
+              { title: "Aktivitas hari ini", width: "39%", render: (_value, row) => row.activities.length ? <div><p className="line-clamp-2">{row.activities[0].content}</p><Typography.Text type="secondary">{row.activities.length} aktivitas</Typography.Text></div> : <Typography.Text type="secondary">Belum ada aktivitas tercatat.</Typography.Text> },
               { title: "Aksi", width: "16%", render: (_value, row) => <Button type="link" onClick={() => { setSelectedTeamDay(row); setSelectedReportId(row.report_id); }}>{row.report_id ? row.activities.length ? "Lihat Detail" : "Lihat Status" : "Lihat Status"}</Button> },
             ]} /></div>
             <div className="ozfooter"><span>{filteredActivityRows.length} laporan / status ditemukan</span><span>Batas kirim harian: {activityRows[0]?.deadline_time?.slice(0, 5) || "17:00"} WIB</span></div>
@@ -537,23 +536,20 @@ export default function DailyActivityPage() {
 
       {tab === "structure" && isAdmin && (
         <section className="flex flex-col gap-3">
-          <div className="ozrow ozbetween"><div><h3>Struktur Pelaporan</h3><small>Bagan organisasi · klik nama untuk melihat cakupan akses</small></div></div>
+          <div className="ozrow ozbetween"><div><h3>Struktur per Role</h3><small>Atur atasan role; user mengikuti role masing-masing.</small></div></div>
           {structureQuery.isLoading || configQuery.isLoading ? <Spin /> : <div className="ozstructuregrid">
-            <div className="ozorgwrap"><div className="ozorg" aria-label="Bagan organisasi"><ul className="ozorgroot">{(childrenByManager.get(null) || []).map((root) => renderOrgNode(root))}</ul></div></div>
+            <div className="ozorgwrap"><div className="ozorg" aria-label="Struktur role"><ul className="ozorgroot">{(childrenByRole.get(null) || []).map((root) => renderOrgNode(root))}</ul></div></div>
             <section className="ozpanel">
               <div className="ozrow ozbetween"><h3>Cakupan Laporan</h3><label style={{ fontSize: 12 }}>Lihat sebagai<Select aria-label="Simulasi akses sebagai pengguna" showSearch optionFilterProp="label" className="w-56" options={userOptions} value={scopeViewerId} onChange={(userId) => { setScopeViewerId(userId); setScopePreview([]); if (userId) scopePreviewMutation.mutate(userId); }} placeholder="Pilih pengguna" /></label></div>
-              <div className="my-3 text-xs">Atasan dapat melihat diri sendiri dan seluruh bawahan dalam jalurnya. Rekan setingkat dan cabang lain tidak dapat melihat.</div>
+              <div className="my-3 text-xs">Cakupan mengikuti role yang dipilih dan seluruh role di bawahnya.</div>
               <div className="max-h-64 overflow-auto">{users.map((user) => { const allowed = scopePreview.includes(user.id); return <div key={user.id} className="ozaccessrow"><div><span>{user.username}</span><small>{user.role_name || ""}</small></div><span className={`ozaccessstate ${allowed ? "ozallowed" : "ozdenied"}`}>{allowed ? user.id === scopeViewerId ? "✓ Sendiri" : "✓ Bisa lihat" : "Tidak bisa"}</span></div>; })}</div>
               <Button type="primary" style={{ marginTop: 15 }} disabled={!scopePreview.length} onClick={() => { setTeamScopePreviewIds(scopePreview); setSelectedReportId(null); setSelectedTeamDay(null); setTab("team"); }}>Lihat Monitoring dengan Akses Ini</Button>
             </section>
           </div>}
           <details className="rounded-xl border border-slate-200 bg-white p-4">
-            <summary className="cursor-pointer font-semibold">Atur atasan langsung</summary>
-            <Typography.Text type="secondary" className="mt-2 block">Hubungkan setiap orang ke atasannya. Atasan bertingkat ditentukan otomatis dari hubungan ini.</Typography.Text>
-            <div className="mt-3 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr><th className="py-2">Nama / jabatan</th><th className="py-2">Atasan langsung</th></tr></thead><tbody>{users.map((user) => <tr key={user.id} className="border-t"><td className="py-2"><Typography.Text strong>{user.username}</Typography.Text><br/><Typography.Text type="secondary">{user.role_name || "-"}</Typography.Text></td><td className="py-2"><Select aria-label={`Atasan langsung ${user.username}`} allowClear showSearch optionFilterProp="label" className="w-full" options={userOptions.filter((option) => option.value !== user.id && !getDescendantIds(user.id).has(option.value))} value={user.manager_id || undefined} placeholder="Pilih atasan" onChange={(managerId) => managerMutation.mutate({ userId: user.id, managerId: managerId || null })} /></td></tr>)}</tbody></table></div>
-            <Button type="primary" className="mt-3" loading={managerMutation.isPending} onClick={() => void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] })}>Simpan Struktur</Button>
+            <summary className="cursor-pointer font-semibold">Atur atasan role</summary>
+            <div className="mt-3 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr><th className="py-2">Role</th><th className="py-2">Atasan role</th><th className="py-2">User</th></tr></thead><tbody>{structureRoles.map((role) => <tr key={role.id} className="border-t"><td className="py-2 font-medium">{role.name}</td><td className="py-2"><Select aria-label={`Atasan role ${role.name}`} allowClear showSearch optionFilterProp="label" className="w-full" options={roleRows.filter((candidate) => candidate.id !== role.id && !getDescendantRoleIds(role.id).has(candidate.id)).map((candidate) => ({ value: candidate.id, label: candidate.name }))} value={role.manager_role_id || undefined} placeholder="Pilih atasan role" onChange={(managerRoleId) => roleManagerMutation.mutate({ roleId: role.id, managerRoleId: managerRoleId || null })} /></td><td className="py-2">{role.members.length}</td></tr>)}</tbody></table></div>
           </details>
-          <details className="rounded-xl border border-slate-200 bg-white p-4"><summary className="cursor-pointer font-semibold">Aturan akses untuk pengembangan</summary><div className="ozpolicy"><strong>Role menentukan izin; struktur menentukan cakupan</strong><p>Owner/admin berizin khusus dapat melihat semua. Pengguna lain melihat laporan sendiri dan seluruh bawahan dalam jalurnya. Tidak bisa melihat atasan, rekan setingkat, atau cabang lain.</p></div><div className="ozpolicy"><strong>Satu sumber struktur organisasi</strong><p>Simpan atasan langsung di data Members / Struktur Organisasi, lalu gunakan juga di Daily Activity. Kewajiban mengisi terpisah dari hak melihat laporan.</p></div><div className="ozpolicy"><strong>Pemeriksaan akses di server</strong><p>Terapkan batas akses pada daftar, jumlah, pencarian, detail, dan ekspor. Mengetahui URL laporan tidak memberikan akses. Struktur tidak boleh memiliki siklus atau atasan diri sendiri.</p></div></details>
         </section>
       )}
 
@@ -575,8 +571,9 @@ export default function DailyActivityPage() {
             </section>
           </div>
           <section className="ozpanel">
-            <Typography.Title level={4}>Pengecualian per orang</Typography.Title>
-            <Typography.Paragraph type="secondary">Ikuti Role, wajibkan orang tertentu, atau kecualikan. Aturan per orang mengalahkan aturan Role.</Typography.Paragraph>
+            <Typography.Title level={4}>Kewajiban per orang</Typography.Title>
+            <Typography.Paragraph type="secondary">Aturan per orang mengalahkan aturan role.</Typography.Paragraph>
+            <Alert className="mb-3" type="info" showIcon message="Cuti/izin diatur manual: pilih Tidak Wajib mulai tanggal cuti, lalu pilih Ikuti Role kembali pada tanggal masuk." />
             <div className="mb-3 flex flex-wrap gap-2"><Input className="max-w-sm" aria-label="Cari orang" placeholder="Cari nama atau jabatan" value={overrideSearch} onChange={(event) => setOverrideSearch(event.target.value)} /><Select allowClear className="min-w-52" aria-label="Filter role" placeholder="Semua role" value={overrideRoleFilter} onChange={setOverrideRoleFilter} options={roleRows.map((role) => ({ value: role.id, label: role.name }))} /></div>
             <Table rowKey="id" size="small" loading={configQuery.isLoading} dataSource={filteredOverrideUsers} pagination={{ pageSize: 20 }} columns={[
               { title: "Nama / jabatan", render: (_value, user) => <><Typography.Text strong>{user.username}</Typography.Text><br/><Typography.Text type="secondary">{user.role_name || "-"}</Typography.Text></> },
@@ -584,7 +581,6 @@ export default function DailyActivityPage() {
             ]} />
           </section>
           <Button type="primary" className="self-start" loading={savePolicyMutation.isPending} onClick={() => savePolicyMutation.mutate()}>Simpan Pengaturan</Button>
-          <details><summary>Aturan pencatatan & akses</summary><div className="ozpolicy"><strong>Satu daily per orang per tanggal kerja</strong><p>Tambah aktivitas pada laporan yang sama. Draft belum dianggap sudah mengirim. Link/card dan attachment opsional; maksimum 50 MB per file.</p></div><div className="ozpolicy"><strong>Kewajiban mengikuti hari kerja</strong><p>Tidak wajib saat libur atau cuti/izin yang disetujui. Perubahan aturan berlaku mulai tanggal efektif dan tidak mengubah kewajiban historis.</p></div><div className="ozpolicy"><strong>Izin akses tetap dikelola di Roles</strong><p>Pengisi melihat milik sendiri. Atasan melihat seluruh bawahan dalam jalurnya. Owner/admin berizin khusus dapat melihat semua.</p></div><div className="ozpolicy"><strong>Perubahan tetap tercatat</strong><p>Waktu kirim pertama tetap disimpan. Edit setelah dikirim membuat riwayat perubahan, tidak membuat laporan ganda.</p></div></details>
         </section>
       )}
 
@@ -602,14 +598,6 @@ export default function DailyActivityPage() {
             { title: "Aksi", render: (_value, holiday: any) => <Button danger size="small" loading={deleteHolidayMutation.isPending} onClick={() => deleteHolidayMutation.mutate(holiday.id)}>Hapus</Button> },
           ]} />
           <section className="rounded-xl border border-slate-200 bg-white p-4">
-            <Typography.Title level={4}>Aturan Kunci Akses</Typography.Title>
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
-              <div><Typography.Text strong>Setelah batas kirim terlewati</Typography.Text><p>Daily wajib yang belum dikirim mengunci akses pekerjaan, termasuk tunggakan hari kerja sebelumnya.</p></div>
-              <div><Typography.Text strong>Minggu dan hari libur</Typography.Text><p>Tidak membuat kewajiban baru. Draft belum memenuhi kewajiban kirim.</p></div>
-              <div><Typography.Text strong>Daily tetap bisa dibuka</Typography.Text><p>Isi tanggal tertunggak dari yang paling lama. Akses terbuka otomatis setelah semua kewajiban terkirim.</p></div>
-            </div>
-          </section>
-          <section className="rounded-xl border border-slate-200 bg-white p-4">
             <Typography.Title level={4}>Coba Simulasi Kunci</Typography.Title>
             <div className="flex flex-wrap items-end gap-3">
               <label className="flex flex-col gap-1 text-xs">Pengguna<Select showSearch optionFilterProp="label" className="w-56" options={userOptions} value={lockViewerId} onChange={setLockViewerId} placeholder="Pilih pengguna" /></label>
@@ -620,7 +608,6 @@ export default function DailyActivityPage() {
             {lockSimulation && <div className="my-3 text-sm" role="status">{lockSimulation.locked ? `Akan terkunci. Tunggakan tertua: ${lockSimulation.oldest_missed_date}.` : "Akses terbuka pada waktu simulasi."}{lockSimulation.missed_dates?.length ? ` Tanggal tertunggak: ${lockSimulation.missed_dates.join(", ")}.` : ""}</div>}
             {lockSimulation && <Button type="primary" onClick={() => { setSimulationSession({ userId: lockSimulation.user_id, date: lockSimulation.date, time: lockSimulation.time }); if (lockSimulation.locked) { setWorkDate(lockSimulation.oldest_missed_date); setTab("mine"); } else { setScopeViewerId(lockSimulation.user_id); scopePreviewMutation.mutate(lockSimulation.user_id); setTab("team"); } }}>Coba Masuk Aplikasi</Button>}
           </section>
-          <details className="rounded-xl border border-slate-200 bg-white p-4"><summary className="cursor-pointer font-semibold">Aturan teknis untuk tim IT</summary><div className="mt-3 grid gap-3 md:grid-cols-3"><p>Periksa semua tanggal kerja sejak user mulai diwajibkan. Kunci berlaku di seluruh modul dan URL langsung, bukan hanya tombol menu.</p><p>Tanggal kerja berbeda dari waktu kirim. Kiriman terlambat tidak mengubah waktu kirim pertama.</p><p>Minggu otomatis dikecualikan. Libur lain dikelola di Master Hari Libur. Gunakan WIB di server dan simpan riwayat perubahan kalender/kewajiban.</p></div></details>
         </section>
       )}
     </div>

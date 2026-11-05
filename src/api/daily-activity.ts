@@ -5,6 +5,7 @@ import {
   DailyActivityConfiguration,
   DailyActivityDay,
   DailyActivityReport,
+  DailyActivityStructureRole,
   DailyActivityUser,
 } from "@myTypes/daily-activity";
 
@@ -17,7 +18,14 @@ function normalizeUser(value: any): DailyActivityUser {
     ...value,
     role_id: field(value, "role_id", "roleId") ?? null,
     role_name: field(value, "role_name", "roleName") ?? value?.role?.name ?? null,
-    manager_id: field(value, "manager_id", "managerId") ?? null,
+  };
+}
+
+function normalizeStructureRole(value: any): DailyActivityStructureRole {
+  return {
+    ...value,
+    manager_role_id: field(value, "manager_role_id", "managerRoleId") ?? null,
+    members: asArray<any>(value?.members).map(normalizeUser),
   };
 }
 
@@ -116,21 +124,21 @@ export async function getDailyActivityReport(id: string) {
   return normalizeReport(payloadOf(data));
 }
 
-export async function getDailyActivityStructure() {
+export async function getDailyActivityStructure(): Promise<DailyActivityStructureRole[]> {
   const { data } = await api.get("/daily-activity/structure");
-  return asArray<any>(payloadOf(data)).map(normalizeUser);
+  return asArray<any>(payloadOf(data)).map(normalizeStructureRole);
 }
 
-export async function updateDailyActivityManager(userId: string, managerId: string | null) {
-  const { data } = await api.put(`/daily-activity/structure/${userId}`, { manager_id: managerId });
+export async function updateDailyActivityRoleManager(roleId: string, managerRoleId: string | null) {
+  const { data } = await api.put(`/daily-activity/structure/roles/${roleId}`, { manager_role_id: managerRoleId });
   const payload = payloadOf(data);
-  return { user_id: field(payload, "user_id", "userId"), manager_id: field(payload, "manager_id", "managerId") ?? null };
+  return { role_id: field(payload, "role_id", "roleId"), manager_role_id: field(payload, "manager_role_id", "managerRoleId") ?? null };
 }
 
 export async function previewDailyActivityScope(userId: string) {
   const { data } = await api.post("/daily-activity/structure/scope-preview", { user_id: userId });
   const payload = payloadOf(data);
-  return { ...payload, user_ids: asArray<string>(field(payload, "user_ids", "userIds")), users: asArray<any>(payload?.users).map(normalizeUser) } as { viewer: { id: string; username: string }; user_ids: string[]; users: DailyActivityUser[] };
+  return { ...payload, user_ids: asArray<string>(field(payload, "user_ids", "userIds")), users: asArray<any>(payload?.users).map(normalizeUser) } as { viewer: { id: string; username: string; role_id?: string | null }; user_ids: string[]; users: DailyActivityUser[] };
 }
 
 export async function addDailyActivityReference(itemId: string, reference: { type: "link" | "card"; url?: string; display_text?: string; card_id?: string }) {
@@ -147,7 +155,7 @@ export async function getDailyActivityConfiguration() {
   const { data } = await api.get("/daily-activity/configuration");
   const payload = payloadOf(data);
   return {
-    roles: asArray<DailyActivityConfiguration["roles"][number]>(payload?.roles),
+    roles: asArray<any>(payload?.roles).map((role) => ({ ...role, manager_role_id: field(role, "manager_role_id", "managerRoleId") ?? null })),
     users: asArray<any>(payload?.users).map(normalizeUser),
     role_rules: asArray<any>(payload?.role_rules ?? payload?.roleRules).map((rule) => ({ ...rule, role_id: field(rule, "role_id", "roleId"), effective_from: field(rule, "effective_from", "effectiveFrom"), is_required: field(rule, "is_required", "isRequired") })),
     user_overrides: asArray<any>(payload?.user_overrides ?? payload?.userOverrides).map((rule) => ({ ...rule, user_id: field(rule, "user_id", "userId"), effective_from: field(rule, "effective_from", "effectiveFrom") })),
