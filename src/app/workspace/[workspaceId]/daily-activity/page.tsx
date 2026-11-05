@@ -68,6 +68,8 @@ export default function DailyActivityPage() {
   const [roleRequiredDraft, setRoleRequiredDraft] = useState<Record<string, boolean>>({});
   const [userOverrideDrafts, setUserOverrideDrafts] = useState<Record<string, "follow_role" | "required" | "exempt">>({});
   const [userOverrideBaseline, setUserOverrideBaseline] = useState<Record<string, "follow_role" | "required" | "exempt">>({});
+  const [overrideSearch, setOverrideSearch] = useState("");
+  const [overrideRoleFilter, setOverrideRoleFilter] = useState<string>();
   const [managerByUser, setManagerByUser] = useState<Record<string, string | null>>({});
   const queryClient = useQueryClient();
   const { isSuperAdmin } = usePermissions();
@@ -176,6 +178,11 @@ export default function DailyActivityPage() {
   const managerOptions = useMemo(() => (structureQuery.data || []).map((user) => ({ value: user.id, label: `${user.username}${user.role_name ? ` · ${user.role_name}` : ""}` })), [structureQuery.data]);
   const holidayRows = configQuery.data?.holidays || [];
   const roleRows = configQuery.data?.roles || [];
+  const filteredOverrideUsers = users.filter((user) => {
+    const query = overrideSearch.trim().toLowerCase();
+    const matchesSearch = !query || `${user.username} ${user.role_name || ""}`.toLowerCase().includes(query);
+    return matchesSearch && (!overrideRoleFilter || user.role_id === overrideRoleFilter);
+  });
   const childrenByManager = useMemo(() => {
     const result = new Map<string | null, DailyActivityUser[]>();
     for (const person of structureQuery.data || []) {
@@ -397,7 +404,8 @@ export default function DailyActivityPage() {
           <section className="ozpanel">
             <Typography.Title level={4}>Pengecualian per orang</Typography.Title>
             <Typography.Paragraph type="secondary">Ikuti Role, wajibkan orang tertentu, atau kecualikan. Aturan per orang mengalahkan aturan Role.</Typography.Paragraph>
-            <Table rowKey="id" size="small" loading={configQuery.isLoading} dataSource={users} pagination={{ pageSize: 20 }} columns={[
+            <div className="mb-3 flex flex-wrap gap-2"><Input className="max-w-sm" aria-label="Cari orang" placeholder="Cari nama atau jabatan" value={overrideSearch} onChange={(event) => setOverrideSearch(event.target.value)} /><Select allowClear className="min-w-52" aria-label="Filter role" placeholder="Semua role" value={overrideRoleFilter} onChange={setOverrideRoleFilter} options={roleRows.map((role) => ({ value: role.id, label: role.name }))} /></div>
+            <Table rowKey="id" size="small" loading={configQuery.isLoading} dataSource={filteredOverrideUsers} pagination={{ pageSize: 20 }} columns={[
               { title: "Nama / jabatan", render: (_value, user) => <><Typography.Text strong>{user.username}</Typography.Text><br/><Typography.Text type="secondary">{user.role_name || "-"}</Typography.Text></> },
               { title: "Aturan pengisian", render: (_value, user) => <Select className="w-48" value={userOverrideDrafts[user.id] || "follow_role"} onChange={(rule) => setUserOverrideDrafts((state) => ({ ...state, [user.id]: rule }))} options={[{ value: "follow_role", label: "Ikuti Role" }, { value: "required", label: "Wajib" }, { value: "exempt", label: "Tidak Wajib" }]} /> },
             ]} />
