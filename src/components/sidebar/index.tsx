@@ -541,6 +541,10 @@ const Sidebar = () => {
       return [`${baseWorkspacePath}/notulensi`];
     }
 
+    if (pathname?.startsWith(`${baseWorkspacePath}/daily-activity`)) {
+      return [`${baseWorkspacePath}/daily-activity`];
+    }
+
     if (pathname?.startsWith(`${baseWorkspacePath}/board/`) && boardId) {
       return [`${baseWorkspacePath}/board/${boardId}`];
     }
@@ -558,6 +562,7 @@ const Sidebar = () => {
       "aksesoris",
       "automation-dashboard",
       "sessions",
+      "daily-activity",
     ];
 
     const matched = staticPaths.find((segment) =>

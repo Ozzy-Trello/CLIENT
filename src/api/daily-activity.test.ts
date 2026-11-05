@@ -12,7 +12,7 @@ describe("daily activity configuration api", () => {
     mockedApi.get.mockResolvedValue({ data: { data: { roles: [{ id: "role-1", name: "SPV" }] } } } as any);
 
     await expect(getDailyActivityConfiguration()).resolves.toEqual({
-      roles: [{ id: "role-1", name: "SPV" }],
+      roles: [{ id: "role-1", name: "SPV", manager_role_id: null }],
       users: [],
       role_rules: [],
       user_overrides: [],
@@ -29,11 +29,11 @@ describe("daily activity configuration api", () => {
     expect(result.user_overrides).toEqual([{ id: "override-1" }]);
   });
 
-  it("normalizes camelCase scope preview and manager fields before the UI reads them", async () => {
-    mockedApi.post = jest.fn().mockResolvedValue({ data: { data: { userIds: ["user-1"], users: [{ id: "user-1", roleId: "role-1", roleName: "SPV", managerId: null }] } } }) as any;
+  it("normalizes camelCase scope preview and role hierarchy fields", async () => {
+    mockedApi.post = jest.fn().mockResolvedValue({ data: { data: { userIds: ["user-1"], users: [{ id: "user-1", roleId: "role-1", roleName: "SPV" }] } } }) as any;
     const { previewDailyActivityScope, getDailyActivityStructure } = await import("./daily-activity");
     await expect(previewDailyActivityScope("user-1")).resolves.toMatchObject({ user_ids: ["user-1"] });
-    mockedApi.get.mockResolvedValue({ data: { data: [{ id: "user-1", username: "Garry", roleId: "role-1", roleName: "SPV", managerId: null }] } } as any);
-    await expect(getDailyActivityStructure()).resolves.toMatchObject([{ role_id: "role-1", role_name: "SPV", manager_id: null }]);
+    mockedApi.get.mockResolvedValue({ data: { data: [{ id: "role-1", name: "SPV", managerRoleId: "role-2", members: [{ id: "user-1", username: "Garry", roleId: "role-1", roleName: "SPV" }] }] } } as any);
+    await expect(getDailyActivityStructure()).resolves.toMatchObject([{ id: "role-1", manager_role_id: "role-2", members: [{ role_id: "role-1", role_name: "SPV" }] }]);
   });
 });
