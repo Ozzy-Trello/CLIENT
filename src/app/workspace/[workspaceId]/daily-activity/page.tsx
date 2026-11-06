@@ -81,7 +81,7 @@ export default function DailyActivityPage() {
   const [cardSearch, setCardSearch] = useState("");
   const [taskSearch, setTaskSearch] = useState("");
   const [reportSearch, setReportSearch] = useState("");
-  const [divisionFilter, setDivisionFilter] = useState("");
+  const [divisionFilter, setDivisionFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [selectedTeamDay, setSelectedTeamDay] = useState<DailyActivityDay | null>(null);
@@ -138,11 +138,16 @@ export default function DailyActivityPage() {
     try {
       const stored = JSON.parse(localStorage.getItem(activityFilterStorageKey) || "{}");
       setStatusFilter(["pending", "submitted"].includes(stored.statusFilter) ? stored.statusFilter : "");
-      setDivisionFilter(stored.divisionFilter || "");
+      const savedDivisions = Array.isArray(stored.divisionFilter)
+        ? stored.divisionFilter
+        : stored.divisionFilter
+          ? [stored.divisionFilter]
+          : [];
+      setDivisionFilter(savedDivisions.filter((value: unknown): value is string => typeof value === "string"));
       setReportSearch(stored.reportSearch || "");
     } catch {
       setStatusFilter("");
-      setDivisionFilter("");
+      setDivisionFilter([]);
       setReportSearch("");
     }
     setFilterStorageReady(activityFilterStorageKey);
@@ -294,7 +299,7 @@ export default function DailyActivityPage() {
   const divisions = Array.from(new Set(activityRows.map((row) => row.role_name).filter(Boolean))) as string[];
   const normalizedSearch = reportSearch.trim().toLowerCase();
   const filteredActivityRows = activityRows.filter((row) => {
-    const matchesDivision = !divisionFilter || row.role_name === divisionFilter;
+    const matchesDivision = !divisionFilter.length || divisionFilter.includes(row.role_name || "");
     const matchesSearch = !normalizedSearch || `${row.username} ${row.role_name || ""} ${row.activities.map((item) => item.content).join(" ")}`.toLowerCase().includes(normalizedSearch);
     const matchesStatus = !statusFilter || (statusFilter === "pending" ? ["missing", "draft"].includes(row.status) : row.status === statusFilter);
     const matchesScope = !teamScopePreviewIds || teamScopePreviewIds.includes(row.user_id);
@@ -602,10 +607,10 @@ export default function DailyActivityPage() {
             <div className="oztoolbar">
               <label className="flex flex-col gap-1 text-xs">Tanggal kerja<DatePicker value={dayjs(workDate)} onChange={(value) => { if (value) { setWorkDate(value.format("YYYY-MM-DD")); setSelectedReportId(null); setSelectedTeamDay(null); } }} /></label>
               <label className="flex min-w-56 flex-1 flex-col gap-1 text-xs">Nama / aktivitas<Input.Search allowClear placeholder="Cari nama atau isi laporan…" value={reportSearch} onChange={(event) => setReportSearch(event.target.value)} /></label>
-              <label className="flex flex-col gap-1 text-xs">Divisi / role<Select allowClear className="min-w-40" placeholder="Semua" value={divisionFilter || undefined} onChange={(value) => setDivisionFilter(value || "")} options={divisions.map((division) => ({ value: division, label: division }))} /></label>
+              <label className="flex flex-col gap-1 text-xs">Divisi / role<Select mode="multiple" showSearch optionFilterProp="label" allowClear className="min-w-52" placeholder="Semua" value={divisionFilter} onChange={setDivisionFilter} maxTagCount={1} maxTagPlaceholder={(omitted) => `+${omitted.length}`} options={divisions.map((division) => ({ value: division, label: division }))} /></label>
             </div>
             <div className="ozsummary"><strong>Total {statusCounts.all}</strong><span className="ozsep">·</span><span>Sudah Kirim {statusCounts.sent || 0}</span><span className="ozsep">·</span><span>Belum Kirim {rawStatusCounts.pending || 0}</span><span className="ozsep">·</span><span>Terlambat {rawStatusCounts.late || 0}</span>{rawStatusCounts.on_leave ? <><span className="ozsep">·</span><span>Cuti {rawStatusCounts.on_leave}</span></> : null}</div>
-            <div className="ozpills" aria-label="Filter status laporan">{[["pending", "Belum Kirim"], ["submitted", "Sudah Kirim"]].map(([value, label]) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value)}>{label}</button>)}<Button size="small" onClick={() => { setStatusFilter(""); setDivisionFilter(""); setReportSearch(""); }}>Clear Filter</Button></div>
+             <div className="ozpills" aria-label="Filter status laporan">{[["pending", "Belum Kirim"], ["submitted", "Sudah Kirim"]].map(([value, label]) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value)}>{label}</button>)}<Button size="small" onClick={() => { setStatusFilter(""); setDivisionFilter([]); setReportSearch(""); }}>Clear Filter</Button></div>
             <div className="oztablewrap"><Table rowKey={(row) => `${row.user_id}:${row.work_date}`} loading={teamQuery.isLoading} dataSource={filteredActivityRows} pagination={{ pageSize: 20 }} columns={[
               { title: "Nama / jabatan", width: "25%", render: (_value, row) => <div><Typography.Text strong>{row.username}</Typography.Text><br /><Typography.Text type="secondary">{row.role_name || "-"}</Typography.Text></div> },
               { title: "Status laporan", width: "20%", dataIndex: "status", render: (value, row) => <div><Tag color={value === "submitted" ? (wasSubmittedLate(row) ? "orange" : "green") : value === "missing" ? "red" : value === "on_leave" ? "blue" : "gold"}>{value === "submitted" ? (wasSubmittedLate(row) ? "Terlambat" : "✓ Sudah Kirim") : value === "missing" ? "Belum Isi" : value === "on_leave" ? "Cuti" : "Draft"}</Tag>{row.submitted_at && <div className="mt-1 text-xs text-slate-500">{wasSubmittedLate(row) ? "Terlambat · " : "Dikirim "}{wibDateAndTime(row.submitted_at).time} WIB</div>}</div> },
