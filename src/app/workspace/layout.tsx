@@ -1,6 +1,6 @@
 "use client";
 import { ReactNode, useEffect, useState } from "react";
-import { Layout, Menu } from "antd";
+import { Alert, Button, Layout } from "antd";
 import TopBar from "@components/topbar";
 import Sidebar from "@components/sidebar";
 import ChatWidget from "@components/chat/chat-widget";
@@ -10,7 +10,10 @@ import DailyActivityLockBanner from "@components/daily-activity/daily-activity-l
 import { UnreadCommentGate } from "@components/notifications/unread-comment-gate";
 import "./style.css";
 import { useWorkspaceSidebar } from "@providers/workspace-sidebar-context";
-import { usePathname } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { getDailyActivityAccessStatus } from "@api/daily-activity";
 
 const { Header, Content } = Layout;
 
@@ -22,6 +25,12 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
   const [isClient, setIsClient] = useState(false);
   const { collapsed, siderSmall, siderWide } = useWorkspaceSidebar();
   const pathname = usePathname();
+  const router = useRouter();
+  const params = useParams<{ workspaceId: string }>();
+  const workspaceId = params.workspaceId;
+  const accessQuery = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus, retry: false, refetchInterval: 30_000 });
+  const isDailyActivityPage = pathname?.includes("/daily-activity") || false;
+  const shouldRedirectForDaily = accessQuery.data?.locked === true && !isDailyActivityPage;
 
   // Check if current page is a board page (needs overflow hidden for drag & drop)
   const isBoardPage = /^\/workspace\/[^/]+\/board\/[^/]+/.test(pathname);
@@ -29,6 +38,11 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  useEffect(() => {
+    if (!shouldRedirectForDaily || !workspaceId) return;
+    router.replace(`/workspace/${workspaceId}/daily-activity`);
+  }, [router, shouldRedirectForDaily, workspaceId]);
 
   // Don't render the layout during SSR
   if (!isClient) {
@@ -74,7 +88,7 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
             overflow: isBoardPage ? "hidden" : "visible",
             minHeight: isBoardPage ? "auto" : "100%"
           }}>
-            {children}
+            {shouldRedirectForDaily ? <Alert className="m-4" type="warning" showIcon message={`Daily Activity ${accessQuery.data?.oldest_missed_date || "belum terpenuhi"}. Akses menu lain terkunci.`} action={<Link href={`/workspace/${workspaceId}/daily-activity`}><Button size="small">Buka Daily Activity</Button></Link>} /> : children}
           </div>
         </Content>
       </Layout>

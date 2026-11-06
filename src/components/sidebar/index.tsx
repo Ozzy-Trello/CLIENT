@@ -61,6 +61,8 @@ import { Board } from "@myTypes/board";
 import { usePermissions, useCurrentAccount } from "@hooks/account";
 import { useUserBoardOrder } from "@hooks/user-board-order";
 import { useNotulensiList } from "@hooks/notulensi";
+import { useQuery } from "@tanstack/react-query";
+import { getDailyActivityAccessStatus } from "@api/daily-activity";
 
 // Role categorization utility
 const getRoleCategory = (
@@ -126,6 +128,8 @@ const Sidebar = () => {
   const [isFetching, setIsFetching] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [hoveredBoardId, setHoveredBoardId] = useState<number | null>(null);
+  const dailyActivityAccessQuery = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus, retry: false, refetchInterval: 30_000 });
+  const dailyActivityLocked = dailyActivityAccessQuery.data?.locked === true;
 
   const [openCreateBoardModal, setOpenCreateBoardModal] =
     useState<boolean>(false);
@@ -135,7 +139,8 @@ const Sidebar = () => {
   const isDarkMode = useSelector(selectIsDarkMode);
   const { colors } = theme;
   const { boards } = useBoards(
-    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId || ""
+    Array.isArray(workspaceId) ? workspaceId[0] : workspaceId || "",
+    { enabled: !dailyActivityLocked },
   );
   const { canCreate } = usePermissions();
 
@@ -148,7 +153,7 @@ const Sidebar = () => {
     status: ["new", "in_progress", "waiting_review", "revision"],
     page: 1,
     limit: 1,
-  });
+  }, !dailyActivityLocked);
   const assignedNotulensiCount = assignedNotulensi?.pagination.total ?? 0;
 
   // Use user board order hook for drag-and-drop functionality
@@ -260,6 +265,8 @@ const Sidebar = () => {
         icon: <Truck size={16} />,
       },
     ];
+
+    if (dailyActivityLocked) return [menus[2]];
 
     // Show Members and Roles menu to Super Admin
     // Show if we know they're super admin (either from loaded data or if we have user data)
@@ -402,7 +409,7 @@ const Sidebar = () => {
     }
 
     return menus;
-  }, [workspaceId, isSuperAdmin, isLoadingAccount, assignedNotulensiCount]);
+  }, [workspaceId, isSuperAdmin, isLoadingAccount, assignedNotulensiCount, dailyActivityLocked]);
 
   // Check if user can create boards
   const canCreateBoard = canCreate("board");
@@ -454,7 +461,7 @@ const Sidebar = () => {
         const fullMenus: MenuItem[] = [...baseMenus];
 
         // Add header for boards section
-        if (baseMenus.length > 0) {
+        if (baseMenus.length > 0 && !dailyActivityLocked) {
           fullMenus.push({
             key: "menu-your-boards",
             disabled: true,
@@ -524,6 +531,7 @@ const Sidebar = () => {
     isSuperAdmin,
     userRole,
     assignedNotulensiCount,
+    dailyActivityLocked,
   ]);
 
   const selectedKeys = useMemo(() => {
@@ -726,7 +734,7 @@ const Sidebar = () => {
               />
 
               {/* Favorites Section */}
-              {favorites?.length > 0 && (
+              {!dailyActivityLocked && favorites?.length > 0 && (
                 <DragDropContext
                   onDragStart={onDragStart}
                   onDragEnd={onDragEndFavorites}
@@ -842,7 +850,7 @@ const Sidebar = () => {
               )}
 
               {/* Regular Boards Section */}
-              {regulars?.length > 0 && (
+              {!dailyActivityLocked && regulars?.length > 0 && (
                 <DragDropContext
                   onDragStart={onDragStart}
                   onDragEnd={onDragEndRegular}

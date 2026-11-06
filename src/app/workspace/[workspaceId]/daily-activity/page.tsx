@@ -3,16 +3,22 @@
 import {
   addDailyActivityReference,
   addDailyActivityHoliday,
+  createDailyActivityLeaveRequest,
+  decideDailyActivityLeaveRequest,
+  cancelDailyActivityLeaveRequest,
   getDailyActivityAccessStatus,
   getDailyActivityConfiguration,
   getDailyActivityReport,
   getDailyActivityReports,
   getDailyActivityStructure,
+  getMyDailyActivityLeaveRequests,
+  getPendingDailyActivityLeaveRequests,
   previewDailyActivityScope,
   simulateDailyActivityAccess,
   getMyDailyActivity,
   removeDailyActivityHoliday,
   removeDailyActivityReference,
+  renameDailyActivityReference,
   saveDailyActivityDraft,
   setDailyActivityDeadline,
   setDailyActivityRoleRule,
@@ -27,8 +33,8 @@ import { DailyActivityDay, DailyActivityTab, DailyActivityUser, DailyActivityStr
 import { Card } from "@myTypes/card";
 import { NotulensiSummary } from "@myTypes/notulensi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Checkbox, DatePicker, Input, Select, Spin, Table, Tag, TimePicker, Typography, message } from "antd";
-import dayjs from "dayjs";
+import { Alert, Button, Checkbox, DatePicker, Input, Modal, Select, Spin, Table, Tag, TimePicker, Typography, message } from "antd";
+import dayjs, { Dayjs } from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { usePermissions } from "@hooks/account";
@@ -45,6 +51,10 @@ const wasSubmittedLate = (row: { work_date: string; submitted_at?: string | null
   const sent = wibDateAndTime(row.submitted_at);
   return sent.date > row.work_date || (sent.date === row.work_date && sent.time > String(row.deadline_time || "17:00").slice(0, 5));
 };
+const leavePeriod = (start: string, end: string) => start === end
+  ? dayjs(start).format("D MMM YYYY")
+  : `${dayjs(start).format("D MMM YYYY")} – ${dayjs(end).format("D MMM YYYY")}`;
+const leaveStatusLabel = (status: string) => status === "approved" ? "Disetujui" : status === "pending" ? "Menunggu persetujuan" : status === "rejected" ? "Ditolak" : "Dibatalkan";
 type PendingReference = { id: string; reference: { type: "link" | "card"; url?: string; display_text?: string; card_id?: string } };
 type PendingAttachment = { id: string; file: File };
 const referenceCardHref = (reference: any, fallbackWorkspaceId: string) => {
@@ -64,7 +74,8 @@ export default function DailyActivityPage() {
   const [workDate, setWorkDate] = useState(today());
   const [activities, setActivities] = useState<string[]>([""]);
   const [activityIds, setActivityIds] = useState<string[]>([]);
-  const [referenceDrafts, setReferenceDrafts] = useState<Record<number, string>>({});
+  const [editingActivities, setEditingActivities] = useState(false);
+  const [referenceDrafts, setReferenceDrafts] = useState<Record<number, { url: string; name: string }>>({});
   const [pendingReferences, setPendingReferences] = useState<Record<number, PendingReference[]>>({});
   const [pendingAttachments, setPendingAttachments] = useState<Record<number, PendingAttachment[]>>({});
   const [attachmentBusy, setAttachmentBusy] = useState(false);
@@ -83,6 +94,13 @@ export default function DailyActivityPage() {
   const [lockTime, setLockTime] = useState("19:35");
   const [lockSimulation, setLockSimulation] = useState<any>(null);
   const [simulationSession, setSimulationSession] = useState<{ userId: string; date: string; time: string } | null>(null);
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [leaveStart, setLeaveStart] = useState<Dayjs | null>(dayjs(today()));
+  const [leaveEnd, setLeaveEnd] = useState<Dayjs | null>(dayjs(today()));
+  const [leaveNote, setLeaveNote] = useState("");
+  const [leaveDecision, setLeaveDecision] = useState<{ requestId: string; decision: "approved" | "rejected" } | null>(null);
+  const [leaveDecisionNote, setLeaveDecisionNote] = useState("");
+  const [renameTarget, setRenameTarget] = useState<{ itemId: string; referenceId: string; name: string } | null>(null);
   const [holidayName, setHolidayName] = useState("");
   const [holidayDate, setHolidayDate] = useState(today());
   const [effectiveFrom, setEffectiveFrom] = useState(today());
@@ -100,8 +118,10 @@ export default function DailyActivityPage() {
   const isAdmin = isSuperAdmin();
   const activityFilterStorageKey = currentUserId && workspaceId ? `ozzy_daily_activity_filters_${currentUserId}_${workspaceId}` : null;
 
-  const accessQuery = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus });
+  const accessQuery = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus, refetchInterval: 30_000 });
   const reportQuery = useQuery({ queryKey: ["daily-activity-my-report", workDate], queryFn: () => getMyDailyActivity(workDate), enabled: tab === "mine" });
+  const myLeaveRequestsQuery = useQuery({ queryKey: ["daily-activity-leave-requests", "mine"], queryFn: getMyDailyActivityLeaveRequests, enabled: tab === "mine", refetchInterval: 30_000 });
+  const pendingLeaveRequestsQuery = useQuery({ queryKey: ["daily-activity-leave-requests", "inbox"], queryFn: getPendingDailyActivityLeaveRequests, refetchInterval: 30_000 });
   const teamQuery = useQuery({ queryKey: ["daily-activity-reports", workDate], queryFn: () => getDailyActivityReports(workDate, workDate), enabled: tab === "team" });
   const detailQuery = useQuery({ queryKey: ["daily-activity-report", selectedReportId], queryFn: () => getDailyActivityReport(selectedReportId!), enabled: !!selectedReportId });
   const structureQuery = useQuery({ queryKey: ["daily-activity-structure"], queryFn: getDailyActivityStructure, enabled: isAdmin && tab === "structure" });
@@ -166,10 +186,11 @@ export default function DailyActivityPage() {
   }, [configQuery.data, effectiveFrom]);
 
   useEffect(() => {
+    if (editingActivities || !reportQuery.data) return;
     const report = reportQuery.data?.report;
     setActivities(report?.activities?.length ? report.activities.map((item) => item.content) : [""]);
     setActivityIds(report?.activities?.map((item) => item.id) || []);
-  }, [reportQuery.data]);
+  }, [reportQuery.data, editingActivities]);
 
   const invalidateFeature = () => {
     void queryClient.invalidateQueries({ queryKey: ["daily-activity"] });
@@ -215,6 +236,7 @@ export default function DailyActivityPage() {
       setActivityIds(activities.map((_, index) => idsByOrder.get(index) || ""));
       const failedReferenceIds = new Set(failedReferences.map(({ pending }) => pending.id));
       const failedAttachmentIds = new Set(failedAttachments.map(({ pending }) => pending.id));
+      setEditingActivities(false);
       setPendingReferences((current) => Object.fromEntries(Object.entries(current).map(([index, items]) => [Number(index), items.filter((item) => failedReferenceIds.has(item.id))])));
       setPendingAttachments((current) => Object.fromEntries(Object.entries(current).map(([index, items]) => [Number(index), items.filter((item) => failedAttachmentIds.has(item.id))])));
       if (failedReferences.length || failedAttachments.length) {
@@ -242,7 +264,27 @@ export default function DailyActivityPage() {
   });
   const holidayMutation = useMutation({ mutationFn: () => addDailyActivityHoliday(holidayDate, holidayName), onSuccess: () => { setHolidayName(""); message.success("Hari libur ditambahkan"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); } });
   const deleteHolidayMutation = useMutation({ mutationFn: removeDailyActivityHoliday, onSuccess: () => { message.success("Hari libur dihapus"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); } });
+  const createLeaveMutation = useMutation({
+    mutationFn: () => createDailyActivityLeaveRequest({ start_date: leaveStart!.format("YYYY-MM-DD"), end_date: leaveEnd!.format("YYYY-MM-DD"), note: leaveNote }),
+    onSuccess: () => { setLeaveModalOpen(false); setLeaveNote(""); message.success("Pengajuan cuti dikirim ke atasan"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-leave-requests"] }); },
+    onError: (error: any) => message.error(error?.response?.data?.message || "Gagal mengajukan cuti"),
+  });
+  const decideLeaveMutation = useMutation({
+    mutationFn: ({ requestId, decision, note }: { requestId: string; decision: "approved" | "rejected"; note?: string }) => decideDailyActivityLeaveRequest(requestId, decision, note),
+    onSuccess: (_result, variables) => { setLeaveDecision(null); setLeaveDecisionNote(""); message.success(variables.decision === "approved" ? "Cuti disetujui" : "Pengajuan cuti ditolak"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-leave-requests"] }); void queryClient.invalidateQueries({ queryKey: ["daily-activity-reports"] }); void queryClient.invalidateQueries({ queryKey: ["daily-activity-access-status"] }); },
+    onError: (error: any) => message.error(error?.response?.data?.message || "Gagal memproses pengajuan cuti"),
+  });
+  const cancelLeaveMutation = useMutation({
+    mutationFn: cancelDailyActivityLeaveRequest,
+    onSuccess: () => { message.success("Pengajuan cuti dibatalkan"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-leave-requests"] }); },
+    onError: (error: any) => message.error(error?.response?.data?.message || "Gagal membatalkan pengajuan cuti"),
+  });
   const removeReferenceMutation = useMutation({ mutationFn: ({ itemId, referenceId }: { itemId: string; referenceId: string }) => removeDailyActivityReference(itemId, referenceId), onSuccess: () => { message.success("Lampiran dihapus"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-my-report", workDate] }); if (selectedReportId) void queryClient.invalidateQueries({ queryKey: ["daily-activity-report", selectedReportId] }); } });
+  const renameReferenceMutation = useMutation({
+    mutationFn: ({ itemId, referenceId, name }: { itemId: string; referenceId: string; name: string }) => renameDailyActivityReference(itemId, referenceId, name),
+    onSuccess: () => { setRenameTarget(null); message.success("Nama link diperbarui"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-my-report", workDate] }); if (selectedReportId) void queryClient.invalidateQueries({ queryKey: ["daily-activity-report", selectedReportId] }); },
+    onError: (error: any) => message.error(error?.response?.data?.message || "Gagal mengubah nama link"),
+  });
   const scopePreviewMutation = useMutation({ mutationFn: previewDailyActivityScope, onSuccess: (result) => { setScopePreview(result.user_ids); setTeamScopePreviewIds(result.user_ids); }, onError: (error: any) => message.error(error?.response?.data?.message || "Gagal memuat cakupan") });
   const lockSimulationMutation = useMutation({ mutationFn: ({ userId, date, time }: { userId: string; date: string; time: string }) => simulateDailyActivityAccess(userId, date, time), onSuccess: setLockSimulation, onError: (error: any) => message.error(error?.response?.data?.message || "Simulasi gagal") });
 
@@ -250,6 +292,9 @@ export default function DailyActivityPage() {
   const cardResults = ((cardSearchQuery.data || []) as Card[]).filter((card) => !card.archive);
   const taskResults: NotulensiSummary[] = taskSearchQuery.data?.data || [];
   const activityRows = (teamQuery.data || []).filter((row) => row.status !== "not_required");
+  const myLeaveRequests = myLeaveRequestsQuery.data || [];
+  const pendingLeaveRequests = pendingLeaveRequestsQuery.data || [];
+  const activeLeave = myLeaveRequests.find((request) => request.start_date <= workDate && request.end_date >= workDate && ["pending", "approved", "rejected"].includes(request.status));
   const divisions = Array.from(new Set(activityRows.map((row) => row.role_name).filter(Boolean))) as string[];
   const normalizedSearch = reportSearch.trim().toLowerCase();
   const filteredActivityRows = activityRows.filter((row) => {
@@ -263,8 +308,9 @@ export default function DailyActivityPage() {
     counts[row.status] = (counts[row.status] || 0) + 1;
     if (row.status === "missing" || row.status === "draft") counts.pending += 1;
     if (wasSubmittedLate(row)) counts.late += 1;
+    if (row.status === "on_leave") counts.on_leave += 1;
     return counts;
-  }, { submitted: 0, draft: 0, missing: 0, pending: 0, late: 0 } as Record<string, number>);
+  }, { submitted: 0, draft: 0, missing: 0, pending: 0, late: 0, on_leave: 0 } as Record<string, number>);
   const statusCounts = { ...rawStatusCounts, all: activityRows.length, sent: rawStatusCounts.submitted || 0 };
   const simulatedLocked = simulationSession ? !!lockSimulation?.locked : !!accessQuery.data?.locked;
   const userOptions = useMemo(() => users.map((user) => ({ value: user.id, label: user.username })), [users]);
@@ -356,15 +402,14 @@ export default function DailyActivityPage() {
     }
   };
   const saveLinkDraft = (index: number) => {
-    const [rawUrl, ...labelParts] = (referenceDrafts[index] || "").split("|");
-    const url = rawUrl.trim();
+    const draft = referenceDrafts[index] || { url: "", name: "" };
+    const url = draft.url.trim();
     if (!/^https?:\/\//i.test(url)) {
       message.error("Masukkan link yang diawali http:// atau https://");
       return;
     }
-    const displayText = labelParts.join("|").trim() || undefined;
-    void saveActivityReference(index, { type: "link", url, display_text: displayText });
-    setReferenceDrafts((current) => ({ ...current, [index]: "" }));
+    void saveActivityReference(index, { type: "link", url, display_text: draft.name.trim() || undefined });
+    setReferenceDrafts((current) => ({ ...current, [index]: { url: "", name: "" } }));
   };
   const saveCardReference = (index: number, card: Card, label = card.name) => {
     void saveActivityReference(index, { type: "card", card_id: card.id, display_text: label });
@@ -382,7 +427,63 @@ export default function DailyActivityPage() {
     }
     setTaskSearch("");
   };
-
+  const openActivityEditor = (appendActivity: boolean) => {
+    const savedActivities = reportQuery.data?.report?.activities || [];
+    const nextActivities = savedActivities.map((activity) => activity.content);
+    const nextActivityIds = savedActivities.map((activity) => activity.id);
+    if (!savedActivities.length || appendActivity) {
+      nextActivities.push("");
+      nextActivityIds.push("");
+    }
+    setActivities(nextActivities);
+    setActivityIds(nextActivityIds);
+    setPendingReferences({});
+    setPendingAttachments({});
+    setReferenceDrafts({});
+    setEditingActivities(true);
+  };
+  const cancelActivityEdit = () => {
+    const savedActivities = reportQuery.data?.report?.activities || [];
+    setActivities(savedActivities.length ? savedActivities.map((activity) => activity.content) : [""]);
+    setActivityIds(savedActivities.map((activity) => activity.id));
+    setPendingReferences({});
+    setPendingAttachments({});
+    setReferenceDrafts({});
+    setEditingActivities(false);
+  };
+  const runSaveActivities = (submit: boolean) => {
+    if (activities.some((content) => !content.trim())) {
+      message.error("Isi atau hapus semua baris aktivitas sebelum menyimpan.");
+      return;
+    }
+    saveMutation.mutate(submit);
+  };
+  const openLeaveRequest = () => {
+    const baseDate = dayjs(workDate);
+    setLeaveStart(baseDate);
+    setLeaveEnd(baseDate);
+    setLeaveNote("");
+    setLeaveModalOpen(true);
+  };
+  const renderSavedReference = (reference: any, itemId: string) => {
+    const cardHref = referenceCardHref(reference, workspaceId);
+    const isRenaming = renameTarget?.referenceId === reference.id;
+    const display = reference.display_text || reference.card?.name || reference.card_id || reference.url || "Lampiran";
+    return <span key={reference.id} className="inline-flex max-w-full flex-wrap items-center gap-2 rounded border border-slate-200 bg-white px-2 py-1">
+      {reference.reference_type === "file" && reference.file_url && reference.file_mime_type?.startsWith("image/")
+        ? <a href={reference.file_url} target="_blank" rel="noreferrer"><img className="max-h-20 rounded object-cover" src={reference.file_url} alt={display} /></a>
+        : reference.reference_type === "file" && reference.file_url
+          ? <a href={reference.file_url} target="_blank" rel="noreferrer">{display}</a>
+          : reference.reference_type === "card" && cardHref
+            ? <a href={cardHref}>{display}</a>
+            : reference.reference_type === "link"
+              ? <a href={reference.url || "#"} target="_blank" rel="noreferrer">{display}</a>
+              : <Tag>{display}</Tag>}
+      {reference.reference_type === "link" && !isRenaming && <Button size="small" type="text" onClick={() => setRenameTarget({ itemId, referenceId: reference.id, name: reference.display_text || "" })}>Ubah nama</Button>}
+      {isRenaming && <div className="flex min-w-0 flex-1 gap-1"><Input autoFocus aria-label="Nama link" value={renameTarget?.name || ""} onChange={(event) => setRenameTarget((current) => current ? { ...current, name: event.target.value } : current)} /><Button size="small" type="primary" loading={renameReferenceMutation.isPending} onClick={() => renameReferenceMutation.mutate({ itemId, referenceId: reference.id, name: renameTarget?.name || "" })}>Simpan</Button><Button size="small" onClick={() => setRenameTarget(null)}>Batal</Button></div>}
+      <Button size="small" type="text" danger aria-label={`Hapus ${display}`} loading={removeReferenceMutation.isPending} onClick={() => void removeReferenceMutation.mutateAsync({ itemId, referenceId: reference.id }).catch((error: any) => message.error(error?.response?.data?.message || "Gagal menghapus referensi"))}>×</Button>
+    </span>;
+  };
   return (
     <>
     <style jsx global>{`
@@ -413,7 +514,7 @@ export default function DailyActivityPage() {
           {simulatedLocked && <Alert type="warning" showIcon message={`Akses terkunci karena Daily Activity tanggal ${simulationSession ? lockSimulation?.oldest_missed_date : accessQuery.data?.oldest_missed_date} belum dikirim.`} />}
           {!simulatedLocked && <nav className="oztabs" role="tablist" aria-label="Daily Activity">
             <button role="tab" aria-selected={tab === "mine"} onClick={() => setTab("mine")}>Saya</button>
-            <button role="tab" aria-selected={tab === "team"} onClick={() => setTab("team")}>Tim</button>
+            <button role="tab" aria-selected={tab === "team"} onClick={() => setTab("team")}>Tim{pendingLeaveRequests.length > 0 ? ` · ${pendingLeaveRequests.length}` : ""}</button>
             {isAdmin && <><button role="tab" aria-selected={tab === "structure"} onClick={() => setTab("structure")}>Struktur</button><button role="tab" aria-selected={tab === "settings" || tab === "calendar"} onClick={() => setTab("settings")}>Pengaturan</button></>}
           </nav>}
         </>
@@ -423,83 +524,53 @@ export default function DailyActivityPage() {
         <section className="flex flex-col gap-4">
           <div className="ozidentity">
             <div><Typography.Text type="secondary">Pengisi</Typography.Text><Typography.Title level={4} className="!mb-0">{accountQuery.data?.data?.username || ""}</Typography.Title><Typography.Text type="secondary">{accountQuery.data?.data?.role?.name || ""}</Typography.Text></div>
-            <label className="flex flex-col gap-1 text-xs">Tanggal kerja<DatePicker value={dayjs(workDate)} onChange={(value) => value && setWorkDate(value.format("YYYY-MM-DD"))} disabledDate={(date) => date.isAfter(dayjs(), "day")} /></label>
+            <div className="flex flex-wrap items-end justify-between gap-3"><label className="flex flex-col gap-1 text-xs">Tanggal kerja<DatePicker value={dayjs(workDate)} onChange={(value) => value && setWorkDate(value.format("YYYY-MM-DD"))} disabled={editingActivities} disabledDate={(date) => date.isAfter(dayjs(), "day")} /></label><Button disabled={editingActivities} onClick={openLeaveRequest}>Ajukan Cuti</Button></div>
           </div>
+          {activeLeave && <Alert showIcon type={activeLeave.status === "approved" ? "success" : activeLeave.status === "pending" ? "warning" : "error"} message={activeLeave.status === "approved" ? "Cuti disetujui" : activeLeave.status === "pending" ? "Cuti menunggu persetujuan" : "Pengajuan cuti ditolak"} description={activeLeave.status === "approved" ? "Daily Activity tidak wajib pada tanggal ini." : activeLeave.status === "pending" ? "Daily Activity tetap wajib sampai atasan menyetujui pengajuan." : activeLeave.decision_note || "Daily Activity tetap wajib diisi."} />}
           {reportQuery.isLoading ? <Spin /> : <>
-            <div className="mb-1 flex items-center justify-between"><Typography.Title level={4} className="!mb-0">Aktivitas yang dikerjakan</Typography.Title>{reportQuery.data?.report && <Tag color={reportQuery.data.report.status === "submitted" ? "green" : "gold"}>{reportQuery.data.report.status === "submitted" ? "Sudah Kirim" : "Draft"}</Tag>}</div>
-            {activities.map((content, index) => {
-              const activityId = activityIds[index];
-              const savedActivity = reportQuery.data?.report?.activities.find((item) => item.id === activityId);
-              const referenceDraft = referenceDrafts[index] || "";
-              const queuedReferences = pendingReferences[index] || [];
-              const queuedAttachments = pendingAttachments[index] || [];
+            {editingActivities ? <>
+              <div className="mb-1 flex items-center justify-between"><Typography.Title level={4} className="!mb-0">Aktivitas yang dikerjakan</Typography.Title>{reportQuery.data?.report && <Tag color={reportQuery.data.report.status === "submitted" ? "green" : "gold"}>{reportQuery.data.report.status === "submitted" ? "Sudah Kirim" : "Draft"}</Tag>}</div>
+              {activities.map((content, index) => {
+                const activityId = activityIds[index];
+                const savedActivity = reportQuery.data?.report?.activities.find((item) => item.id === activityId);
+                const referenceDraft = referenceDrafts[index] || { url: "", name: "" };
+                const queuedReferences = pendingReferences[index] || [];
+                const queuedAttachments = pendingAttachments[index] || [];
                 return <div key={activityId || `new-${index}`} className="ozactivity" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); Array.from(event.dataTransfer.files || []).forEach((file) => void uploadActivityImage(index, file)); }} onPaste={(event) => { const file = Array.from(event.clipboardData.files || [])[0]; if (file) { event.preventDefault(); void uploadActivityImage(index, file); } }}>
-                <div className="flex gap-2">
-                  <Input.TextArea aria-label={`Aktivitas ${index + 1}`} autoSize={{ minRows: 2 }} maxLength={20000} value={content} onChange={(event) => setActivities((items) => items.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder="Tuliskan aktivitas yang dikerjakan..." disabled={saveMutation.isPending} />
-                  <Button danger disabled={activities.length === 1 || saveMutation.isPending} onClick={() => {
+                  <div className="flex gap-2"><Input.TextArea aria-label={`Aktivitas ${index + 1}`} autoSize={{ minRows: 2 }} maxLength={20000} value={content} onChange={(event) => setActivities((items) => items.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder="Apa yang kamu kerjakan pada tanggal ini?" disabled={saveMutation.isPending} /><Button danger disabled={activities.length === 1 || saveMutation.isPending} onClick={() => {
                     setActivities((items) => items.filter((_, itemIndex) => itemIndex !== index));
                     setActivityIds((items) => items.filter((_, itemIndex) => itemIndex !== index));
                     const shiftIndexes = <T,>(current: Record<number, T>) => Object.fromEntries(Object.entries(current).filter(([key]) => Number(key) !== index).map(([key, value]) => [Number(key) > index ? Number(key) - 1 : Number(key), value])) as Record<number, T>;
                     setPendingReferences(shiftIndexes);
                     setPendingAttachments(shiftIndexes);
                     setReferenceDrafts(shiftIndexes);
-                  }}>Hapus</Button>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                  <label className="inline-flex min-h-11 cursor-pointer items-center rounded border px-3 py-2 hover:bg-slate-50">Pilih file<input type="file" className="sr-only" disabled={attachmentBusy || saveMutation.isPending} onChange={(event) => { Array.from(event.target.files || []).forEach((file) => void uploadActivityImage(index, file)); event.target.value = ""; }} /></label>
-                  <span>Drop atau paste file saat menulis · Maks 50 MB/file</span>
-                </div>
-                {(savedActivity?.references?.length || queuedReferences.length || queuedAttachments.length) ? <div className="flex flex-wrap gap-2" aria-label="Lampiran dan referensi aktivitas">
-                  {savedActivity?.references?.map((reference) => {
-                    const cardHref = referenceCardHref(reference, workspaceId);
-                    return <span key={reference.id} className="inline-flex items-center gap-1 rounded border border-slate-200 bg-white px-2 py-1">{reference.reference_type === "link" ? <a href={reference.url || "#"} target="_blank" rel="noreferrer">{reference.display_text || reference.url}</a> : reference.reference_type === "file" && reference.file_url && reference.file_mime_type?.startsWith("image/") ? <a href={reference.file_url} target="_blank" rel="noreferrer"><img className="max-h-28 rounded object-cover" src={reference.file_url} alt={reference.display_text || "Activity attachment"} /></a> : reference.reference_type === "file" && reference.file_url ? <a href={reference.file_url} target="_blank" rel="noreferrer">{reference.display_text || "Unduh lampiran"}</a> : reference.reference_type === "card" && cardHref ? <a href={cardHref}>{reference.display_text || reference.card?.name || reference.card_id}</a> : <Tag>{reference.display_text || reference.card_id || "Attachment"}</Tag>}<Button type="text" size="small" danger aria-label="Hapus referensi" loading={removeReferenceMutation.isPending} onClick={() => void removeReferenceMutation.mutateAsync({ itemId: activityId!, referenceId: reference.id }).catch((error: any) => message.error(error?.response?.data?.message || "Gagal menghapus referensi"))}>×</Button></span>;
-                  })}
-                  {queuedReferences.map((pending) => <span key={pending.id} className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1">{pending.reference.display_text || pending.reference.url || "Card terkait"}<Typography.Text type="secondary">Belum disimpan</Typography.Text><Button type="text" size="small" danger aria-label="Hapus referensi yang belum disimpan" onClick={() => setPendingReferences((current) => ({ ...current, [index]: (current[index] || []).filter((item) => item.id !== pending.id) }))}>×</Button></span>)}
-                  {queuedAttachments.map((pending) => <span key={pending.id} className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1">{pending.file.name}<Typography.Text type="secondary">Belum disimpan</Typography.Text><Button type="text" size="small" danger aria-label={`Hapus lampiran ${pending.file.name}`} onClick={() => setPendingAttachments((current) => ({ ...current, [index]: (current[index] || []).filter((item) => item.id !== pending.id) }))}>×</Button></span>)}
-                </div> : null}
-                <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
-                  <div className="flex flex-wrap gap-2 sm:col-span-2"><Input className="min-w-0 flex-1" aria-label="Link dan nama tampilan" placeholder="https://link... | nama link (opsional)" value={referenceDraft} onChange={(event) => setReferenceDrafts((current) => ({ ...current, [index]: event.target.value }))} onPressEnter={saveLinkDraft.bind(null, index)} /><Button disabled={!referenceDraft.trim()} onClick={() => saveLinkDraft(index)}>Tambah Link</Button></div>
-                  <label className="min-w-0 space-y-1"><Typography.Text type="secondary">Card di board</Typography.Text><Select
-                    className="w-full"
-                    showSearch
-                    filterOption={false}
-                    allowClear
-                    value={undefined}
-                    placeholder="Cari card di board"
-                    onSearch={setCardSearch}
-                    onChange={(cardId) => { const card = cardResults.find((candidate) => candidate.id === cardId); if (card) saveCardReference(index, card); }}
-                    loading={cardSearchQuery.isFetching}
-                    notFoundContent={cardSearch.trim().length < 3 ? "Ketik minimal 3 karakter" : cardSearchQuery.isError ? "Gagal mencari card" : "Card tidak ditemukan"}
-                    options={cardResults.map((card) => ({ value: card.id, label: `${card.name}${card.boardName ? ` · ${card.boardName}` : ""}` }))}
-                  /></label>
-                  <label className="min-w-0 space-y-1"><Typography.Text type="secondary">Task / Project</Typography.Text><Select
-                    className="w-full"
-                    showSearch
-                    filterOption={false}
-                    allowClear
-                    value={undefined}
-                    placeholder="Cari Task / Project"
-                    onSearch={setTaskSearch}
-                    onChange={(taskId) => { const task = taskResults.find((candidate) => candidate.id === taskId); if (task) saveTaskReference(index, task); }}
-                    loading={taskSearchQuery.isFetching}
-                    notFoundContent={taskSearch.trim().length < 2 ? "Ketik minimal 2 karakter" : taskSearchQuery.isError ? "Gagal mencari Task / Project" : "Task / Project tidak ditemukan"}
-                    options={taskResults.map((task) => ({ value: task.id, label: `${task.code} · ${task.title}` }))}
-                  /></label>
-                </div>
-              </div>;
-            })}
-            <div className="ozactions">
-              <Button onClick={() => { setActivities((items) => [...items, ""]); setActivityIds((items) => [...items, ""]); }} disabled={saveMutation.isPending}>Tambah Aktivitas</Button>
-              {reportQuery.data?.report?.status !== "submitted" && <Button onClick={() => saveMutation.mutate(false)} loading={saveMutation.isPending}>Simpan Draft</Button>}
-              <Button type="primary" onClick={() => saveMutation.mutate(true)} loading={saveMutation.isPending}>{reportQuery.data?.report?.status === "submitted" ? "Simpan Perubahan" : "Kirim Daily"}</Button>
-              {reportQuery.data?.report?.status === "submitted" && <Tag color="green">Sudah Kirim</Tag>}
-            </div>
+                  }}>Hapus</Button></div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500"><label className="inline-flex min-h-11 cursor-pointer items-center rounded border px-3 py-2 hover:bg-slate-50">+ Lampiran<input type="file" multiple className="sr-only" disabled={attachmentBusy || saveMutation.isPending} onChange={(event) => { Array.from(event.target.files || []).forEach((file) => void uploadActivityImage(index, file)); event.target.value = ""; }} /></label><span>Drag & drop atau paste · Maks 50 MB/file</span></div>
+                  {(savedActivity?.references?.length || queuedReferences.length || queuedAttachments.length) ? <div className="flex flex-wrap gap-2" aria-label="Lampiran dan referensi aktivitas">{savedActivity?.references?.map((reference) => renderSavedReference(reference, activityId!))}{queuedReferences.map((pending) => <span key={pending.id} className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1">{pending.reference.display_text || pending.reference.url || "Card terkait"}<Typography.Text type="secondary">Belum disimpan</Typography.Text><Button type="text" size="small" danger aria-label="Hapus referensi yang belum disimpan" onClick={() => setPendingReferences((current) => ({ ...current, [index]: (current[index] || []).filter((item) => item.id !== pending.id) }))}>×</Button></span>)}{queuedAttachments.map((pending) => <span key={pending.id} className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1">{pending.file.name}<Typography.Text type="secondary">Belum disimpan</Typography.Text><Button type="text" size="small" danger aria-label={`Hapus lampiran ${pending.file.name}`} onClick={() => setPendingAttachments((current) => ({ ...current, [index]: (current[index] || []).filter((item) => item.id !== pending.id) }))}>×</Button></span>)}</div> : null}
+                  <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
+                    <section className="grid min-w-0 gap-2 rounded border bg-slate-50 p-3 sm:col-span-2"><Typography.Text strong>Tambah tautan</Typography.Text><div className="grid min-w-0 gap-2 sm:grid-cols-[1fr_1fr_auto]"><Input aria-label="Alamat tautan" placeholder="https://..." value={referenceDraft.url} onChange={(event) => setReferenceDrafts((current) => ({ ...current, [index]: { ...referenceDraft, url: event.target.value } }))} onPressEnter={() => saveLinkDraft(index)} /><Input aria-label="Nama tautan opsional" placeholder="Nama tautan (opsional)" value={referenceDraft.name} onChange={(event) => setReferenceDrafts((current) => ({ ...current, [index]: { ...referenceDraft, name: event.target.value } }))} onPressEnter={() => saveLinkDraft(index)} /><Button disabled={!referenceDraft.url.trim()} onClick={() => saveLinkDraft(index)}>Tambah</Button></div></section>
+                    <label className="min-w-0 space-y-1"><Typography.Text type="secondary">Card di board</Typography.Text><Select className="w-full" showSearch filterOption={false} allowClear value={undefined} placeholder="Cari card di board" onSearch={setCardSearch} onChange={(cardId) => { const card = cardResults.find((candidate) => candidate.id === cardId); if (card) saveCardReference(index, card); }} loading={cardSearchQuery.isFetching} notFoundContent={cardSearch.trim().length < 3 ? "Ketik minimal 3 karakter" : cardSearchQuery.isError ? "Gagal mencari card" : "Card tidak ditemukan"} options={cardResults.map((card) => ({ value: card.id, label: `${card.name}${card.boardName ? ` · ${card.boardName}` : ""}` }))} /></label>
+                    <label className="min-w-0 space-y-1"><Typography.Text type="secondary">Task / Project</Typography.Text><Select className="w-full" showSearch filterOption={false} allowClear value={undefined} placeholder="Cari Task / Project" onSearch={setTaskSearch} onChange={(taskId) => { const task = taskResults.find((candidate) => candidate.id === taskId); if (task) saveTaskReference(index, task); }} loading={taskSearchQuery.isFetching} notFoundContent={taskSearch.trim().length < 2 ? "Ketik minimal 2 karakter" : taskSearchQuery.isError ? "Gagal mencari Task / Project" : "Task / Project tidak ditemukan"} options={taskResults.map((task) => ({ value: task.id, label: `${task.code} · ${task.title}` }))} /></label>
+                  </div>
+                </div>;
+              })}
+              <div className="ozactions"><Button onClick={() => { setActivities((items) => [...items, ""]); setActivityIds((items) => [...items, ""]); }} disabled={saveMutation.isPending}>+ Aktivitas</Button><Button onClick={cancelActivityEdit} disabled={saveMutation.isPending}>Batal</Button>{reportQuery.data?.report?.status !== "submitted" && <Button onClick={() => runSaveActivities(false)} loading={saveMutation.isPending}>Simpan Draft</Button>}<Button type="primary" onClick={() => runSaveActivities(true)} loading={saveMutation.isPending}>{reportQuery.data?.report?.status === "submitted" ? "Simpan Perubahan" : "Simpan Aktivitas"}</Button></div>
+            </> : <>
+              <div className="mb-1 flex items-center justify-between"><div><Typography.Title level={4} className="!mb-0">Aktivitas saya</Typography.Title><Typography.Text type="secondary">{dayjs(workDate).format("dddd, D MMMM YYYY")}</Typography.Text></div>{reportQuery.data?.report && <Tag color={reportQuery.data.report.status === "submitted" ? "green" : "gold"}>{reportQuery.data.report.status === "submitted" ? "Sudah Kirim" : "Draft"}</Tag>}</div>
+              {reportQuery.data?.report?.activities.length ? <><div className="grid gap-3">{reportQuery.data.report.activities.map((activity, index) => <article key={activity.id} className="rounded-lg border bg-white p-4"><div className="mb-2 flex gap-3"><span className="text-sm text-slate-500">{index + 1}.</span><p className="whitespace-pre-wrap">{activity.content}</p></div>{activity.references?.length ? <div className="flex flex-wrap gap-2">{activity.references.map((reference) => renderSavedReference(reference, activity.id))}</div> : null}</article>)}</div>{activeLeave?.status !== "approved" && <div className="flex flex-wrap gap-2"><Button type="primary" onClick={() => openActivityEditor(true)}>+ Catat Aktivitas</Button><Button onClick={() => openActivityEditor(false)}>Edit Aktivitas</Button></div>}</> : activeLeave?.status === "approved" ? <div className="quiet">Cuti disetujui. Tidak perlu mencatat aktivitas.</div> : <div className="grid justify-items-center gap-3 rounded-lg border border-dashed p-8 text-center"><h3>Belum ada aktivitas yang dicatat</h3><p className="text-slate-500">Pilih tanggal dan catat aktivitas yang dikerjakan.</p><Button type="primary" onClick={() => openActivityEditor(false)}>+ Catat Aktivitas</Button></div>}
+              {myLeaveRequests.length > 0 && <section className="rounded-lg border p-4"><Typography.Text strong>Pengajuan cuti saya</Typography.Text><div className="mt-2 grid gap-2">{myLeaveRequests.map((request) => <div key={request.id} className="flex flex-wrap items-center justify-between gap-2 border-t pt-2"><div><span>{leavePeriod(request.start_date, request.end_date)}</span><Tag className="ml-2" color={request.status === "approved" ? "green" : request.status === "pending" ? "gold" : request.status === "rejected" ? "red" : "default"}>{leaveStatusLabel(request.status)}</Tag><Typography.Text className="ml-2" type="secondary">{request.approver_role_name ? `Atasan: ${request.approver_role_name}` : "Atasan: Super Admin"}</Typography.Text>{request.note && <div className="mt-1 text-sm">{request.note}</div>}{request.decision_note && <div className="mt-1 text-sm text-slate-500">Catatan: {request.decision_note}</div>}</div>{request.status === "pending" && <Button danger size="small" loading={cancelLeaveMutation.isPending} onClick={() => cancelLeaveMutation.mutate(request.id)}>Batalkan</Button>}</div>)}</div></section>}
+              {myLeaveRequests.length > 0 && <section className="rounded-lg border p-4"><Typography.Text strong>Riwayat pengajuan cuti</Typography.Text><div className="mt-2 grid gap-2">{myLeaveRequests.map((request) => <div key={request.id} className="flex flex-wrap items-center justify-between gap-2 border-t pt-2"><span>{dayjs(request.start_date).format("D MMM YYYY")} – {dayjs(request.end_date).format("D MMM YYYY")}</span><Tag color={request.status === "approved" ? "green" : request.status === "pending" ? "gold" : request.status === "rejected" ? "red" : "default"}>{request.status === "approved" ? "Disetujui" : request.status === "pending" ? "Menunggu persetujuan" : request.status === "rejected" ? "Ditolak" : "Dibatalkan"}</Tag></div>)}</div></section>}
+            </>}
           </>}
         </section>
       )}
 
       {tab === "team" && (
         <section className="flex flex-col gap-3">
+          {!selectedTeamDay && <section className="rounded-lg border bg-white p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><Typography.Title level={4} className="!mb-0">Persetujuan cuti</Typography.Title><Tag>{pendingLeaveRequests.length} menunggu</Tag></div>
+            {pendingLeaveRequestsQuery.isLoading ? <Spin /> : pendingLeaveRequestsQuery.isError ? <Alert type="error" showIcon message="Pengajuan cuti gagal dimuat. Coba muat ulang halaman." /> : pendingLeaveRequests.length ? <div className="grid gap-3">{pendingLeaveRequests.map((request) => <article key={request.id} className="rounded border p-3"><div className="flex flex-wrap items-start justify-between gap-3"><div><Typography.Text strong>{request.employee_name}</Typography.Text><Typography.Text type="secondary" className="ml-2">{request.employee_role_name || ""}</Typography.Text><div className="mt-1">{leavePeriod(request.start_date, request.end_date)}</div>{request.note && <Typography.Paragraph className="!mb-0 !mt-2">{request.note}</Typography.Paragraph>}</div><div className="flex gap-2"><Button disabled={decideLeaveMutation.isPending} onClick={() => { setLeaveDecision({ requestId: request.id, decision: "rejected" }); setLeaveDecisionNote(""); }}>Tolak</Button><Button type="primary" disabled={decideLeaveMutation.isPending} onClick={() => { setLeaveDecision({ requestId: request.id, decision: "approved" }); setLeaveDecisionNote(""); }}>Setujui</Button></div></div></article>)}</div> : <Typography.Text type="secondary">Tidak ada pengajuan cuti yang menunggu.</Typography.Text>}
+          </section>}
           {teamScopePreviewIds && <Alert type="info" showIcon message={`Simulasi cakupan: ${users.find((user) => user.id === scopeViewerId)?.username || "pengguna"}`} action={<Button size="small" onClick={() => { setTeamScopePreviewIds(null); setScopePreview([]); }}>Akhiri Simulasi</Button>} />}
           {selectedTeamDay && (
             <section className="rounded-xl border border-slate-200 bg-white p-4">
@@ -512,7 +583,7 @@ export default function DailyActivityPage() {
                 {detailQuery.data.activities.map((activity, index) => <article key={activity.id} className="mb-3 rounded-lg border p-3"><Typography.Text type="secondary">Aktivitas {index + 1}</Typography.Text><p className="whitespace-pre-wrap">{activity.content}</p><div className="mt-2 flex flex-wrap gap-2">{activity.references?.map((reference) => { const cardHref = referenceCardHref(reference, workspaceId); return reference.reference_type === "link" ? <a key={reference.id} href={reference.url || "#"} target="_blank" rel="noreferrer">{reference.display_text || reference.url}</a> : reference.reference_type === "file" && reference.file_url && reference.file_mime_type?.startsWith("image/") ? <a key={reference.id} href={reference.file_url} target="_blank" rel="noreferrer"><img className="max-h-28 rounded border object-cover" src={reference.file_url} alt={reference.display_text || "Activity attachment"} /></a> : reference.reference_type === "file" && reference.file_url ? <a key={reference.id} href={reference.file_url} target="_blank" rel="noreferrer">{reference.display_text || "Unduh lampiran"}</a> : reference.reference_type === "card" && cardHref ? <a key={reference.id} href={cardHref}>{reference.display_text || reference.card?.name || reference.card_id}</a> : <Tag key={reference.id}>{reference.display_text || reference.card_id || "Attachment"}</Tag>; })}</div></article>)}
                 {detailQuery.data.history?.length ? <details className="mt-4"><summary>Riwayat laporan</summary><ul>{detailQuery.data.history.map((entry, index) => <li key={`${entry.created_at}:${index}`}>{dayjs(entry.created_at).format("DD MMM YYYY HH:mm")} · {entry.action.replaceAll("_", " ")}</li>)}</ul></details> : null}
                 {detailQuery.data.user_id === currentUserId && <Button type="primary" className="mt-3" onClick={() => { setWorkDate(detailQuery.data!.work_date); setTab("mine"); }}>Edit Daily Saya</Button>}
-              </> : !selectedTeamDay.report_id ? <><Typography.Title level={4}>{selectedTeamDay.username} · {dayjs(selectedTeamDay.work_date).format("DD MMMM YYYY")}</Typography.Title><Tag color="red">Belum Isi</Tag><Typography.Paragraph className="mt-3">Laporan belum diisi.</Typography.Paragraph></> : null}
+              </> : !selectedTeamDay.report_id ? <><Typography.Title level={4}>{selectedTeamDay.username} · {dayjs(selectedTeamDay.work_date).format("DD MMMM YYYY")}</Typography.Title><Tag color={selectedTeamDay.status === "on_leave" ? "blue" : "red"}>{selectedTeamDay.status === "on_leave" ? "Cuti" : "Belum Isi"}</Tag><Typography.Paragraph className="mt-3">{selectedTeamDay.status === "on_leave" ? "Cuti disetujui. Daily Activity tidak wajib pada tanggal ini." : "Laporan belum diisi."}</Typography.Paragraph></> : null}
             </section>
           )}
           {!selectedReportId && <>
@@ -521,12 +592,12 @@ export default function DailyActivityPage() {
               <label className="flex min-w-56 flex-1 flex-col gap-1 text-xs">Nama / aktivitas<Input.Search allowClear placeholder="Cari nama atau isi laporan…" value={reportSearch} onChange={(event) => setReportSearch(event.target.value)} /></label>
               <label className="flex flex-col gap-1 text-xs">Divisi / role<Select allowClear className="min-w-40" placeholder="Semua" value={divisionFilter || undefined} onChange={(value) => setDivisionFilter(value || "")} options={divisions.map((division) => ({ value: division, label: division }))} /></label>
             </div>
-            <div className="ozsummary"><strong>Total {statusCounts.all}</strong><span className="ozsep">·</span><span>Sudah Kirim {statusCounts.sent || 0}</span><span className="ozsep">·</span><span>Belum Kirim {rawStatusCounts.pending || 0}</span><span className="ozsep">·</span><span>Terlambat {rawStatusCounts.late || 0}</span></div>
+            <div className="ozsummary"><strong>Total {statusCounts.all}</strong><span className="ozsep">·</span><span>Sudah Kirim {statusCounts.sent || 0}</span><span className="ozsep">·</span><span>Belum Kirim {rawStatusCounts.pending || 0}</span><span className="ozsep">·</span><span>Terlambat {rawStatusCounts.late || 0}</span>{rawStatusCounts.on_leave ? <><span className="ozsep">·</span><span>Cuti {rawStatusCounts.on_leave}</span></> : null}</div>
             <div className="ozpills" aria-label="Filter status laporan">{[["pending", "Belum Kirim"], ["submitted", "Sudah Kirim"]].map(([value, label]) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value)}>{label}</button>)}<Button size="small" onClick={() => { setStatusFilter(""); setDivisionFilter(""); setReportSearch(""); }}>Clear Filter</Button></div>
             <div className="oztablewrap"><Table rowKey={(row) => `${row.user_id}:${row.work_date}`} loading={teamQuery.isLoading} dataSource={filteredActivityRows} pagination={{ pageSize: 20 }} columns={[
               { title: "Nama / jabatan", width: "25%", render: (_value, row) => <div><Typography.Text strong>{row.username}</Typography.Text><br /><Typography.Text type="secondary">{row.role_name || "-"}</Typography.Text></div> },
-              { title: "Status laporan", width: "20%", dataIndex: "status", render: (value, row) => <div><Tag color={value === "submitted" ? (wasSubmittedLate(row) ? "orange" : "green") : value === "missing" ? "red" : "gold"}>{value === "submitted" ? (wasSubmittedLate(row) ? "Terlambat" : "✓ Sudah Kirim") : value === "missing" ? "Belum Isi" : "Draft"}</Tag>{row.submitted_at && <div className="mt-1 text-xs text-slate-500">{wasSubmittedLate(row) ? "Terlambat · " : "Dikirim "}{wibDateAndTime(row.submitted_at).time} WIB</div>}</div> },
-              { title: "Aktivitas hari ini", width: "39%", render: (_value, row) => row.activities.length ? <div><p className="line-clamp-2">{row.activities[0].content}</p><Typography.Text type="secondary">{row.activities.length} aktivitas</Typography.Text></div> : <Typography.Text type="secondary">Belum ada aktivitas tercatat.</Typography.Text> },
+              { title: "Status laporan", width: "20%", dataIndex: "status", render: (value, row) => <div><Tag color={value === "submitted" ? (wasSubmittedLate(row) ? "orange" : "green") : value === "missing" ? "red" : value === "on_leave" ? "blue" : "gold"}>{value === "submitted" ? (wasSubmittedLate(row) ? "Terlambat" : "✓ Sudah Kirim") : value === "missing" ? "Belum Isi" : value === "on_leave" ? "Cuti" : "Draft"}</Tag>{row.submitted_at && <div className="mt-1 text-xs text-slate-500">{wasSubmittedLate(row) ? "Terlambat · " : "Dikirim "}{wibDateAndTime(row.submitted_at).time} WIB</div>}</div> },
+              { title: "Aktivitas hari ini", width: "39%", render: (_value, row) => row.activities.length ? <div><p className="line-clamp-2">{row.activities[0].content}</p><Typography.Text type="secondary">{row.activities.length} aktivitas</Typography.Text></div> : <Typography.Text type="secondary">{row.status === "on_leave" ? "Cuti disetujui" : "Belum ada aktivitas tercatat."}</Typography.Text> },
               { title: "Aksi", width: "16%", render: (_value, row) => <Button type="link" onClick={() => { setSelectedTeamDay(row); setSelectedReportId(row.report_id); }}>{row.report_id ? row.activities.length ? "Lihat Detail" : "Lihat Status" : "Lihat Status"}</Button> },
             ]} /></div>
             <div className="ozfooter"><span>{filteredActivityRows.length} laporan / status ditemukan</span><span>Batas kirim harian: {activityRows[0]?.deadline_time?.slice(0, 5) || "17:00"} WIB</span></div>
@@ -573,7 +644,7 @@ export default function DailyActivityPage() {
           <section className="ozpanel">
             <Typography.Title level={4}>Kewajiban per orang</Typography.Title>
             <Typography.Paragraph type="secondary">Aturan per orang mengalahkan aturan role.</Typography.Paragraph>
-            <Alert className="mb-3" type="info" showIcon message="Cuti/izin diatur manual: pilih Tidak Wajib mulai tanggal cuti, lalu pilih Ikuti Role kembali pada tanggal masuk." />
+            <Alert className="mb-3" type="info" showIcon message="Kewajiban Daily Activity dikecualikan pada tanggal cuti yang sudah disetujui atasan." />
             <div className="mb-3 flex flex-wrap gap-2"><Input className="max-w-sm" aria-label="Cari orang" placeholder="Cari nama atau jabatan" value={overrideSearch} onChange={(event) => setOverrideSearch(event.target.value)} /><Select allowClear className="min-w-52" aria-label="Filter role" placeholder="Semua role" value={overrideRoleFilter} onChange={setOverrideRoleFilter} options={roleRows.map((role) => ({ value: role.id, label: role.name }))} /></div>
             <Table rowKey="id" size="small" loading={configQuery.isLoading} dataSource={filteredOverrideUsers} pagination={{ pageSize: 20 }} columns={[
               { title: "Nama / jabatan", render: (_value, user) => <><Typography.Text strong>{user.username}</Typography.Text><br/><Typography.Text type="secondary">{user.role_name || "-"}</Typography.Text></> },
@@ -610,6 +681,34 @@ export default function DailyActivityPage() {
           </section>
         </section>
       )}
+      <Modal
+        title="Ajukan Cuti"
+        open={leaveModalOpen}
+        okText="Kirim Pengajuan"
+        cancelText="Batal"
+        confirmLoading={createLeaveMutation.isPending}
+        okButtonProps={{ disabled: !leaveStart || !leaveEnd }}
+        onCancel={() => setLeaveModalOpen(false)}
+        onOk={() => createLeaveMutation.mutate()}
+      >
+        <div className="grid gap-3 py-2">
+          <label className="flex flex-col gap-1 text-sm">Rentang tanggal<DatePicker.RangePicker className="w-full" value={[leaveStart, leaveEnd]} onChange={(value) => { setLeaveStart(value?.[0] || null); setLeaveEnd(value?.[1] || null); }} /></label>
+          <label className="flex flex-col gap-1 text-sm">Catatan (opsional)<Input.TextArea maxLength={1000} rows={3} value={leaveNote} onChange={(event) => setLeaveNote(event.target.value)} placeholder="Tambahkan catatan bila perlu" /></label>
+          <Typography.Text type="secondary">Atasan ditentukan otomatis dari struktur role. Daily Activity tetap wajib sampai cuti disetujui.</Typography.Text>
+        </div>
+      </Modal>
+      <Modal
+        title={leaveDecision?.decision === "approved" ? "Setujui cuti?" : "Tolak cuti?"}
+        open={!!leaveDecision}
+        okText={leaveDecision?.decision === "approved" ? "Setujui" : "Tolak"}
+        cancelText="Batal"
+        okButtonProps={{ danger: leaveDecision?.decision === "rejected" }}
+        confirmLoading={decideLeaveMutation.isPending}
+        onCancel={() => { setLeaveDecision(null); setLeaveDecisionNote(""); }}
+        onOk={() => leaveDecision && decideLeaveMutation.mutate({ requestId: leaveDecision.requestId, decision: leaveDecision.decision, note: leaveDecisionNote })}
+      >
+        {leaveDecision?.decision === "rejected" ? <label className="flex flex-col gap-1">Alasan penolakan (opsional)<Input.TextArea rows={3} maxLength={1000} value={leaveDecisionNote} onChange={(event) => setLeaveDecisionNote(event.target.value)} /></label> : <Typography.Paragraph className="!mb-0">Tanggal cuti yang disetujui tidak dihitung sebagai kewajiban Daily Activity dan tidak menyebabkan akses terkunci.</Typography.Paragraph>}
+      </Modal>
     </div>
     </div>
     </>
