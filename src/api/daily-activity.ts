@@ -7,6 +7,7 @@ import {
   DailyActivityReport,
   DailyActivityStructureRole,
   DailyActivityUser,
+  DailyActivityLeaveRequest,
 } from "@myTypes/daily-activity";
 
 const asArray = <T>(value: unknown): T[] => Array.isArray(value) ? value : [];
@@ -71,9 +72,32 @@ function normalizeDay(value: any): DailyActivityDay {
     role_name: field(value, "role_name", "roleName") ?? null,
     work_date: field(value, "work_date", "workDate"),
     report_id: field(value, "report_id", "reportId") ?? null,
+    leave: value?.leave ? {
+      ...value.leave,
+      start_date: field(value.leave, "start_date", "startDate"),
+      end_date: field(value.leave, "end_date", "endDate"),
+    } : null,
     submitted_at: field(value, "submitted_at", "submittedAt") ?? null,
     deadline_time: field(value, "deadline_time", "deadlineTime"),
     activities: asArray<any>(value?.activities).map(normalizeActivity),
+  };
+}
+
+function normalizeLeaveRequest(value: any): DailyActivityLeaveRequest {
+  return {
+    ...value,
+    user_id: field(value, "user_id", "userId"),
+    employee_name: field(value, "employee_name", "employeeName"),
+    employee_role_name: field(value, "employee_role_name", "employeeRoleName") ?? null,
+    approver_role_id: field(value, "approver_role_id", "approverRoleId") ?? null,
+    approver_role_name: field(value, "approver_role_name", "approverRoleName") ?? null,
+    start_date: field(value, "start_date", "startDate"),
+    end_date: field(value, "end_date", "endDate"),
+    decision_note: field(value, "decision_note", "decisionNote") ?? null,
+    decided_by: field(value, "decided_by", "decidedBy") ?? null,
+    decided_by_name: field(value, "decided_by_name", "decidedByName") ?? null,
+    decided_at: field(value, "decided_at", "decidedAt") ?? null,
+    created_at: field(value, "created_at", "createdAt"),
   };
 }
 
@@ -102,6 +126,31 @@ export async function getMyDailyActivity(workDate: string) {
   const { data } = await api.get("/daily-activity/my-report", { params: { work_date: workDate } });
   const payload = payloadOf(data);
   return { ...payload, work_date: field(payload, "work_date", "workDate"), report: payload?.report ? normalizeReport(payload.report) : null } as { work_date: string; required: boolean; report: DailyActivityReport | null };
+}
+
+export async function getMyDailyActivityLeaveRequests(): Promise<DailyActivityLeaveRequest[]> {
+  const { data } = await api.get("/daily-activity/leave-requests");
+  return asArray<any>(payloadOf(data)).map(normalizeLeaveRequest);
+}
+
+export async function getPendingDailyActivityLeaveRequests(): Promise<DailyActivityLeaveRequest[]> {
+  const { data } = await api.get("/daily-activity/leave-requests/inbox");
+  return asArray<any>(payloadOf(data)).map(normalizeLeaveRequest);
+}
+
+export async function createDailyActivityLeaveRequest(payload: { start_date: string; end_date: string; note?: string }) {
+  const { data } = await api.post("/daily-activity/leave-requests", payload);
+  return normalizeLeaveRequest(payloadOf(data));
+}
+
+export async function decideDailyActivityLeaveRequest(requestId: string, decision: "approved" | "rejected", decisionNote?: string) {
+  const { data } = await api.put(`/daily-activity/leave-requests/${requestId}/decision`, { decision, decision_note: decisionNote });
+  return normalizeLeaveRequest(payloadOf(data));
+}
+
+export async function cancelDailyActivityLeaveRequest(requestId: string) {
+  const { data } = await api.delete(`/daily-activity/leave-requests/${requestId}`);
+  return data.data;
 }
 
 export async function saveDailyActivityDraft(workDate: string, activities: Array<{ id?: string; content: string }>) {
@@ -148,6 +197,11 @@ export async function addDailyActivityReference(itemId: string, reference: { typ
 
 export async function removeDailyActivityReference(itemId: string, referenceId: string) {
   const { data } = await api.delete(`/daily-activity/items/${itemId}/references/${referenceId}`);
+  return data.data;
+}
+
+export async function renameDailyActivityReference(itemId: string, referenceId: string, displayText: string) {
+  const { data } = await api.patch(`/daily-activity/items/${itemId}/references/${referenceId}`, { display_text: displayText });
   return data.data;
 }
 

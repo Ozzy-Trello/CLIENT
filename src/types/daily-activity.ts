@@ -1,4 +1,4 @@
-export type DailyActivityStatus = "draft" | "submitted" | "missing" | "not_required";
+export type DailyActivityStatus = "draft" | "submitted" | "missing" | "not_required" | "on_leave";
 export type DailyActivityTab = "mine" | "team" | "settings" | "structure" | "calendar";
 
 export interface DailyActivityReference {
@@ -45,9 +45,30 @@ export interface DailyActivityDay {
   required: boolean;
   status: DailyActivityStatus;
   report_id: string | null;
+  leave?: { start_date: string; end_date: string; note?: string | null } | null;
   submitted_at?: string | null;
   deadline_time?: string;
   activities: Array<{ id: string; content: string; references: DailyActivityReference[] }>;
+}
+
+export type DailyActivityLeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
+
+export interface DailyActivityLeaveRequest {
+  id: string;
+  user_id: string;
+  employee_name: string;
+  employee_role_name: string | null;
+  approver_role_id: string | null;
+  approver_role_name: string | null;
+  start_date: string;
+  end_date: string;
+  note: string | null;
+  status: DailyActivityLeaveStatus;
+  decision_note: string | null;
+  decided_by: string | null;
+  decided_by_name: string | null;
+  decided_at: string | null;
+  created_at: string;
 }
 
 export interface DailyActivityAccessStatus {

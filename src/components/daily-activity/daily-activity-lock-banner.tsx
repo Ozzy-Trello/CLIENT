@@ -10,7 +10,7 @@ export default function DailyActivityLockBanner() {
   const pathname = usePathname();
   const params = useParams();
   const workspaceId = Array.isArray(params.workspaceId) ? params.workspaceId[0] : params.workspaceId;
-  const status = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus, retry: false });
+  const status = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus, retry: false, refetchInterval: 30_000 });
   if (!status.data?.locked || pathname?.includes("/daily-activity")) return null;
 
   return (

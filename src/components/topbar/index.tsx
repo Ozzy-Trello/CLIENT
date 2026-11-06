@@ -36,6 +36,8 @@ import { useRecentlyViewed } from "@hooks/recently-viewed";
 import GenericPlannerView from "@components/generic-planner-view";
 import GenericPlannerInputView from "@components/generic-planner-view/input-view";
 import { NotificationBell } from "@components/notifications/notification-bell";
+import { useQuery } from "@tanstack/react-query";
+import { getDailyActivityAccessStatus } from "@api/daily-activity";
 
 const { Text } = Typography;
 
@@ -127,6 +129,8 @@ const TopBar: React.FC = React.memo(() => {
   const user = useSelector(selectUser);
   const currentWorkspace = useSelector(selectCurrentWorkspace);
   const currentBoard = useSelector(selectCurrentBoard);
+  const dailyActivityAccessQuery = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus, retry: false, refetchInterval: 30_000 });
+  const dailyActivityLocked = dailyActivityAccessQuery.data?.locked === true;
 
   // Get workspaceId with fallback to URL params
   const getWorkspaceId = (): string | undefined => {
@@ -268,6 +272,10 @@ const TopBar: React.FC = React.memo(() => {
 
   // Fetch request/warehouse counts
   useEffect(() => {
+    if (dailyActivityLocked) {
+      setRequestCounts({ pendingVerification: 0, pendingWarehouseSend: 0 });
+      return;
+    }
     const fetchCounts = async () => {
       try {
         const res = await getRequestNotificationCounts();
@@ -313,12 +321,16 @@ const TopBar: React.FC = React.memo(() => {
         }
       }
     };
-  }, []);
+  }, [dailyActivityLocked]);
 
   const workspaceId = getWorkspaceId();
 
   useEffect(() => {
     const fetchPendingAccessoryCount = async () => {
+      if (dailyActivityLocked) {
+        setPendingAccessoryCount(0);
+        return;
+      }
       if (!workspaceId) {
         setPendingAccessoryCount(0);
         return;
@@ -335,10 +347,14 @@ const TopBar: React.FC = React.memo(() => {
 
     const interval = setInterval(fetchPendingAccessoryCount, 60_000);
     return () => clearInterval(interval);
-  }, [workspaceId]);
+  }, [dailyActivityLocked, workspaceId]);
 
   useEffect(() => {
     const fetchPendingNoteCount = async () => {
+      if (dailyActivityLocked) {
+        setPendingNoteCount(0);
+        return;
+      }
       if (!workspaceId) {
         setPendingNoteCount(0);
         return;
@@ -355,7 +371,7 @@ const TopBar: React.FC = React.memo(() => {
 
     const interval = setInterval(fetchPendingNoteCount, 60_000);
     return () => clearInterval(interval);
-  }, [workspaceId]);
+  }, [dailyActivityLocked, workspaceId]);
 
   // Debounce search so we don't hit the API on every keystroke
   useEffect(() => {
@@ -376,7 +392,7 @@ const TopBar: React.FC = React.memo(() => {
     data: searchResults = { cards: [], boards: [] },
     isLoading: isSearching,
   } = useUnifiedSearch(debouncedSearchQuery, workspaceId, urlBoardId, {
-    enabled: debouncedSearchQuery.length >= 2,
+    enabled: !dailyActivityLocked && debouncedSearchQuery.length >= 2,
   });
   const isDebouncing =
     searchQuery.trim().length >= 2 && searchQuery.trim() !== debouncedSearchQuery;
@@ -420,6 +436,7 @@ const TopBar: React.FC = React.memo(() => {
       ),
     },
   ];
+  if (dailyActivityLocked) avatarMenuItems.splice(0, 1);
 
   const mobileActionMenuItems: MenuProps["items"] = [];
   if (canSeeButton("buat")) {
@@ -585,7 +602,7 @@ const TopBar: React.FC = React.memo(() => {
   return (
     <div className="flex items-center justify-between h-[45px]">
       <div className="flex items-center gap-2">
-        <Link href="/">
+         <Link href={dailyActivityLocked && workspaceId ? `/workspace/${workspaceId}/daily-activity` : "/"}>
           <ImageDynamicContrast
             imageSrc={logo}
             rgbColor={`rgb(${colors.background})`}
@@ -598,7 +615,7 @@ const TopBar: React.FC = React.memo(() => {
       </div>
 
       <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
-        <div className="hidden sm:flex items-center gap-5 flex-shrink-0">
+        {dailyActivityLocked && workspaceId ? <Link href={`/workspace/${workspaceId}/daily-activity`}><Button type="primary" size="small">Daily Activity</Button></Link> : <div className="hidden sm:flex items-center gap-5 flex-shrink-0">
           {canSeeButton("buat") && (
             <Button onClick={() => setModalRequestOpen(true)}>
               Buat Request
@@ -718,9 +735,9 @@ const TopBar: React.FC = React.memo(() => {
               </Button>
             </div>
           )}
-        </div>
+        </div>}
 
-        <div className="relative flex-1 sm:flex-none sm:w-[240px] md:w-[320px] lg:w-[500px]" ref={searchRef}>
+        {!dailyActivityLocked && <div className="relative flex-1 sm:flex-none sm:w-[240px] md:w-[320px] lg:w-[500px]" ref={searchRef}>
           <Input
             placeholder="Search…"
             prefix={<i className="fi fi-rr-search" />}
@@ -951,9 +968,9 @@ const TopBar: React.FC = React.memo(() => {
               </div>
             </div>
           )}
-        </div>
+        </div>}
 
-        {mobileActionMenuItems.length > 0 && (
+        {!dailyActivityLocked && mobileActionMenuItems.length > 0 && (
           <div className="lg:hidden">
             <Dropdown
               menu={{ items: mobileActionMenuItems }}
@@ -970,7 +987,7 @@ const TopBar: React.FC = React.memo(() => {
           </div>
         )}
 
-        <NotificationBell />
+        {!dailyActivityLocked && <NotificationBell />}
 
         <Dropdown
           menu={{ items: avatarMenuItems }}

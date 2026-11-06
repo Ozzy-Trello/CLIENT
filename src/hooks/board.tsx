@@ -16,14 +16,14 @@ import { useWorkspaces } from "./workspace";
 /**
  * Hook to fetch all boards for a workspace
  */
-export function useBoards(workspaceId: string) {
+export function useBoards(workspaceId: string, options?: { enabled?: boolean }) {
   const queryClient = useQueryClient();
 
   // Main query for boards
   const boardsQuery = useQuery({
     queryKey: ["boards", workspaceId],
     queryFn: () => boards(workspaceId),
-    enabled: !!workspaceId,
+    enabled: !!workspaceId && (options?.enabled ?? true),
     staleTime: 5000,
   });
 
