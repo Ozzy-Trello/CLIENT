@@ -73,6 +73,24 @@ describe("UnreadCommentGate", () => {
     expect(dispatch).toHaveBeenCalledTimes(3);
   });
 
+  it("defers the comment gate while Daily Activity access is locked", async () => {
+    state.notificationState.commentUnreadCount = 2;
+    state.notificationState.commentUnreadGroupCount = 1;
+    state.notificationState.commentGateEnabled = true;
+    (getUnreadCount as jest.Mock).mockResolvedValue({
+      unreadCount: 2,
+      generalUnreadCount: 0,
+      commentUnreadCount: 2,
+      commentUnreadGroupCount: 1,
+      commentGateEnabled: true,
+    });
+
+    render(<UnreadCommentGate disabled />);
+
+    await waitFor(() => expect(getUnreadCount).toHaveBeenCalled());
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
   it("suppresses the gate during grace and refetches at expiry", async () => {
     jest.useFakeTimers();
     jest.setSystemTime(Date.parse("2026-08-30T10:00:00.000Z"));
