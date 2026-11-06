@@ -96,7 +96,7 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
       <ChatNotificationToast />
       <DailyActivityLockBanner />
       <NotulensiToast />
-      <UnreadCommentGate />
+      <UnreadCommentGate disabled={accessQuery.data?.locked === true} />
     </Layout>
   );
 };

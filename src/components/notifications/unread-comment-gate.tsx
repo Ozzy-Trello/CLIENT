@@ -19,7 +19,7 @@ import {
   useCommentGateDeferral,
 } from "@hooks/use-comment-gate-deferral";
 
-export function UnreadCommentGate() {
+export function UnreadCommentGate({ disabled = false }: { disabled?: boolean }) {
   const dispatch = useDispatch();
   const commentUnreadCount = useSelector(selectCommentUnreadCount);
   const commentUnreadGroupCount = useSelector(selectCommentUnreadGroupCount);
@@ -99,7 +99,8 @@ export function UnreadCommentGate() {
 
   const awaitingExpiryRefresh = wasActive.current && !isActive;
   const awaitingDeferralRefresh = wasDeferred.current && !isDeferred;
-  const shouldShow = isReady
+  const shouldShow = !disabled
+    && isReady
     && isDeferralReady
     && isCountKnown
     && commentGateEnabled
@@ -116,6 +117,8 @@ export function UnreadCommentGate() {
     : warningLevel === "warning"
       ? "Review window hampir berakhir"
       : "Review window";
+
+  if (disabled) return null;
 
   return (
     <>
