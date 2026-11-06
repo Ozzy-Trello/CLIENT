@@ -48,7 +48,6 @@ export default function NotulensiUserSelect({
       options={options}
       optionFilterProp="searchLabel"
       placeholder="Assign users"
-      allowClear
       maxTagCount={2}
       maxTagPlaceholder={(omitted) => `+${omitted.length}`}
       className="w-full"
