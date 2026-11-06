@@ -28,7 +28,7 @@ const WorkspaceLayout: React.FC<BaseLayoutProps> = ({ children }) => {
   const router = useRouter();
   const params = useParams<{ workspaceId: string }>();
   const workspaceId = params.workspaceId;
-  const accessQuery = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus, retry: false, refetchInterval: 30_000 });
+  const accessQuery = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus, retry: false });
   const isDailyActivityPage = pathname?.includes("/daily-activity") || false;
   const shouldRedirectForDaily = accessQuery.data?.locked === true && !isDailyActivityPage;
 

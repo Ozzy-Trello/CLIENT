@@ -118,7 +118,7 @@ export default function DailyActivityPage() {
   const isAdmin = isSuperAdmin();
   const activityFilterStorageKey = currentUserId && workspaceId ? `ozzy_daily_activity_filters_${currentUserId}_${workspaceId}` : null;
 
-  const accessQuery = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus, refetchInterval: 30_000 });
+  const accessQuery = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus });
   const reportQuery = useQuery({ queryKey: ["daily-activity-my-report", workDate], queryFn: () => getMyDailyActivity(workDate), enabled: tab === "mine" });
   const myLeaveRequestsQuery = useQuery({ queryKey: ["daily-activity-leave-requests", "mine"], queryFn: getMyDailyActivityLeaveRequests, enabled: tab === "mine", refetchInterval: 30_000 });
   const pendingLeaveRequestsQuery = useQuery({ queryKey: ["daily-activity-leave-requests", "inbox"], queryFn: getPendingDailyActivityLeaveRequests, refetchInterval: 30_000 });
@@ -236,12 +236,12 @@ export default function DailyActivityPage() {
       setActivityIds(activities.map((_, index) => idsByOrder.get(index) || ""));
       const failedReferenceIds = new Set(failedReferences.map(({ pending }) => pending.id));
       const failedAttachmentIds = new Set(failedAttachments.map(({ pending }) => pending.id));
-      setEditingActivities(false);
       setPendingReferences((current) => Object.fromEntries(Object.entries(current).map(([index, items]) => [Number(index), items.filter((item) => failedReferenceIds.has(item.id))])));
       setPendingAttachments((current) => Object.fromEntries(Object.entries(current).map(([index, items]) => [Number(index), items.filter((item) => failedAttachmentIds.has(item.id))])));
       if (failedReferences.length || failedAttachments.length) {
         message.warning(`${submit ? "Daily terkirim" : "Draft tersimpan"}, tetapi ${failedReferences.length + failedAttachments.length} referensi/lampiran gagal ditambahkan. Coba simpan lagi.`);
       } else {
+        setEditingActivities(false);
         message.success(submit ? "Daily Activity terkirim" : "Draft tersimpan");
       }
       invalidateFeature();
@@ -559,7 +559,6 @@ export default function DailyActivityPage() {
               <div className="mb-1 flex items-center justify-between"><div><Typography.Title level={4} className="!mb-0">Aktivitas saya</Typography.Title><Typography.Text type="secondary">{dayjs(workDate).format("dddd, D MMMM YYYY")}</Typography.Text></div>{reportQuery.data?.report && <Tag color={reportQuery.data.report.status === "submitted" ? "green" : "gold"}>{reportQuery.data.report.status === "submitted" ? "Sudah Kirim" : "Draft"}</Tag>}</div>
               {reportQuery.data?.report?.activities.length ? <><div className="grid gap-3">{reportQuery.data.report.activities.map((activity, index) => <article key={activity.id} className="rounded-lg border bg-white p-4"><div className="mb-2 flex gap-3"><span className="text-sm text-slate-500">{index + 1}.</span><p className="whitespace-pre-wrap">{activity.content}</p></div>{activity.references?.length ? <div className="flex flex-wrap gap-2">{activity.references.map((reference) => renderSavedReference(reference, activity.id))}</div> : null}</article>)}</div>{activeLeave?.status !== "approved" && <div className="flex flex-wrap gap-2"><Button type="primary" onClick={() => openActivityEditor(true)}>+ Catat Aktivitas</Button><Button onClick={() => openActivityEditor(false)}>Edit Aktivitas</Button></div>}</> : activeLeave?.status === "approved" ? <div className="quiet">Cuti disetujui. Tidak perlu mencatat aktivitas.</div> : <div className="grid justify-items-center gap-3 rounded-lg border border-dashed p-8 text-center"><h3>Belum ada aktivitas yang dicatat</h3><p className="text-slate-500">Pilih tanggal dan catat aktivitas yang dikerjakan.</p><Button type="primary" onClick={() => openActivityEditor(false)}>+ Catat Aktivitas</Button></div>}
               {myLeaveRequests.length > 0 && <section className="rounded-lg border p-4"><Typography.Text strong>Pengajuan cuti saya</Typography.Text><div className="mt-2 grid gap-2">{myLeaveRequests.map((request) => <div key={request.id} className="flex flex-wrap items-center justify-between gap-2 border-t pt-2"><div><span>{leavePeriod(request.start_date, request.end_date)}</span><Tag className="ml-2" color={request.status === "approved" ? "green" : request.status === "pending" ? "gold" : request.status === "rejected" ? "red" : "default"}>{leaveStatusLabel(request.status)}</Tag><Typography.Text className="ml-2" type="secondary">{request.approver_role_name ? `Atasan: ${request.approver_role_name}` : "Atasan: Super Admin"}</Typography.Text>{request.note && <div className="mt-1 text-sm">{request.note}</div>}{request.decision_note && <div className="mt-1 text-sm text-slate-500">Catatan: {request.decision_note}</div>}</div>{request.status === "pending" && <Button danger size="small" loading={cancelLeaveMutation.isPending} onClick={() => cancelLeaveMutation.mutate(request.id)}>Batalkan</Button>}</div>)}</div></section>}
-              {myLeaveRequests.length > 0 && <section className="rounded-lg border p-4"><Typography.Text strong>Riwayat pengajuan cuti</Typography.Text><div className="mt-2 grid gap-2">{myLeaveRequests.map((request) => <div key={request.id} className="flex flex-wrap items-center justify-between gap-2 border-t pt-2"><span>{dayjs(request.start_date).format("D MMM YYYY")} – {dayjs(request.end_date).format("D MMM YYYY")}</span><Tag color={request.status === "approved" ? "green" : request.status === "pending" ? "gold" : request.status === "rejected" ? "red" : "default"}>{request.status === "approved" ? "Disetujui" : request.status === "pending" ? "Menunggu persetujuan" : request.status === "rejected" ? "Ditolak" : "Dibatalkan"}</Tag></div>)}</div></section>}
             </>}
           </>}
         </section>
