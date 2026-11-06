@@ -129,7 +129,7 @@ const TopBar: React.FC = React.memo(() => {
   const user = useSelector(selectUser);
   const currentWorkspace = useSelector(selectCurrentWorkspace);
   const currentBoard = useSelector(selectCurrentBoard);
-  const dailyActivityAccessQuery = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus, retry: false, refetchInterval: 30_000 });
+  const dailyActivityAccessQuery = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus, retry: false });
   const dailyActivityLocked = dailyActivityAccessQuery.data?.locked === true;
 
   // Get workspaceId with fallback to URL params

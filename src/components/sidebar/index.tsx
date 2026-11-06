@@ -128,7 +128,7 @@ const Sidebar = () => {
   const [isFetching, setIsFetching] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [hoveredBoardId, setHoveredBoardId] = useState<number | null>(null);
-  const dailyActivityAccessQuery = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus, retry: false, refetchInterval: 30_000 });
+  const dailyActivityAccessQuery = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus, retry: false });
   const dailyActivityLocked = dailyActivityAccessQuery.data?.locked === true;
 
   const [openCreateBoardModal, setOpenCreateBoardModal] =
