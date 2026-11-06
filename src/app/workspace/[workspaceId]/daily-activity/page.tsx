@@ -14,7 +14,6 @@ import {
   getMyDailyActivityLeaveRequests,
   getPendingDailyActivityLeaveRequests,
   previewDailyActivityScope,
-  simulateDailyActivityAccess,
   getMyDailyActivity,
   removeDailyActivityHoliday,
   removeDailyActivityReference,
@@ -89,11 +88,6 @@ export default function DailyActivityPage() {
   const [scopeViewerId, setScopeViewerId] = useState<string>();
   const [scopePreview, setScopePreview] = useState<string[]>([]);
   const [teamScopePreviewIds, setTeamScopePreviewIds] = useState<string[] | null>(null);
-  const [lockViewerId, setLockViewerId] = useState<string>();
-  const [lockDate, setLockDate] = useState(today());
-  const [lockTime, setLockTime] = useState("19:35");
-  const [lockSimulation, setLockSimulation] = useState<any>(null);
-  const [simulationSession, setSimulationSession] = useState<{ userId: string; date: string; time: string } | null>(null);
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [leaveStart, setLeaveStart] = useState<Dayjs | null>(dayjs(today()));
   const [leaveEnd, setLeaveEnd] = useState<Dayjs | null>(dayjs(today()));
@@ -288,11 +282,11 @@ export default function DailyActivityPage() {
     onError: (error: any) => message.error(error?.response?.data?.message || "Gagal mengubah nama link"),
   });
   const scopePreviewMutation = useMutation({ mutationFn: previewDailyActivityScope, onSuccess: (result) => { setScopePreview(result.user_ids); setTeamScopePreviewIds(result.user_ids); }, onError: (error: any) => message.error(error?.response?.data?.message || "Gagal memuat cakupan") });
-  const lockSimulationMutation = useMutation({ mutationFn: ({ userId, date, time }: { userId: string; date: string; time: string }) => simulateDailyActivityAccess(userId, date, time), onSuccess: setLockSimulation, onError: (error: any) => message.error(error?.response?.data?.message || "Simulasi gagal") });
 
   const users = configQuery.data?.users || [];
   const cardResults = ((cardSearchQuery.data || []) as Card[]).filter((card) => !card.archive);
   const taskResults: NotulensiSummary[] = taskSearchQuery.data?.data || [];
+  const teamDeadline = teamQuery.data?.find((row) => row.deadline_time)?.deadline_time?.slice(0, 5) || "17:00";
   const activityRows = (teamQuery.data || []).filter((row) => row.status !== "not_required");
   const myLeaveRequests = myLeaveRequestsQuery.data || [];
   const pendingLeaveRequests = pendingLeaveRequestsQuery.data || [];
@@ -314,7 +308,7 @@ export default function DailyActivityPage() {
     return counts;
   }, { submitted: 0, draft: 0, missing: 0, pending: 0, late: 0, on_leave: 0 } as Record<string, number>);
   const statusCounts = { ...rawStatusCounts, all: activityRows.length, sent: rawStatusCounts.submitted || 0 };
-  const simulatedLocked = simulationSession ? !!lockSimulation?.locked : !!accessQuery.data?.locked;
+  const dailyLocked = accessQuery.data?.locked === true;
   const canActOnSelectedDate = reportQuery.data?.required === true;
   const userOptions = useMemo(() => users.map((user) => ({ value: user.id, label: user.username })), [users]);
   const holidayRows = configQuery.data?.holidays || [];
@@ -518,18 +512,17 @@ export default function DailyActivityPage() {
     <div id="ozdaily">
     <div className="ozmain flex min-w-0 flex-col gap-4">
       <div className="ozheading"><h2>Daily Activity</h2></div>
-      {simulationSession && <div className="flex items-center justify-between gap-2 border-b bg-amber-50 px-4 py-2 text-xs text-amber-900"><span>Simulasi akses · {users.find((user) => user.id === simulationSession.userId)?.username} · {simulationSession.date}, {simulationSession.time} WIB</span><Button size="small" onClick={() => { setSimulationSession(null); setLockSimulation(null); setTeamScopePreviewIds(null); setTab("team"); }}>Akhiri Simulasi</Button></div>}
-      {simulatedLocked && tab !== "mine" ? (
+      {dailyLocked && tab !== "mine" ? (
         <section className="grid justify-items-center gap-4 rounded-xl border border-red-200 bg-slate-50 px-5 py-10 text-center">
           <Typography.Title level={3} className="!mb-0">Akses Terkunci</Typography.Title>
-          <Typography.Paragraph className="max-w-lg !mb-0">Belum mengisi Daily Activity tanggal {simulationSession ? lockSimulation?.oldest_missed_date : accessQuery.data?.oldest_missed_date}. Silakan isi terlebih dahulu.</Typography.Paragraph>
+          <Typography.Paragraph className="max-w-lg !mb-0">Belum mengisi Daily Activity tanggal {accessQuery.data?.oldest_missed_date}. Silakan isi terlebih dahulu.</Typography.Paragraph>
           <Typography.Text type="secondary">Setelah semua daily yang wajib dikirim terpenuhi, akses terbuka otomatis.</Typography.Text>
-          <Button type="primary" onClick={() => { setWorkDate((simulationSession ? lockSimulation?.oldest_missed_date : accessQuery.data?.oldest_missed_date) || today()); setTab("mine"); }}>Isi Daily Activity Sekarang</Button>
+          <Button type="primary" onClick={() => { setWorkDate(accessQuery.data?.oldest_missed_date || today()); setTab("mine"); }}>Isi Daily Activity Sekarang</Button>
         </section>
       ) : (
         <>
-          {simulatedLocked && <Alert type="warning" showIcon message={`Akses terkunci karena Daily Activity tanggal ${simulationSession ? lockSimulation?.oldest_missed_date : accessQuery.data?.oldest_missed_date} belum dikirim.`} />}
-          {!simulatedLocked && <nav className="oztabs" role="tablist" aria-label="Daily Activity">
+          {dailyLocked && <Alert type="warning" showIcon message={`Akses terkunci karena Daily Activity tanggal ${accessQuery.data?.oldest_missed_date} belum dikirim.`} />}
+          {!dailyLocked && <nav className="oztabs" role="tablist" aria-label="Daily Activity">
             <button role="tab" aria-selected={tab === "mine"} onClick={() => setTab("mine")}>Saya</button>
             <button role="tab" aria-selected={tab === "team"} onClick={() => setTab("team")}>Tim{pendingLeaveRequests.length > 0 ? ` · ${pendingLeaveRequests.length}` : ""}</button>
             <button role="tab" aria-selected={tab === "structure"} onClick={() => setTab("structure")}>Struktur</button>
@@ -619,7 +612,7 @@ export default function DailyActivityPage() {
               { title: "Aktivitas hari ini", width: "39%", render: (_value, row) => row.activities.length ? <div><p className="line-clamp-2">{row.activities[0].content}</p><Typography.Text type="secondary">{row.activities.length} aktivitas</Typography.Text></div> : <Typography.Text type="secondary">{row.status === "on_leave" ? "Cuti disetujui" : "Belum ada aktivitas tercatat."}</Typography.Text> },
               { title: "Aksi", width: "16%", render: (_value, row) => <Button type="link" onClick={() => { setSelectedTeamDay(row); setSelectedReportId(row.report_id); }}>{row.report_id ? row.activities.length ? "Lihat Detail" : "Lihat Status" : "Lihat Status"}</Button> },
             ]} /></div>
-            <div className="ozfooter"><span>{filteredActivityRows.length} laporan / status ditemukan</span><span>Batas kirim harian: {activityRows[0]?.deadline_time?.slice(0, 5) || "17:00"} WIB</span></div>
+             <div className="ozfooter"><span>{filteredActivityRows.length} laporan / status ditemukan</span><span>Batas kirim harian: {teamDeadline} WIB</span></div>
           </>}
         </section>
       )}
@@ -645,7 +638,7 @@ export default function DailyActivityPage() {
 
       {tab === "settings" && isAdmin && (
         <section className="flex flex-col gap-6">
-          <Button className="self-start" onClick={() => setTab("calendar")}>Hari Libur & Kunci Akses</Button>
+          <Button className="self-start" onClick={() => setTab("calendar")}>Hari Libur</Button>
           <div className="ozsettinggrid">
             <section className="ozpanel">
               <Typography.Title level={4}>Siapa yang wajib mengisi?</Typography.Title>
@@ -687,17 +680,6 @@ export default function DailyActivityPage() {
             { title: "Tanggal", dataIndex: "holiday_date" }, { title: "Nama", dataIndex: "name" },
             { title: "Aksi", render: (_value, holiday: any) => <Button danger size="small" loading={deleteHolidayMutation.isPending} onClick={() => deleteHolidayMutation.mutate(holiday.id)}>Hapus</Button> },
           ]} />
-          {isAdmin && <section className="rounded-xl border border-slate-200 bg-white p-4">
-            <Typography.Title level={4}>Coba Simulasi Kunci</Typography.Title>
-            <div className="flex flex-wrap items-end gap-3">
-              <label className="flex flex-col gap-1 text-xs">Pengguna<Select showSearch optionFilterProp="label" className="w-56" options={userOptions} value={lockViewerId} onChange={setLockViewerId} placeholder="Pilih pengguna" /></label>
-              <label className="flex flex-col gap-1 text-xs">Tanggal simulasi<DatePicker value={dayjs(lockDate)} onChange={(value) => value && setLockDate(value.format("YYYY-MM-DD"))} /></label>
-              <label className="flex flex-col gap-1 text-xs">Jam (WIB)<TimePicker format="HH:mm" value={dayjs(`2000-01-01T${lockTime}`)} onChange={(value) => value && setLockTime(value.format("HH:mm"))} /></label>
-              <Button disabled={!lockViewerId} loading={lockSimulationMutation.isPending} onClick={() => lockViewerId && lockSimulationMutation.mutate({ userId: lockViewerId, date: lockDate, time: lockTime })}>Coba Simulasi Kunci</Button>
-            </div>
-            {lockSimulation && <div className="my-3 text-sm" role="status">{lockSimulation.locked ? `Akan terkunci. Tunggakan tertua: ${lockSimulation.oldest_missed_date}.` : "Akses terbuka pada waktu simulasi."}{lockSimulation.missed_dates?.length ? ` Tanggal tertunggak: ${lockSimulation.missed_dates.join(", ")}.` : ""}</div>}
-            {lockSimulation && <Button type="primary" onClick={() => { setSimulationSession({ userId: lockSimulation.user_id, date: lockSimulation.date, time: lockSimulation.time }); if (lockSimulation.locked) { setWorkDate(lockSimulation.oldest_missed_date); setTab("mine"); } else { setScopeViewerId(lockSimulation.user_id); scopePreviewMutation.mutate(lockSimulation.user_id); setTab("team"); } }}>Coba Masuk Aplikasi</Button>}
-          </section>}
         </section>
       )}
       <Modal
