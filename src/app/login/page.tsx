@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
+import { useRouter } from "next/navigation";
 
 import Button from "antd/es/button";
 import Checkbox from "antd/es/checkbox";
@@ -15,6 +16,7 @@ import { useCurrentAccount } from "@hooks/account";
 import { useLogin } from "@hooks/auth";
 import { normalizeOtpChallenge } from "@dto/auth";
 import { setUser } from "@store/app_slice";
+import TokenStorage from "@utils/token-storage";
 
 interface LoginFormValues {
   identity: string;
@@ -25,11 +27,18 @@ interface LoginFormValues {
 const OTP_CHALLENGE_KEY = "login-otp-challenge";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const dispatch = useDispatch();
   const login = useLogin();
   const { refetch } = useCurrentAccount();
+
+  useEffect(() => {
+    if (TokenStorage.getAccessToken()) {
+      router.replace("/workspace");
+    }
+  }, [router]);
 
   const [otpChallenge, setOtpChallenge] = useState<{
     otpId: string;
