@@ -5,6 +5,7 @@ import { FileUpload } from "@myTypes/file-upload"; // Use your existing FileUplo
 import UploadModal from "../modal-upload/modal-upload";
 import { searchCards } from "@api/card";
 import { Card } from "@myTypes/card";
+import { rankCardSearchResults } from "./search-utils";
 
 const { Text } = Typography;
 
@@ -60,21 +61,34 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
     let active = true;
     setSearchLoading(true);
     const timer = window.setTimeout(() => {
-      searchCards({
-        name: query,
-        description: query,
-        page: 1,
-        limit: 20,
-      })
-        .then((response) => {
-          if (active) setSearchResults(response.data ?? []);
-        })
-        .catch(() => {
+      const loadResults = async () => {
+        try {
+          const titleResponse = await searchCards({ name: query, page: 1, limit: 200 });
+          const titleResults = rankCardSearchResults(titleResponse.data ?? [], query);
+          let results = titleResults;
+
+          if (results.length < 20) {
+            try {
+              const descriptionResponse = await searchCards({ description: query, page: 1, limit: 20 });
+              const seen = new Set(results.map((item) => item.id));
+              results = [
+                ...results,
+                ...(descriptionResponse.data ?? []).filter((item) => !seen.has(item.id)),
+              ];
+            } catch {
+              results = titleResults;
+            }
+          }
+
+          if (active) setSearchResults(results.slice(0, 20));
+        } catch {
           if (active) setSearchResults([]);
-        })
-        .finally(() => {
+        } finally {
           if (active) setSearchLoading(false);
-        });
+        }
+      };
+
+      void loadResults();
     }, 350);
 
     return () => {
