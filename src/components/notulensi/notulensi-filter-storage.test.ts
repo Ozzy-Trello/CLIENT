@@ -7,7 +7,9 @@ describe("notulensi filter storage", () => {
       status: ["new", "invalid"],
       assigneeIds: ["d9133f38-0eed-442a-a382-87d2f6084032", "invalid"],
       roleIds: ["35704a44-c9b8-4eb0-a230-8c0ca652e5e6"],
-      scope: "all",
+      taskOrigin: ["General", "bad"],
+      readStatus: ["unchecked", "bad"],
+      scope: ["all", "assigned"],
       sortBy: "due_date",
       sortOrder: "desc",
       page: 8,
@@ -18,9 +20,11 @@ describe("notulensi filter storage", () => {
       priority: undefined,
       assigneeIds: ["d9133f38-0eed-442a-a382-87d2f6084032"],
       roleIds: ["35704a44-c9b8-4eb0-a230-8c0ca652e5e6"],
+      taskOrigin: ["General"],
+      readStatus: ["unchecked"],
       dueFrom: undefined,
       dueTo: undefined,
-      scope: "related",
+      scope: ["assigned"],
       sortBy: "due_date",
       sortOrder: "desc",
       page: 1,
@@ -29,8 +33,8 @@ describe("notulensi filter storage", () => {
   });
 
   it("omits page when persisting", () => {
-    expect(persistedNotulensiFilters({ scope: "assigned", page: 3, limit: 20 })).toEqual({
-      scope: "assigned",
+    expect(persistedNotulensiFilters({ scope: ["assigned", "created"], page: 3, limit: 20 })).toEqual({
+      scope: ["assigned", "created"],
       limit: 20,
     });
   });

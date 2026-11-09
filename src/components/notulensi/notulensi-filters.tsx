@@ -63,7 +63,7 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
 
   const clearFilters = () => {
     setSearchText("");
-    onChange({ scope: "related", page: 1, limit: value.limit });
+    onChange({ scope: ["related"], page: 1, limit: value.limit });
   };
 
   const toggleStatus = (status: NotulensiStatus) => {
@@ -153,6 +153,16 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
           />
           <Select<string[]>
             mode="multiple"
+            value={value.readStatus}
+            onChange={(readStatus) => applyPatch({ readStatus: readStatus.length ? readStatus as NotulensiListFilters["readStatus"] : undefined })}
+            placeholder="Belum Cek / Sudah Cek"
+            allowClear
+            maxTagCount="responsive"
+            className={screens.lg ? "w-56" : "w-full"}
+            options={[{ value: "unchecked", label: "Belum Cek" }, { value: "checked", label: "Sudah Cek" }]}
+          />
+          <Select<string[]>
+            mode="multiple"
             value={value.assigneeIds}
             onChange={(assigneeIds) => applyPatch({ assigneeIds: assigneeIds.length ? assigneeIds : undefined })}
             placeholder="Assignees"
@@ -175,7 +185,7 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
             mode="multiple"
             value={value.roleIds}
             onChange={(roleIds) => applyPatch({ roleIds: roleIds.length ? roleIds : undefined })}
-            placeholder="Roles"
+            placeholder="Jabatan"
             loading={eligibleAssignees.isLoading}
             allowClear
             maxTagCount="responsive"
@@ -186,10 +196,12 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
           />
         </div>
         <div className="flex flex-col gap-3 lg:flex-row">
-          <Select<NotulensiScope>
-            value={value.scope || "related"}
-            onChange={(scope) => applyPatch({ scope })}
+          <Select<NotulensiScope[]>
+            mode="multiple"
+            value={Array.isArray(value.scope) ? value.scope : value.scope ? [value.scope] : ["related"]}
+            onChange={(scope) => applyPatch({ scope: scope.length ? scope : undefined })}
             className={screens.lg ? "w-56" : "w-full"}
+            maxTagCount="responsive"
             options={scopeOptions.filter((option) => allowAll || option.value !== "all")}
           />
           <DatePicker.RangePicker
