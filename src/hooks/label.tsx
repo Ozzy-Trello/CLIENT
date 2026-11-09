@@ -208,7 +208,7 @@ export function useLabels(
     },
     onMutate: async ({ labelId }) => {
       // Only cancel label-related queries, not everything
-      await queryClient.cancelQueries({ queryKey: ["labels", workspaceId], exact: false });
+      await queryClient.cancelQueries({ queryKey: ["labels", workspaceId, labelQueryParams || {}] });
       await queryClient.cancelQueries({ queryKey: ["cardLabels", workspaceId, cardId] });
 
       const labelKey = ["labels", workspaceId, labelQueryParams || {}];
@@ -266,7 +266,7 @@ export function useLabels(
     },
     onMutate: async ({ labelId }) => {
       // Only cancel label-related queries, not everything
-      await queryClient.cancelQueries({ queryKey: ["labels", workspaceId], exact: false });
+      await queryClient.cancelQueries({ queryKey: ["labels", workspaceId, labelQueryParams || {}] });
       await queryClient.cancelQueries({ queryKey: ["cardLabels", workspaceId, cardId] });
 
       const updateIsAssigned = (queryKey: any) => {
@@ -284,11 +284,11 @@ export function useLabels(
         }
       };
 
-      updateIsAssigned(["labels", workspaceId]);
+      updateIsAssigned(["labels", workspaceId, labelQueryParams || {}]);
       if (cardId) updateIsAssigned(["cardLabels", workspaceId, cardId]);
     },
     onError: () => {
-      queryClient.invalidateQueries({ queryKey: ["labels", workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["labels", workspaceId, labelQueryParams || {}] });
       if (cardId)
         queryClient.invalidateQueries({
           queryKey: ["cardLabels", workspaceId, cardId],
@@ -302,7 +302,7 @@ export function useLabels(
     onSettled: () => {
       // Only invalidate label queries - optimistic update handles UI
       // Removed card detail invalidation for performance
-      queryClient.invalidateQueries({ queryKey: ["labels", workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["labels", workspaceId, labelQueryParams || {}] });
       if (cardId)
         queryClient.invalidateQueries({
           queryKey: ["cardLabels", workspaceId, cardId],

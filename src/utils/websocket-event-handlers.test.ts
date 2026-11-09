@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@constants/query-keys";
-import { handleCardMoved, invalidateNotulensiNotification } from "./websocket-event-handlers";
+import { handleCardMoved, invalidateCardLabelQueries, invalidateNotulensiNotification } from "./websocket-event-handlers";
 
 describe("handleCardMoved", () => {
   it("moves a payload card between list caches immediately", () => {
@@ -85,5 +85,16 @@ describe("invalidateNotulensiNotification", () => {
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["daily-activity-reports"] });
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["daily-activity-report", "report-1"] });
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["daily-activity-item-comments", "item-1"] });
+  });
+});
+
+describe("invalidateCardLabelQueries", () => {
+  it("invalidates only the changed card's label queries", () => {
+    const queryClient = { invalidateQueries: jest.fn() } as any;
+    invalidateCardLabelQueries(queryClient, "workspace-1", "card-1");
+
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["cardLabels", "workspace-1", "card-1"] });
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["labels", "workspace-1", { cardId: "card-1" }] });
+    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(2);
   });
 });
