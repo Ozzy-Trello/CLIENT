@@ -2,6 +2,7 @@ import { api } from "@api/index";
 import { uploadFile } from "@api/file";
 import {
   DailyActivityAccessStatus,
+  DailyActivityComment,
   DailyActivityConfiguration,
   DailyActivityDay,
   DailyActivityReport,
@@ -36,10 +37,15 @@ function normalizeReference(value: any) {
     reference_type: field(value, "reference_type", "referenceType"),
     file_id: field(value, "file_id", "fileId") ?? null,
     card_id: field(value, "card_id", "cardId") ?? null,
+    notulensi_id: field(value, "notulensi_id", "notulensiId") ?? null,
     display_text: field(value, "display_text", "displayText") ?? null,
     file_url: field(value, "file_url", "fileUrl") ?? null,
     file_mime_type: field(value, "file_mime_type", "fileMimeType") ?? null,
     card: value?.card ?? null,
+    notulensi: value?.notulensi ? {
+      ...value.notulensi,
+      workspace_id: field(value.notulensi, "workspace_id", "workspaceId"),
+    } : null,
   };
 }
 
@@ -47,6 +53,7 @@ function normalizeActivity(value: any) {
   return {
     ...value,
     report_id: field(value, "report_id", "reportId"),
+    comments_count: field(value, "comments_count", "commentsCount") ?? 0,
     references: asArray<any>(value?.references).map(normalizeReference),
   };
 }
@@ -57,6 +64,9 @@ function normalizeReport(value: any): DailyActivityReport {
     user_id: field(value, "user_id", "userId"),
     work_date: field(value, "work_date", "workDate"),
     first_submitted_at: field(value, "first_submitted_at", "firstSubmittedAt") ?? null,
+    reviewed_by: field(value, "reviewed_by", "reviewedBy") ?? null,
+    reviewed_at: field(value, "reviewed_at", "reviewedAt") ?? null,
+    can_review: field(value, "can_review", "canReview") ?? false,
     activities: asArray<any>(value?.activities).map(normalizeActivity),
     history: asArray<any>(value?.history).map((entry) => ({
       ...entry,
@@ -79,6 +89,9 @@ function normalizeDay(value: any): DailyActivityDay {
     } : null,
     submitted_at: field(value, "submitted_at", "submittedAt") ?? null,
     deadline_time: field(value, "deadline_time", "deadlineTime"),
+    reviewed_by: field(value, "reviewed_by", "reviewedBy") ?? null,
+    reviewed_at: field(value, "reviewed_at", "reviewedAt") ?? null,
+    can_review: field(value, "can_review", "canReview") ?? false,
     activities: asArray<any>(value?.activities).map(normalizeActivity),
   };
 }
@@ -104,10 +117,26 @@ function normalizeLeaveRequest(value: any): DailyActivityLeaveRequest {
 export async function getDailyActivityAccessStatus(): Promise<DailyActivityAccessStatus> {
   const { data } = await api.get("/daily-activity/access-status");
   const payload = payloadOf(data);
+  const unreadComment = field(payload, "oldest_unread_comment", "oldestUnreadComment");
+  const pendingReview = field(payload, "oldest_pending_review", "oldestPendingReview");
   return {
     ...payload,
     missed_dates: asArray<string>(field(payload, "missed_dates", "missedDates")),
     oldest_missed_date: field(payload, "oldest_missed_date", "oldestMissedDate") ?? null,
+    unread_comment_count: Number(field(payload, "unread_comment_count", "unreadCommentCount") || 0),
+    oldest_unread_comment: unreadComment ? {
+      comment_id: field(unreadComment, "comment_id", "commentId"),
+      report_id: field(unreadComment, "report_id", "reportId"),
+      item_id: field(unreadComment, "item_id", "itemId"),
+      work_date: field(unreadComment, "work_date", "workDate"),
+      owner_id: field(unreadComment, "owner_id", "ownerId"),
+    } : null,
+    pending_review_count: Number(field(payload, "pending_review_count", "pendingReviewCount") || 0),
+    oldest_pending_review: pendingReview ? {
+      report_id: field(pendingReview, "report_id", "reportId"),
+      work_date: field(pendingReview, "work_date", "workDate"),
+      user_id: field(pendingReview, "user_id", "userId"),
+    } : null,
   };
 }
 
@@ -173,6 +202,27 @@ export async function getDailyActivityReport(id: string) {
   return normalizeReport(payloadOf(data));
 }
 
+export async function reviewDailyActivityReport(id: string) {
+  const { data } = await api.put(`/daily-activity/reports/${id}/review`);
+  return normalizeReport(payloadOf(data));
+}
+
+export async function getDailyActivityItemComments(itemId: string): Promise<DailyActivityComment[]> {
+  const { data } = await api.get(`/daily-activity/items/${itemId}/comments`);
+  return asArray<any>(payloadOf(data)).map((comment) => ({
+    ...comment,
+    item_id: field(comment, "item_id", "itemId"),
+    user_id: field(comment, "user_id", "userId"),
+    created_at: field(comment, "created_at", "createdAt"),
+    user: comment.user ? normalizeUser(comment.user) : null,
+  }));
+}
+
+export async function addDailyActivityItemComment(itemId: string, content: string, workspaceId: string) {
+  const { data } = await api.post(`/daily-activity/items/${itemId}/comments`, { content, workspace_id: workspaceId });
+  return payloadOf(data);
+}
+
 export async function getDailyActivityStructure(): Promise<DailyActivityStructureRole[]> {
   const { data } = await api.get("/daily-activity/structure");
   return asArray<any>(payloadOf(data)).map(normalizeStructureRole);
@@ -190,7 +240,7 @@ export async function previewDailyActivityScope(userId: string) {
   return { ...payload, user_ids: asArray<string>(field(payload, "user_ids", "userIds")), users: asArray<any>(payload?.users).map(normalizeUser) } as { viewer: { id: string; username: string; role_id?: string | null }; user_ids: string[]; users: DailyActivityUser[] };
 }
 
-export async function addDailyActivityReference(itemId: string, reference: { type: "link" | "card"; url?: string; display_text?: string; card_id?: string }) {
+export async function addDailyActivityReference(itemId: string, reference: { type: "link" | "card" | "notulensi"; url?: string; display_text?: string; card_id?: string; notulensi_id?: string; workspace_id?: string }) {
   const { data } = await api.post(`/daily-activity/items/${itemId}/references`, reference);
   return data.data;
 }

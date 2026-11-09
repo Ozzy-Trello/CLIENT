@@ -1,5 +1,5 @@
 import { api } from "@api/index";
-import { getDailyActivityConfiguration } from "./daily-activity";
+import { addDailyActivityItemComment, getDailyActivityConfiguration, getDailyActivityItemComments, reviewDailyActivityReport } from "./daily-activity";
 
 jest.mock("@api/index", () => ({ api: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn(), patch: jest.fn() } }));
 
@@ -27,6 +27,20 @@ describe("daily activity configuration api", () => {
     const result = await getDailyActivityConfiguration();
     expect(result.role_rules).toEqual([{ id: "rule-1" }]);
     expect(result.user_overrides).toEqual([{ id: "override-1" }]);
+  });
+
+  it("uses the direct-manager review and per-activity comment endpoints", async () => {
+    mockedApi.put.mockResolvedValue({ data: { data: { id: "report-1", reviewed_by: "manager-1" } } } as any);
+    mockedApi.get.mockResolvedValue({ data: { data: [{ id: "comment-1", item_id: "item-1", user_id: "manager-1", content: "Please clarify", user: { id: "manager-1", username: "Manager" } }] } } as any);
+    mockedApi.post.mockResolvedValue({ data: { data: { id: "comment-2" } } } as any);
+
+    await expect(reviewDailyActivityReport("report-1")).resolves.toMatchObject({ id: "report-1" });
+    await expect(getDailyActivityItemComments("item-1")).resolves.toMatchObject([{ id: "comment-1", item_id: "item-1", user_id: "manager-1" }]);
+    await addDailyActivityItemComment("item-1", "Thanks", "workspace-1");
+
+    expect(mockedApi.put).toHaveBeenCalledWith("/daily-activity/reports/report-1/review");
+    expect(mockedApi.get).toHaveBeenCalledWith("/daily-activity/items/item-1/comments");
+    expect(mockedApi.post).toHaveBeenCalledWith("/daily-activity/items/item-1/comments", { content: "Thanks", workspace_id: "workspace-1" });
   });
 
   it("normalizes camelCase scope preview and role hierarchy fields", async () => {

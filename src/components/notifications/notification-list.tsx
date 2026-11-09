@@ -60,6 +60,13 @@ export function getNotificationTarget(
     return `/workspace/${encodeURIComponent(n.workspaceId)}/notulensi/${encodeURIComponent(n.entityId)}${qs ? `?${qs}` : ""}`;
   }
 
+  if (n.entityType === "daily_activity") {
+    if (!isValidId(n.workspaceId) || !isValidId(n.entityId)) return null;
+    const params = new URLSearchParams({ reportId: n.entityId });
+    if (isValidId(n.activityId)) params.set("itemId", n.activityId);
+    return `/workspace/${encodeURIComponent(n.workspaceId)}/daily-activity?${params.toString()}`;
+  }
+
   if (n.entityType !== "card") {
     return null;
   }
@@ -90,7 +97,7 @@ function normalizeCategoryResult(
   result: { data: NotificationItem[]; total: number },
   category: Exclude<NotificationCategory, "all">,
 ) {
-  const commentTypes = ["comment_mention", "notulensi_mention", "notulensi_comment", "mention"];
+  const commentTypes = ["comment_mention", "notulensi_mention", "notulensi_comment", "daily_activity_comment", "mention"];
   const matchesCategory = (notification: NotificationItem) =>
     category === "comment"
       ? commentTypes.includes(notification.type)

@@ -7,6 +7,8 @@ import {
   decideDailyActivityLeaveRequest,
   cancelDailyActivityLeaveRequest,
   getDailyActivityAccessStatus,
+  getDailyActivityItemComments,
+  addDailyActivityItemComment,
   getDailyActivityConfiguration,
   getDailyActivityReport,
   getDailyActivityReports,
@@ -18,6 +20,7 @@ import {
   removeDailyActivityHoliday,
   removeDailyActivityReference,
   renameDailyActivityReference,
+  reviewDailyActivityReport,
   saveDailyActivityDraft,
   setDailyActivityDeadline,
   setDailyActivityRoleRule,
@@ -32,10 +35,11 @@ import { DailyActivityDay, DailyActivityTab, DailyActivityUser, DailyActivityStr
 import { Card } from "@myTypes/card";
 import { NotulensiSummary } from "@myTypes/notulensi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CloseOutlined, PaperClipOutlined } from "@ant-design/icons";
 import { Alert, Button, Checkbox, DatePicker, Image, Input, Modal, Select, Spin, Table, Tag, TimePicker, Typography, message } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { usePermissions } from "@hooks/account";
 import { useCurrentAccount } from "@hooks/account";
 
@@ -48,15 +52,16 @@ const wibDateAndTime = (value: string) => {
 const wasSubmittedLate = (row: { work_date: string; submitted_at?: string | null; deadline_time?: string }) => {
   if (!row.submitted_at) return false;
   const sent = wibDateAndTime(row.submitted_at);
-  return sent.date > row.work_date || (sent.date === row.work_date && sent.time > String(row.deadline_time || "17:00").slice(0, 5));
+  return sent.date > row.work_date || (sent.date === row.work_date && sent.time > String(row.deadline_time || "23:59").slice(0, 5));
 };
 const leavePeriod = (start: string, end: string) => start === end
   ? dayjs(start).format("D MMM YYYY")
   : `${dayjs(start).format("D MMM YYYY")} – ${dayjs(end).format("D MMM YYYY")}`;
 const leaveStatusLabel = (status: string) => status === "approved" ? "Disetujui" : status === "pending" ? "Menunggu persetujuan" : status === "rejected" ? "Ditolak" : "Dibatalkan";
-type PendingReference = { id: string; reference: { type: "link" | "card"; url?: string; display_text?: string; card_id?: string } };
+type PendingReference = { id: string; reference: { type: "link" | "card" | "notulensi"; url?: string; display_text?: string; card_id?: string; notulensi_id?: string; workspace_id?: string } };
 type PendingAttachment = { id: string; file: File };
 const referenceCardHref = (reference: any, fallbackWorkspaceId: string) => {
+  if (reference.notulensi_id && reference.notulensi?.workspace_id) return `/workspace/${reference.notulensi.workspace_id}/notulensi/${reference.notulensi_id}`;
   const card = reference.card;
   const boardId = card?.list?.board?.id ?? card?.list?.boardId;
   const listId = card?.list?.id;
@@ -68,23 +73,31 @@ const referenceCardHref = (reference: any, fallbackWorkspaceId: string) => {
 
 export default function DailyActivityPage() {
   const routeParams = useParams<{ workspaceId: string }>();
+  const searchParams = useSearchParams();
   const workspaceId = routeParams.workspaceId;
+  const notificationReportId = searchParams.get("reportId");
+  const notificationItemId = searchParams.get("itemId");
   const [tab, setTab] = useState<DailyActivityTab>("mine");
   const [workDate, setWorkDate] = useState(today());
+  const [teamDateRange, setTeamDateRange] = useState<[string, string]>([today(), today()]);
   const [activities, setActivities] = useState<string[]>([""]);
   const [activityIds, setActivityIds] = useState<string[]>([]);
   const [editingActivities, setEditingActivities] = useState(false);
   const [referenceDrafts, setReferenceDrafts] = useState<Record<number, { url: string; name: string }>>({});
   const [pendingReferences, setPendingReferences] = useState<Record<number, PendingReference[]>>({});
   const [pendingAttachments, setPendingAttachments] = useState<Record<number, PendingAttachment[]>>({});
+  const [openAttachmentIndex, setOpenAttachmentIndex] = useState<number | null>(null);
   const [attachmentBusy, setAttachmentBusy] = useState(false);
   const [cardSearch, setCardSearch] = useState("");
   const [taskSearch, setTaskSearch] = useState("");
   const [reportSearch, setReportSearch] = useState("");
   const [divisionFilter, setDivisionFilter] = useState<string[]>([]);
+  const [teamUserFilterIds, setTeamUserFilterIds] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [selectedTeamDay, setSelectedTeamDay] = useState<DailyActivityDay | null>(null);
+  const [commentItemId, setCommentItemId] = useState<string | null>(null);
+  const [commentDraft, setCommentDraft] = useState("");
   const [scopeViewerId, setScopeViewerId] = useState<string>();
   const [scopePreview, setScopePreview] = useState<string[]>([]);
   const [teamScopePreviewIds, setTeamScopePreviewIds] = useState<string[] | null>(null);
@@ -98,7 +111,7 @@ export default function DailyActivityPage() {
   const [holidayName, setHolidayName] = useState("");
   const [holidayDate, setHolidayDate] = useState(today());
   const [effectiveFrom, setEffectiveFrom] = useState(today());
-  const [deadline, setDeadline] = useState("17:00");
+  const [deadline, setDeadline] = useState("23:59");
   const [roleRequiredDraft, setRoleRequiredDraft] = useState<Record<string, boolean>>({});
   const [userOverrideDrafts, setUserOverrideDrafts] = useState<Record<string, "follow_role" | "required" | "exempt">>({});
   const [userOverrideBaseline, setUserOverrideBaseline] = useState<Record<string, "follow_role" | "required" | "exempt">>({});
@@ -118,8 +131,9 @@ export default function DailyActivityPage() {
   const reportQuery = useQuery({ queryKey: ["daily-activity-my-report", workDate], queryFn: () => getMyDailyActivity(workDate), enabled: tab === "mine" });
   const myLeaveRequestsQuery = useQuery({ queryKey: ["daily-activity-leave-requests", "mine"], queryFn: getMyDailyActivityLeaveRequests, enabled: tab === "mine", refetchInterval: 30_000 });
   const pendingLeaveRequestsQuery = useQuery({ queryKey: ["daily-activity-leave-requests", "inbox"], queryFn: getPendingDailyActivityLeaveRequests, refetchInterval: 30_000 });
-  const teamQuery = useQuery({ queryKey: ["daily-activity-reports", workDate], queryFn: () => getDailyActivityReports(workDate, workDate), enabled: tab === "team" });
+  const teamQuery = useQuery({ queryKey: ["daily-activity-reports", teamDateRange], queryFn: () => getDailyActivityReports(teamDateRange[0], teamDateRange[1]), enabled: tab === "team" });
   const detailQuery = useQuery({ queryKey: ["daily-activity-report", selectedReportId], queryFn: () => getDailyActivityReport(selectedReportId!), enabled: !!selectedReportId });
+  const commentsQuery = useQuery({ queryKey: ["daily-activity-item-comments", commentItemId], queryFn: () => getDailyActivityItemComments(commentItemId!), enabled: !!commentItemId });
   const structureQuery = useQuery({ queryKey: ["daily-activity-structure"], queryFn: getDailyActivityStructure, enabled: tab === "structure" });
   const configQuery = useQuery({ queryKey: ["daily-activity-configuration"], queryFn: getDailyActivityConfiguration, enabled: (isAdmin && ["settings", "structure", "calendar"].includes(tab)) || (isHr && tab === "calendar") });
   const cardSearchQuery = useQuery({
@@ -144,10 +158,16 @@ export default function DailyActivityPage() {
           ? [stored.divisionFilter]
           : [];
       setDivisionFilter(savedDivisions.filter((value: unknown): value is string => typeof value === "string"));
+      setTeamUserFilterIds(Array.isArray(stored.teamUserFilterIds) ? stored.teamUserFilterIds.filter((value: unknown): value is string => typeof value === "string") : []);
+      setTeamDateRange(Array.isArray(stored.teamDateRange) && stored.teamDateRange.length === 2
+        ? [String(stored.teamDateRange[0]), String(stored.teamDateRange[1])]
+        : [today(), today()]);
       setReportSearch(stored.reportSearch || "");
     } catch {
       setStatusFilter("");
       setDivisionFilter([]);
+      setTeamUserFilterIds([]);
+      setTeamDateRange([today(), today()]);
       setReportSearch("");
     }
     setFilterStorageReady(activityFilterStorageKey);
@@ -155,8 +175,54 @@ export default function DailyActivityPage() {
 
   useEffect(() => {
     if (!activityFilterStorageKey || filterStorageReady !== activityFilterStorageKey) return;
-    localStorage.setItem(activityFilterStorageKey, JSON.stringify({ statusFilter, divisionFilter, reportSearch }));
-  }, [activityFilterStorageKey, divisionFilter, filterStorageReady, reportSearch, statusFilter]);
+    localStorage.setItem(activityFilterStorageKey, JSON.stringify({ statusFilter, divisionFilter, teamUserFilterIds, teamDateRange, reportSearch }));
+  }, [activityFilterStorageKey, divisionFilter, filterStorageReady, reportSearch, statusFilter, teamDateRange, teamUserFilterIds]);
+
+  useEffect(() => {
+    const oldestMissedDate = accessQuery.data?.oldest_missed_date;
+    if (!editingActivities && accessQuery.data?.locked && oldestMissedDate && workDate !== oldestMissedDate) {
+      setWorkDate(oldestMissedDate);
+    } else if (!editingActivities && !oldestMissedDate && accessQuery.data?.oldest_unread_comment?.work_date && workDate !== accessQuery.data.oldest_unread_comment.work_date) {
+      setWorkDate(accessQuery.data.oldest_unread_comment.work_date);
+    }
+  }, [accessQuery.data?.locked, accessQuery.data?.oldest_missed_date, accessQuery.data?.oldest_unread_comment?.work_date, editingActivities, workDate]);
+
+  useEffect(() => {
+    const review = accessQuery.data?.oldest_pending_review;
+    if (review && !accessQuery.data?.oldest_missed_date) {
+      setTab("team");
+      setSelectedReportId(review.report_id);
+      setTeamDateRange([review.work_date, review.work_date]);
+    }
+  }, [accessQuery.data?.oldest_pending_review?.report_id, accessQuery.data?.oldest_pending_review?.work_date, accessQuery.data?.oldest_missed_date]);
+
+  useEffect(() => {
+    const unread = accessQuery.data?.oldest_unread_comment;
+    if (!unread || !currentUserId) return;
+    setCommentItemId(unread.item_id);
+    if (unread.owner_id === currentUserId) {
+      setTab("mine");
+      setWorkDate(unread.work_date);
+    } else {
+      setTab("team");
+      setSelectedReportId(unread.report_id);
+      setTeamDateRange([unread.work_date, unread.work_date]);
+    }
+  }, [accessQuery.data?.oldest_unread_comment?.item_id, accessQuery.data?.oldest_unread_comment?.report_id, accessQuery.data?.oldest_unread_comment?.work_date, accessQuery.data?.oldest_unread_comment?.owner_id, currentUserId]);
+
+  useEffect(() => {
+    if (!notificationReportId || !notificationItemId) return;
+    setTab("team");
+    setSelectedReportId(notificationReportId);
+    setCommentItemId(notificationItemId);
+  }, [notificationReportId, notificationItemId]);
+
+  useEffect(() => {
+    const workDate = detailQuery.data?.work_date;
+    if (notificationReportId && workDate && (teamDateRange[0] !== workDate || teamDateRange[1] !== workDate)) {
+      setTeamDateRange([workDate, workDate]);
+    }
+  }, [detailQuery.data?.work_date, notificationReportId, teamDateRange]);
 
   useEffect(() => {
     if (!configQuery.data) return;
@@ -251,6 +317,33 @@ export default function DailyActivityPage() {
     onError: (error: any) => message.error(error?.response?.data?.message || "Gagal menyimpan Daily Activity"),
   });
 
+  const commentMutation = useMutation({
+    mutationFn: () => addDailyActivityItemComment(commentItemId!, commentDraft, workspaceId),
+    onSuccess: () => {
+      setCommentDraft("");
+      void queryClient.invalidateQueries({ queryKey: ["daily-activity-item-comments", commentItemId] });
+      void queryClient.invalidateQueries({ queryKey: ["daily-activity-access-status"] });
+      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+    onError: (error: any) => message.error(error?.response?.data?.message || "Gagal mengirim komentar"),
+  });
+  const reviewMutation = useMutation({
+    mutationFn: reviewDailyActivityReport,
+    onSuccess: () => {
+      message.success("Daily Activity ditandai sudah dicek");
+      void queryClient.invalidateQueries({ queryKey: ["daily-activity-report", selectedReportId] });
+      void queryClient.invalidateQueries({ queryKey: ["daily-activity-reports"] });
+      void queryClient.invalidateQueries({ queryKey: ["daily-activity-access-status"] });
+    },
+    onError: (error: any) => message.error(error?.response?.data?.message || "Gagal menandai laporan sudah dicek"),
+  });
+
+  useEffect(() => {
+    if (!commentsQuery.dataUpdatedAt) return;
+    void queryClient.invalidateQueries({ queryKey: ["daily-activity-access-status"] });
+    void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+  }, [commentsQuery.dataUpdatedAt, queryClient]);
+
   const roleManagerMutation = useMutation({ mutationFn: ({ roleId, managerRoleId }: { roleId: string; managerRoleId: string | null }) => updateDailyActivityRoleManager(roleId, managerRoleId), onSuccess: () => { message.success("Atasan role diperbarui"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] }); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); }, onError: (error: any) => { message.error(error?.response?.data?.message || "Gagal memperbarui atasan role"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] }); } });
   const savePolicyMutation = useMutation({
     mutationFn: async () => {
@@ -291,19 +384,32 @@ export default function DailyActivityPage() {
   const users = configQuery.data?.users || [];
   const cardResults = ((cardSearchQuery.data || []) as Card[]).filter((card) => !card.archive);
   const taskResults: NotulensiSummary[] = taskSearchQuery.data?.data || [];
-  const teamDeadline = teamQuery.data?.find((row) => row.deadline_time)?.deadline_time?.slice(0, 5) || "17:00";
-  const activityRows = (teamQuery.data || []).filter((row) => row.status !== "not_required");
+  const teamRows = teamQuery.data || [];
+  useEffect(() => {
+    const row = selectedReportId ? teamRows.find((item) => item.report_id === selectedReportId) : null;
+    if (row) setSelectedTeamDay(row);
+  }, [selectedReportId, teamRows]);
+  const teamDeadline = teamRows.find((row) => row.work_date === teamDateRange[1] && row.deadline_time)?.deadline_time?.slice(0, 5)
+    || teamRows.find((row) => row.deadline_time)?.deadline_time?.slice(0, 5)
+    || "23:59";
+  const activityRows = teamRows.filter((row) => row.status !== "not_required");
   const myLeaveRequests = myLeaveRequestsQuery.data || [];
   const pendingLeaveRequests = pendingLeaveRequestsQuery.data || [];
   const activeLeave = myLeaveRequests.find((request) => request.start_date <= workDate && request.end_date >= workDate && ["pending", "approved", "rejected"].includes(request.status));
   const divisions = Array.from(new Set(activityRows.map((row) => row.role_name).filter(Boolean))) as string[];
+  const teamUserOptions = Array.from(new Map(
+    teamRows
+      .filter((row) => row.required || row.report_id || ["submitted", "draft"].includes(row.status))
+      .map((row) => [row.user_id, { value: row.user_id, label: `${row.username}${row.role_name ? ` · ${row.role_name}` : ""}` }]),
+  ).values()).sort((left, right) => left.label.localeCompare(right.label));
   const normalizedSearch = reportSearch.trim().toLowerCase();
   const filteredActivityRows = activityRows.filter((row) => {
     const matchesDivision = !divisionFilter.length || divisionFilter.includes(row.role_name || "");
+    const matchesUser = !teamUserFilterIds.length || teamUserFilterIds.includes(row.user_id);
     const matchesSearch = !normalizedSearch || `${row.username} ${row.role_name || ""} ${row.activities.map((item) => item.content).join(" ")}`.toLowerCase().includes(normalizedSearch);
     const matchesStatus = !statusFilter || (statusFilter === "pending" ? ["missing", "draft"].includes(row.status) : row.status === statusFilter);
     const matchesScope = !teamScopePreviewIds || teamScopePreviewIds.includes(row.user_id);
-    return matchesDivision && matchesSearch && matchesStatus && matchesScope;
+    return matchesDivision && matchesUser && matchesSearch && matchesStatus && matchesScope;
   });
   const rawStatusCounts = activityRows.reduce((counts, row) => {
     counts[row.status] = (counts[row.status] || 0) + 1;
@@ -314,6 +420,10 @@ export default function DailyActivityPage() {
   }, { submitted: 0, draft: 0, missing: 0, pending: 0, late: 0, on_leave: 0 } as Record<string, number>);
   const statusCounts = { ...rawStatusCounts, all: activityRows.length, sent: rawStatusCounts.submitted || 0 };
   const dailyLocked = accessQuery.data?.locked === true;
+  const missedDailyLocked = (accessQuery.data?.missed_dates?.length || 0) > 0;
+  const hasUnreadCommentLock = (accessQuery.data?.unread_comment_count || 0) > 0;
+  const hasPendingReviewLock = (accessQuery.data?.pending_review_count || 0) > 0;
+  const blockTabsForMissed = missedDailyLocked && !hasUnreadCommentLock && !hasPendingReviewLock;
   const canActOnSelectedDate = reportQuery.data?.required === true;
   const userOptions = useMemo(() => users.map((user) => ({ value: user.id, label: user.username })), [users]);
   const holidayRows = configQuery.data?.holidays || [];
@@ -418,15 +528,7 @@ export default function DailyActivityPage() {
     setCardSearch("");
   };
   const saveTaskReference = (index: number, task: NotulensiSummary) => {
-    if (task.cardId) {
-      void saveActivityReference(index, { type: "card", card_id: task.cardId, display_text: `${task.code} · ${task.title}` });
-    } else {
-      void saveActivityReference(index, {
-        type: "link",
-        url: `${window.location.origin}/workspace/${workspaceId}/notulensi/${task.id}`,
-        display_text: `${task.code} · ${task.title}`,
-      });
-    }
+    void saveActivityReference(index, { type: "notulensi", notulensi_id: task.id, workspace_id: workspaceId, display_text: `${task.code} · ${task.title}` });
     setTaskSearch("");
   };
   const openActivityEditor = () => {
@@ -442,6 +544,7 @@ export default function DailyActivityPage() {
     setPendingReferences({});
     setPendingAttachments({});
     setReferenceDrafts({});
+    setOpenAttachmentIndex(null);
     setEditingActivities(true);
   };
   const cancelActivityEdit = () => {
@@ -451,6 +554,7 @@ export default function DailyActivityPage() {
     setPendingReferences({});
     setPendingAttachments({});
     setReferenceDrafts({});
+    setOpenAttachmentIndex(null);
     setEditingActivities(false);
   };
   const runSaveActivities = (submit: boolean) => {
@@ -459,6 +563,62 @@ export default function DailyActivityPage() {
       return;
     }
     saveMutation.mutate(submit);
+  };
+  const shiftIndexedRecord = <T,>(current: Record<number, T>, fromIndex: number) =>
+    Object.fromEntries(Object.entries(current).map(([key, value]) => {
+      const index = Number(key);
+      return [index >= fromIndex ? index + 1 : index, value];
+    })) as Record<number, T>;
+  const handleActivityKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>, index: number, content: string) => {
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229 || saveMutation.isPending) return;
+    if (event.key === "Backspace" && !content && index > 0) {
+      const savedActivity = reportQuery.data?.report?.activities.find((item) => item.id === activityIds[index]);
+      if (savedActivity?.references?.length || pendingReferences[index]?.length || pendingAttachments[index]?.length) return;
+      event.preventDefault();
+      setActivities((current) => current.filter((_, itemIndex) => itemIndex !== index));
+      setActivityIds((current) => current.filter((_, itemIndex) => itemIndex !== index));
+      const shiftIndexes = <T,>(current: Record<number, T>) => Object.fromEntries(Object.entries(current).filter(([key]) => Number(key) !== index).map(([key, value]) => [Number(key) > index ? Number(key) - 1 : Number(key), value])) as Record<number, T>;
+      setPendingReferences(shiftIndexes);
+      setPendingAttachments(shiftIndexes);
+      setReferenceDrafts(shiftIndexes);
+      setOpenAttachmentIndex((current) => current === index ? null : current !== null && current > index ? current - 1 : current);
+      setTimeout(() => document.querySelector<HTMLTextAreaElement>(`#ozdaily textarea[aria-label="Aktivitas ${index}"]`)?.focus(), 0);
+      return;
+    }
+    if (event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
+    event.preventDefault();
+    if (!content.trim()) return;
+
+    const before = content.slice(0, event.currentTarget.selectionStart);
+    const after = content.slice(event.currentTarget.selectionEnd);
+    const insertBefore = !before.trim();
+    const insertionIndex = insertBefore ? index : index + 1;
+    const focusIndex = index + 1;
+
+    setActivities((current) => {
+      const next = [...current];
+      if (insertBefore) {
+        next.splice(index, 0, "");
+      } else {
+        next[index] = before;
+        next.splice(insertionIndex, 0, after);
+      }
+      return next;
+    });
+    setActivityIds((current) => {
+      const next = [...current];
+      next.splice(insertionIndex, 0, "");
+      return next;
+    });
+    setPendingReferences((current) => shiftIndexedRecord(current, insertionIndex));
+    setPendingAttachments((current) => shiftIndexedRecord(current, insertionIndex));
+    setReferenceDrafts((current) => shiftIndexedRecord(current, insertionIndex));
+    setOpenAttachmentIndex((current) => current !== null && current >= insertionIndex ? current + 1 : current);
+    setTimeout(() => {
+      const nextInput = document.querySelector<HTMLTextAreaElement>(`#ozdaily textarea[aria-label="Aktivitas ${focusIndex + 1}"]`);
+      nextInput?.focus();
+      nextInput?.setSelectionRange(0, 0);
+    }, 0);
   };
   const openLeaveRequest = () => {
     const baseDate = dayjs(workDate);
@@ -474,7 +634,7 @@ export default function DailyActivityPage() {
     return <span key={reference.id} className="inline-flex max-w-full flex-wrap items-center gap-2 rounded border border-slate-200 bg-white px-2 py-1">
       {reference.reference_type === "file" && reference.file_url
           ? <a href={reference.file_url} target="_blank" rel="noreferrer">{display}</a>
-          : reference.reference_type === "card" && cardHref
+          : ["card", "notulensi"].includes(reference.reference_type) && cardHref
             ? <a href={cardHref}>{display}</a>
             : reference.reference_type === "link"
               ? <a href={reference.url || "#"} target="_blank" rel="noreferrer">{display}</a>
@@ -499,6 +659,12 @@ export default function DailyActivityPage() {
       {otherReferences.length > 0 && <div className="flex min-w-0 flex-wrap gap-2">{otherReferences.map((reference) => renderSavedReference(reference, itemId, canEdit))}</div>}
     </div>;
   };
+  const renderCommentPanel = (itemId: string) => commentItemId === itemId ? <section className="mt-3 grid gap-3 rounded-lg border bg-slate-50 p-3" aria-label="Komentar aktivitas">
+    <div className="flex items-center justify-between gap-2"><Typography.Text strong>Komentar aktivitas</Typography.Text><Button size="small" onClick={() => { setCommentItemId(null); setCommentDraft(""); }}>Tutup</Button></div>
+    {commentsQuery.isLoading ? <Spin size="small" /> : commentsQuery.data?.length ? <div className="grid gap-3">{commentsQuery.data.map((comment) => <article key={comment.id} className="rounded border bg-white p-2"><div className="flex flex-wrap items-baseline gap-2"><Typography.Text strong>{comment.user?.username || "Pengguna"}</Typography.Text><Typography.Text type="secondary" className="text-xs">{wibDateAndTime(comment.created_at).date} {wibDateAndTime(comment.created_at).time} WIB</Typography.Text></div><p className="mt-1 whitespace-pre-wrap">{comment.content}</p></article>)}</div> : <Typography.Text type="secondary">Belum ada komentar.</Typography.Text>}
+    <Input.TextArea aria-label="Tulis komentar aktivitas" value={commentDraft} onChange={(event) => setCommentDraft(event.target.value)} maxLength={3000} autoSize={{ minRows: 2, maxRows: 5 }} placeholder="Tulis komentar atau balasan…" />
+    <div className="flex justify-end"><Button type="primary" disabled={!commentDraft.trim()} loading={commentMutation.isPending} onClick={() => commentMutation.mutate()}>Kirim Komentar</Button></div>
+  </section> : null;
   return (
     <>
     <style jsx global>{`
@@ -510,14 +676,15 @@ export default function DailyActivityPage() {
       #ozdaily .ozpanel{background:var(--ozpanel);border:1px solid var(--ozline);border-radius:10px;padding:18px;margin-bottom:15px}#ozdaily .ozactivity{background:var(--ozbg);border:1px solid var(--ozline);border-radius:8px;padding:15px;margin-bottom:12px}#ozdaily .ozidentity{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:18px}#ozdaily .ozactions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:20px}#ozdaily .oznotice{background:var(--ozsoft);color:#2762a9;border:1px solid #c7dcff;border-radius:6px;padding:10px 13px;font-size:12px;margin-bottom:15px}#ozdaily .ozpolicy{padding:12px 0;border-top:1px solid var(--ozline);font-size:12px}#ozdaily .ozpolicy p{color:var(--ozmuted);margin-top:4px}#ozdaily .ozfooter{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--ozmuted)}#ozdaily .ozgatepanel{display:grid;gap:16px;justify-items:center;text-align:center;padding:40px 20px;background:var(--ozpanel);border:1px solid var(--ozline);border-radius:12px}
       #ozdaily .ozsettinggrid,#ozdaily .ozstructuregrid{display:grid;grid-template-columns:1.2fr 1fr;gap:18px}#ozdaily .ozcheck{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--ozline)}#ozdaily input[type=checkbox]{width:16px;height:16px;accent-color:var(--ozblue)}#ozdaily .ozdays{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}#ozdaily .ozdays .ozday{display:flex;align-items:center;gap:4px;font-size:11px}#ozdaily .ozorgwrap{background:var(--ozpanel);padding:16px;border:1px solid var(--ozline);border-radius:10px;min-width:0}#ozdaily .ozorg ul{list-style:none;margin:0;padding:0}#ozdaily .ozorg ul ul{margin-left:14px;padding-left:18px;border-left:1px solid #cbd2dc}#ozdaily .ozorg li{position:relative;padding-top:10px}#ozdaily .ozorg ul ul>li:before{content:'';position:absolute;left:-18px;top:32px;width:18px;border-top:1px solid #cbd2dc}#ozdaily .ozorgnode{display:flex;flex-direction:column;align-items:flex-start;gap:0;white-space:normal;text-align:left;width:100%;padding:9px 12px;background:var(--ozbg)}#ozdaily .ozorgname{font-size:12px;font-weight:600}#ozdaily .ozorgnode small{font-size:11px}#ozdaily .ozorgnode.ozorgselected{background:var(--ozblue);border-color:var(--ozblue);color:#fff}#ozdaily .ozorgnode.ozorgselected small{color:#e4efff}#ozdaily .ozorgnode.ozorgvisible{background:var(--ozsoft);border-color:#bfd6f7}#ozdaily .ozorgnode.ozorghidden{background:var(--ozbg);color:var(--ozmuted)}#ozdaily .ozaccessrow{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:10px 0;border-top:1px solid var(--ozline);font-size:12px}#ozdaily .ozaccessrow small{display:block;font-size:11px}#ozdaily .ozaccessstate{font-size:11px;white-space:nowrap}#ozdaily .ozallowed{color:var(--ozgreen)}#ozdaily .ozdenied{color:var(--ozmuted)}
        #ozdaily .ant-table-wrapper{border:1px solid var(--ozline);border-radius:10px;overflow:hidden}#ozdaily .ant-table-thead>tr>th{background:#f3f4f6;color:var(--oztext);font-size:12px;font-weight:500}#ozdaily .ant-table-tbody>tr>td{font-size:12px;vertical-align:top}#ozdaily .ant-alert{border-radius:6px}#ozdaily .ant-input,#ozdaily .ant-picker,#ozdaily .ant-select-selector,#ozdaily .ant-btn{border-radius:6px}
-      #ozdaily .ozpills button{min-height:44px}#ozdaily .ozpills .ant-btn{height:44px}#ozdaily .ozactivity .ant-select-selector,#ozdaily .ozactivity .ant-input:not(textarea),#ozdaily .ozactivity .ant-btn{min-height:44px}#ozdaily .ozactivity label:focus-within{outline:2px solid var(--ozblue);outline-offset:2px}
-      #ozdaily .ozattachment-strip{display:flex;gap:10px;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;touch-action:pan-x;padding-bottom:6px}#ozdaily .ozattachment-tile{flex:0 0 170px;min-width:0;scroll-snap-align:start}
-      @media(max-width:850px){#ozdaily .ozmain{padding:20px 16px}#ozdaily .ozsettinggrid,#ozdaily .ozstructuregrid{grid-template-columns:1fr}}@media(max-width:650px){#ozdaily .ozmain{padding:15px 12px}#ozdaily .ozheading{align-items:start}#ozdaily h2{font-size:23px}#ozdaily .ozidentity{grid-template-columns:1fr}#ozdaily .oztoolbar{padding:12px}#ozdaily .oztabs button{padding:9px;font-size:12px}#ozdaily .ozorg ul ul{margin-left:7px;padding-left:13px}#ozdaily .ozorg ul ul>li:before{left:-13px;width:13px}}
+       #ozdaily .ozpills button{min-height:44px}#ozdaily .ozpills .ant-btn{height:44px}#ozdaily .ozactivity .ant-select-selector,#ozdaily .ozactivity .ant-input:not(textarea),#ozdaily .ozactivity .ant-btn{min-height:44px}#ozdaily .ozactivity label:focus-within{outline:2px solid var(--ozblue);outline-offset:2px}
+       #ozdaily .ozactivity{background:transparent;border:0;border-radius:0;padding:0;margin:0}#ozdaily .ozactivityline{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:start;gap:7px;min-width:0;padding:7px 2px;border-bottom:1px solid var(--ozline)}#ozdaily .ozactivitynumber{padding-top:8px;color:var(--ozmuted);font-size:12px;text-align:right}#ozdaily .ozactivityinput.ant-input{min-height:38px;padding:6px 7px;border:0;box-shadow:none;background:transparent;resize:none;line-height:1.55}#ozdaily .ozactivity:focus-within .ozactivityinput.ant-input{background:#f9fbff;box-shadow:0 0 0 2px #b9d6ff inset}#ozdaily .ozactivity-actions{display:flex;align-items:center;gap:3px}#ozdaily .ozactivity-actions .ant-btn{width:40px;height:40px;min-width:40px;padding:0}#ozdaily .ozactivity-actions .ant-btn .anticon{font-size:17px}#ozdaily .ozattachment-count{margin-left:2px;font-size:10px}#ozdaily .ozattachment-panel{display:grid;gap:10px;margin:0 3px 10px 32px;padding:11px;background:var(--ozpanel);border:1px solid var(--ozline);border-radius:6px}#ozdaily .ozattachment-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}#ozdaily .ozattachment-hint{font-size:11px;color:var(--ozmuted)}
+       #ozdaily .ozattachment-strip{display:flex;gap:10px;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;touch-action:pan-x;padding-bottom:6px}#ozdaily .ozattachment-tile{flex:0 0 170px;min-width:0;scroll-snap-align:start}
+       @media(max-width:850px){#ozdaily .ozmain{padding:20px 16px}#ozdaily .ozsettinggrid,#ozdaily .ozstructuregrid{grid-template-columns:1fr}}@media(max-width:650px){#ozdaily .ozmain{padding:15px 12px}#ozdaily .ozheading{align-items:start}#ozdaily h2{font-size:23px}#ozdaily .ozidentity{grid-template-columns:1fr}#ozdaily .oztoolbar{padding:12px}#ozdaily .oztabs button{padding:9px;font-size:12px}#ozdaily .ozorg ul ul{margin-left:7px;padding-left:13px}#ozdaily .ozorg ul ul>li:before{left:-13px;width:13px}#ozdaily .ozactivityline{grid-template-columns:20px minmax(0,1fr) auto;gap:4px;padding:6px 0}#ozdaily .ozactivitynumber{font-size:11px}#ozdaily .ozactivity-actions .ant-btn{width:38px;height:44px;min-width:38px}}
     `}</style>
     <div id="ozdaily">
     <div className="ozmain flex min-w-0 flex-col gap-4">
       <div className="ozheading"><h2>Daily Activity</h2></div>
-      {dailyLocked && tab !== "mine" ? (
+      {blockTabsForMissed && tab !== "mine" ? (
         <section className="grid justify-items-center gap-4 rounded-xl border border-red-200 bg-slate-50 px-5 py-10 text-center">
           <Typography.Title level={3} className="!mb-0">Akses Terkunci</Typography.Title>
           <Typography.Paragraph className="max-w-lg !mb-0">Belum mengisi Daily Activity tanggal {accessQuery.data?.oldest_missed_date}. Silakan isi terlebih dahulu.</Typography.Paragraph>
@@ -526,8 +693,10 @@ export default function DailyActivityPage() {
         </section>
       ) : (
         <>
-          {dailyLocked && <Alert type="warning" showIcon message={`Akses terkunci karena Daily Activity tanggal ${accessQuery.data?.oldest_missed_date} belum dikirim.`} />}
-          {!dailyLocked && <nav className="oztabs" role="tablist" aria-label="Daily Activity">
+          {missedDailyLocked && <Alert type="warning" showIcon message={`Akses terkunci karena Daily Activity tanggal ${accessQuery.data?.oldest_missed_date} belum dikirim.`} />}
+          {hasUnreadCommentLock && <Alert type="warning" showIcon message={`Akses terkunci karena ada ${accessQuery.data?.unread_comment_count || 0} komentar Daily Activity yang belum dibaca.`} />}
+          {hasPendingReviewLock && <Alert type="warning" showIcon message={`Ada ${accessQuery.data?.pending_review_count || 0} laporan bawahan yang wajib dicek.`} />}
+          {!blockTabsForMissed && <nav className="oztabs" role="tablist" aria-label="Daily Activity">
             <button role="tab" aria-selected={tab === "mine"} onClick={() => setTab("mine")}>Saya</button>
             <button role="tab" aria-selected={tab === "team"} onClick={() => setTab("team")}>Tim{pendingLeaveRequests.length > 0 ? ` · ${pendingLeaveRequests.length}` : ""}</button>
             <button role="tab" aria-selected={tab === "structure"} onClick={() => setTab("structure")}>Struktur</button>
@@ -548,34 +717,39 @@ export default function DailyActivityPage() {
           {reportQuery.isLoading ? <Spin /> : <>
             {editingActivities ? <>
               <div className="mb-1 flex items-center justify-between"><Typography.Title level={4} className="!mb-0">Aktivitas yang dikerjakan</Typography.Title>{reportQuery.data?.report && <Tag color={reportQuery.data.report.status === "submitted" ? "green" : "gold"}>{reportQuery.data.report.status === "submitted" ? "Sudah Kirim" : "Draft"}</Tag>}</div>
+              <Typography.Text id="daily-activity-keyboard-help" type="secondary" className="text-xs">Enter untuk aktivitas baru · Shift + Enter untuk turun baris dalam aktivitas yang sama</Typography.Text>
               {activities.map((content, index) => {
                 const activityId = activityIds[index];
                 const savedActivity = reportQuery.data?.report?.activities.find((item) => item.id === activityId);
                 const referenceDraft = referenceDrafts[index] || { url: "", name: "" };
                 const queuedReferences = pendingReferences[index] || [];
                 const queuedAttachments = pendingAttachments[index] || [];
+                const referenceCount = (savedActivity?.references?.length || 0) + queuedReferences.length + queuedAttachments.length;
+                const attachmentOpen = openAttachmentIndex === index;
                 return <div key={activityId || `new-${index}`} className="ozactivity" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); Array.from(event.dataTransfer.files || []).forEach((file) => void uploadActivityImage(index, file)); }} onPaste={(event) => { const file = Array.from(event.clipboardData.files || [])[0]; if (file) { event.preventDefault(); void uploadActivityImage(index, file); } }}>
-                  <div className="flex gap-2"><Input.TextArea aria-label={`Aktivitas ${index + 1}`} autoSize={{ minRows: 2 }} maxLength={20000} value={content} onChange={(event) => setActivities((items) => items.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder="Apa yang kamu kerjakan pada tanggal ini?" disabled={saveMutation.isPending} /><Button danger disabled={activities.length === 1 || saveMutation.isPending} onClick={() => {
+                  <div className="ozactivityline"><span className="ozactivitynumber" aria-hidden="true">{index + 1}.</span><Input.TextArea className="ozactivityinput" aria-label={`Aktivitas ${index + 1}`} aria-describedby="daily-activity-keyboard-help" autoSize={{ minRows: 1 }} maxLength={20000} value={content} onChange={(event) => setActivities((items) => items.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} onKeyDown={(event) => handleActivityKeyDown(event, index, content)} placeholder="Tulis aktivitas…" disabled={saveMutation.isPending} /><div className="ozactivity-actions"><Button type={attachmentOpen ? "primary" : "text"} aria-label={`${attachmentOpen ? "Tutup" : "Kelola"} lampiran aktivitas ${index + 1}${referenceCount ? `, ${referenceCount} referensi` : ""}`} aria-expanded={attachmentOpen} onClick={() => setOpenAttachmentIndex((current) => current === index ? null : index)} icon={<PaperClipOutlined />}>{referenceCount ? <span className="ozattachment-count">{referenceCount}</span> : null}</Button><Button type="text" danger aria-label={`Hapus aktivitas ${index + 1}`} icon={<CloseOutlined />} disabled={activities.length === 1 || saveMutation.isPending} onClick={() => {
                     setActivities((items) => items.filter((_, itemIndex) => itemIndex !== index));
                     setActivityIds((items) => items.filter((_, itemIndex) => itemIndex !== index));
                     const shiftIndexes = <T,>(current: Record<number, T>) => Object.fromEntries(Object.entries(current).filter(([key]) => Number(key) !== index).map(([key, value]) => [Number(key) > index ? Number(key) - 1 : Number(key), value])) as Record<number, T>;
                     setPendingReferences(shiftIndexes);
                     setPendingAttachments(shiftIndexes);
                     setReferenceDrafts(shiftIndexes);
-                  }}>Hapus</Button></div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500"><label className="inline-flex min-h-11 cursor-pointer items-center rounded border px-3 py-2 hover:bg-slate-50">+ Lampiran<input type="file" multiple className="sr-only" disabled={attachmentBusy || saveMutation.isPending} onChange={(event) => { Array.from(event.target.files || []).forEach((file) => void uploadActivityImage(index, file)); event.target.value = ""; }} /></label><span>Drag & drop atau paste · Maks 50 MB/file</span></div>
+                    setOpenAttachmentIndex((current) => current === index ? null : current !== null && current > index ? current - 1 : current);
+                  }} /></div></div>
+                  {attachmentOpen && <div className="ozattachment-panel"><div className="ozattachment-tools"><label className="inline-flex min-h-11 cursor-pointer items-center rounded border bg-white px-3 py-2 hover:bg-slate-50">+ Lampiran<input type="file" multiple className="sr-only" disabled={attachmentBusy || saveMutation.isPending} onChange={(event) => { Array.from(event.target.files || []).forEach((file) => void uploadActivityImage(index, file)); event.target.value = ""; }} /></label><span className="ozattachment-hint">Drag & drop atau paste · Maks 50 MB/file</span></div>
                   {(savedActivity?.references?.length || queuedReferences.length || queuedAttachments.length) ? <div className="grid min-w-0 gap-2" aria-label="Lampiran dan referensi aktivitas">{savedActivity?.references?.length ? renderActivityReferences(savedActivity.references, activityId!) : null}<div className="flex flex-wrap gap-2">{queuedReferences.map((pending) => <span key={pending.id} className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1">{pending.reference.display_text || pending.reference.url || "Card terkait"}<Typography.Text type="secondary">Belum disimpan</Typography.Text><Button type="text" size="small" danger aria-label="Hapus referensi yang belum disimpan" onClick={() => setPendingReferences((current) => ({ ...current, [index]: (current[index] || []).filter((item) => item.id !== pending.id) }))}>×</Button></span>)}{queuedAttachments.map((pending) => <span key={pending.id} className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1">{pending.file.name}<Typography.Text type="secondary">Belum disimpan</Typography.Text><Button type="text" size="small" danger aria-label={`Hapus lampiran ${pending.file.name}`} onClick={() => setPendingAttachments((current) => ({ ...current, [index]: (current[index] || []).filter((item) => item.id !== pending.id) }))}>×</Button></span>)}</div></div> : null}
                   <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
                     <section className="grid min-w-0 gap-2 rounded border bg-slate-50 p-3 sm:col-span-2"><Typography.Text strong>Tambah tautan</Typography.Text><div className="grid min-w-0 gap-2 sm:grid-cols-[1fr_1fr_auto]"><Input aria-label="Alamat tautan" placeholder="https://..." value={referenceDraft.url} onChange={(event) => setReferenceDrafts((current) => ({ ...current, [index]: { ...referenceDraft, url: event.target.value } }))} onPressEnter={() => saveLinkDraft(index)} /><Input aria-label="Nama tautan opsional" placeholder="Nama tautan (opsional)" value={referenceDraft.name} onChange={(event) => setReferenceDrafts((current) => ({ ...current, [index]: { ...referenceDraft, name: event.target.value } }))} onPressEnter={() => saveLinkDraft(index)} /><Button disabled={!referenceDraft.url.trim()} onClick={() => saveLinkDraft(index)}>Tambah</Button></div></section>
                     <label className="min-w-0 space-y-1"><Typography.Text type="secondary">Card di board</Typography.Text><Select className="w-full" showSearch filterOption={false} allowClear value={undefined} placeholder="Cari card di board" onSearch={setCardSearch} onChange={(cardId) => { const card = cardResults.find((candidate) => candidate.id === cardId); if (card) saveCardReference(index, card); }} loading={cardSearchQuery.isFetching} notFoundContent={cardSearch.trim().length < 3 ? "Ketik minimal 3 karakter" : cardSearchQuery.isError ? "Gagal mencari card" : "Card tidak ditemukan"} options={cardResults.map((card) => ({ value: card.id, label: `${card.name}${card.boardName ? ` · ${card.boardName}` : ""}` }))} /></label>
                     <label className="min-w-0 space-y-1"><Typography.Text type="secondary">Task / Project</Typography.Text><Select className="w-full" showSearch filterOption={false} allowClear value={undefined} placeholder="Cari Task / Project" onSearch={setTaskSearch} onChange={(taskId) => { const task = taskResults.find((candidate) => candidate.id === taskId); if (task) saveTaskReference(index, task); }} loading={taskSearchQuery.isFetching} notFoundContent={taskSearch.trim().length < 2 ? "Ketik minimal 2 karakter" : taskSearchQuery.isError ? "Gagal mencari Task / Project" : "Task / Project tidak ditemukan"} options={taskResults.map((task) => ({ value: task.id, label: `${task.code} · ${task.title}` }))} /></label>
                   </div>
+                  </div>}
                 </div>;
               })}
               <div className="ozactions"><Button onClick={() => { setActivities((items) => [...items, ""]); setActivityIds((items) => [...items, ""]); }} disabled={saveMutation.isPending}>+ Aktivitas</Button><Button onClick={cancelActivityEdit} disabled={saveMutation.isPending}>Batal</Button>{reportQuery.data?.report?.status !== "submitted" && <Button onClick={() => runSaveActivities(false)} loading={saveMutation.isPending}>Simpan Draft</Button>}<Button type="primary" onClick={() => runSaveActivities(true)} loading={saveMutation.isPending}>{reportQuery.data?.report?.status === "submitted" ? "Simpan Perubahan" : "Simpan Aktivitas"}</Button></div>
             </> : <>
                <div className="mb-1 flex items-center justify-between"><div><Typography.Title level={4} className="!mb-0">Aktivitas saya</Typography.Title><Typography.Text type="secondary">{dayjs(workDate).format("dddd, D MMMM YYYY")}</Typography.Text></div><div className="flex items-center gap-2">{reportQuery.data?.report && <Tag color={reportQuery.data.report.status === "submitted" ? "green" : "gold"}>{reportQuery.data.report.status === "submitted" ? "Sudah Kirim" : "Draft"}</Tag>}{canActOnSelectedDate && Boolean(reportQuery.data?.report?.activities.length) && activeLeave?.status !== "approved" ? <Button size="small" onClick={openActivityEditor}>Edit Aktivitas</Button> : null}</div></div>
-               {reportQuery.data?.report?.activities.length ? <div className="grid gap-3">{reportQuery.data.report.activities.map((activity, index) => <article key={activity.id} className="rounded-lg border bg-white p-4"><div className="mb-2 flex gap-3"><span className="text-sm text-slate-500">{index + 1}.</span><p className="whitespace-pre-wrap">{activity.content}</p></div>{activity.references?.length ? renderActivityReferences(activity.references, activity.id, canActOnSelectedDate) : null}</article>)}</div> : activeLeave?.status === "approved" ? <div className="quiet">Cuti disetujui. Tidak perlu mencatat aktivitas.</div> : <div className="grid justify-items-center gap-3 rounded-lg border border-dashed p-8 text-center"><h3>Belum ada aktivitas yang dicatat</h3><p className="text-slate-500">Pilih tanggal dan catat aktivitas yang dikerjakan.</p>{canActOnSelectedDate && <Button type="primary" onClick={openActivityEditor}>+ Catat Aktivitas</Button>}</div>}
+                {reportQuery.data?.report?.activities.length ? <div className="grid gap-3">{reportQuery.data.report.activities.map((activity, index) => <article key={activity.id} className="rounded-lg border bg-white p-4"><div className="mb-2 flex gap-3"><span className="text-sm text-slate-500">{index + 1}.</span><p className="whitespace-pre-wrap">{activity.content}</p></div>{activity.references?.length ? renderActivityReferences(activity.references, activity.id, canActOnSelectedDate) : null}{reportQuery.data?.report?.status === "submitted" && <Button className="mt-2" size="small" type={commentItemId === activity.id ? "primary" : "default"} onClick={() => { setCommentItemId((current) => current === activity.id ? null : activity.id); setCommentDraft(""); }} aria-expanded={commentItemId === activity.id}>Komentar{activity.comments_count ? ` · ${activity.comments_count}` : ""}{accessQuery.data?.oldest_unread_comment?.item_id === activity.id ? " · Belum Dibaca" : ""}</Button>}{renderCommentPanel(activity.id)}</article>)}</div> : activeLeave?.status === "approved" ? <div className="quiet">Cuti disetujui. Tidak perlu mencatat aktivitas.</div> : <div className="grid justify-items-center gap-3 rounded-lg border border-dashed p-8 text-center"><h3>Belum ada aktivitas yang dicatat</h3><p className="text-slate-500">Pilih tanggal dan catat aktivitas yang dikerjakan.</p>{canActOnSelectedDate && <Button type="primary" onClick={openActivityEditor}>+ Catat Aktivitas</Button>}</div>}
               {myLeaveRequests.length > 0 && <section className="rounded-lg border p-4"><Typography.Text strong>Pengajuan cuti saya</Typography.Text><div className="mt-2 grid gap-2">{myLeaveRequests.map((request) => <div key={request.id} className="flex flex-wrap items-center justify-between gap-2 border-t pt-2"><div><span>{leavePeriod(request.start_date, request.end_date)}</span><Tag className="ml-2" color={request.status === "approved" ? "green" : request.status === "pending" ? "gold" : request.status === "rejected" ? "red" : "default"}>{leaveStatusLabel(request.status)}</Tag><Typography.Text className="ml-2" type="secondary">{request.approver_role_name ? `Atasan: ${request.approver_role_name}` : "Atasan: Super Admin"}</Typography.Text>{request.note && <div className="mt-1 text-sm">{request.note}</div>}{request.decision_note && <div className="mt-1 text-sm text-slate-500">Catatan: {request.decision_note}</div>}</div>{request.status === "pending" && <Button danger size="small" loading={cancelLeaveMutation.isPending} onClick={() => cancelLeaveMutation.mutate(request.id)}>Batalkan</Button>}</div>)}</div></section>}
             </>}
           </>}
@@ -597,23 +771,25 @@ export default function DailyActivityPage() {
               </div>
               {selectedReportId && detailQuery.isLoading ? <Spin /> : selectedReportId && detailQuery.data ? <>
                 <Typography.Title level={4}>{selectedTeamDay.username} · {dayjs(selectedTeamDay.work_date).format("DD MMMM YYYY")}</Typography.Title>
-                {detailQuery.data.activities.map((activity, index) => <article key={activity.id} className="mb-3 rounded-lg border p-3"><Typography.Text type="secondary">Aktivitas {index + 1}</Typography.Text><p className="whitespace-pre-wrap">{activity.content}</p>{activity.references?.length ? <div className="mt-2">{renderActivityReferences(activity.references, activity.id, false)}</div> : null}</article>)}
+                {detailQuery.data.activities.map((activity, index) => <article key={activity.id} className="mb-3 rounded-lg border p-3"><Typography.Text type="secondary">Aktivitas {index + 1}</Typography.Text><p className="whitespace-pre-wrap">{activity.content}</p>{activity.references?.length ? <div className="mt-2">{renderActivityReferences(activity.references, activity.id, false)}</div> : null}<Button className="mt-2" size="small" type={commentItemId === activity.id ? "primary" : "default"} onClick={() => { setCommentItemId((current) => current === activity.id ? null : activity.id); setCommentDraft(""); }} aria-expanded={commentItemId === activity.id}>Komentar{activity.comments_count ? ` · ${activity.comments_count}` : ""}{accessQuery.data?.oldest_unread_comment?.item_id === activity.id ? " · Belum Dibaca" : ""}</Button>{renderCommentPanel(activity.id)}</article>)}
                 {detailQuery.data.history?.length ? <details className="mt-4"><summary>Riwayat laporan</summary><ul>{detailQuery.data.history.map((entry, index) => <li key={`${entry.created_at}:${index}`}>{dayjs(entry.created_at).format("DD MMM YYYY HH:mm")} · {entry.action.replaceAll("_", " ")}</li>)}</ul></details> : null}
+                {detailQuery.data.can_review && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 p-3">{detailQuery.data.reviewed_at ? <Typography.Text type="success">✓ Sudah dicek {wibDateAndTime(detailQuery.data.reviewed_at).date} {wibDateAndTime(detailQuery.data.reviewed_at).time} WIB</Typography.Text> : <Typography.Text type="warning">Belum ditandai sudah dicek</Typography.Text>}<Button type="primary" disabled={!!detailQuery.data.reviewed_at} loading={reviewMutation.isPending} onClick={() => selectedReportId && reviewMutation.mutate(selectedReportId)}>Tandai Sudah Dicek</Button></div>}
                 {detailQuery.data.user_id === currentUserId && <Button type="primary" className="mt-3" onClick={() => { setWorkDate(detailQuery.data!.work_date); setTab("mine"); }}>Edit Daily Saya</Button>}
               </> : !selectedTeamDay.report_id ? <><Typography.Title level={4}>{selectedTeamDay.username} · {dayjs(selectedTeamDay.work_date).format("DD MMMM YYYY")}</Typography.Title><Tag color={selectedTeamDay.status === "on_leave" ? "blue" : "red"}>{selectedTeamDay.status === "on_leave" ? "Cuti" : "Belum Isi"}</Tag><Typography.Paragraph className="mt-3">{selectedTeamDay.status === "on_leave" ? "Cuti disetujui. Daily Activity tidak wajib pada tanggal ini." : "Laporan belum diisi."}</Typography.Paragraph></> : null}
             </section>
           )}
           {!selectedReportId && <>
             <div className="oztoolbar">
-              <label className="flex flex-col gap-1 text-xs">Tanggal kerja<DatePicker value={dayjs(workDate)} onChange={(value) => { if (value) { setWorkDate(value.format("YYYY-MM-DD")); setSelectedReportId(null); setSelectedTeamDay(null); } }} /></label>
+              <label className="flex flex-col gap-1 text-xs">Rentang tanggal kerja<DatePicker.RangePicker value={[dayjs(teamDateRange[0]), dayjs(teamDateRange[1])]} disabledDate={(date) => date.isAfter(dayjs(), "day")} onChange={(values) => { if (values?.[0] && values[1]) { setTeamDateRange([values[0].format("YYYY-MM-DD"), values[1].format("YYYY-MM-DD")]); setSelectedReportId(null); setSelectedTeamDay(null); } }} /></label>
               <label className="flex min-w-56 flex-1 flex-col gap-1 text-xs">Nama / aktivitas<Input.Search allowClear placeholder="Cari nama atau isi laporan…" value={reportSearch} onChange={(event) => setReportSearch(event.target.value)} /></label>
+              <label className="flex flex-col gap-1 text-xs">User wajib / ada riwayat<Select mode="multiple" showSearch optionFilterProp="label" allowClear className="min-w-52" placeholder="Semua user" value={teamUserFilterIds} onChange={setTeamUserFilterIds} maxTagCount={1} maxTagPlaceholder={(omitted) => `+${omitted.length}`} options={teamUserOptions} /></label>
               <label className="flex flex-col gap-1 text-xs">Divisi / role<Select mode="multiple" showSearch optionFilterProp="label" allowClear className="min-w-52" placeholder="Semua" value={divisionFilter} onChange={setDivisionFilter} maxTagCount={1} maxTagPlaceholder={(omitted) => `+${omitted.length}`} options={divisions.map((division) => ({ value: division, label: division }))} /></label>
             </div>
             <div className="ozsummary"><strong>Total {statusCounts.all}</strong><span className="ozsep">·</span><span>Sudah Kirim {statusCounts.sent || 0}</span><span className="ozsep">·</span><span>Belum Kirim {rawStatusCounts.pending || 0}</span><span className="ozsep">·</span><span>Terlambat {rawStatusCounts.late || 0}</span>{rawStatusCounts.on_leave ? <><span className="ozsep">·</span><span>Cuti {rawStatusCounts.on_leave}</span></> : null}</div>
-             <div className="ozpills" aria-label="Filter status laporan">{[["pending", "Belum Kirim"], ["submitted", "Sudah Kirim"]].map(([value, label]) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value)}>{label}</button>)}<Button size="small" onClick={() => { setStatusFilter(""); setDivisionFilter([]); setReportSearch(""); }}>Clear Filter</Button></div>
+              <div className="ozpills" aria-label="Filter status laporan">{[["pending", "Belum Kirim"], ["submitted", "Sudah Kirim"]].map(([value, label]) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value)}>{label}</button>)}<Button size="small" onClick={() => { setStatusFilter(""); setDivisionFilter([]); setTeamUserFilterIds([]); setReportSearch(""); setTeamDateRange([today(), today()]); }}>Clear Filter</Button></div>
             <div className="oztablewrap"><Table rowKey={(row) => `${row.user_id}:${row.work_date}`} loading={teamQuery.isLoading} dataSource={filteredActivityRows} pagination={{ pageSize: 20 }} columns={[
               { title: "Nama / jabatan", width: "25%", render: (_value, row) => <div><Typography.Text strong>{row.username}</Typography.Text><br /><Typography.Text type="secondary">{row.role_name || "-"}</Typography.Text></div> },
-              { title: "Status laporan", width: "20%", dataIndex: "status", render: (value, row) => <div><Tag color={value === "submitted" ? (wasSubmittedLate(row) ? "orange" : "green") : value === "missing" ? "red" : value === "on_leave" ? "blue" : "gold"}>{value === "submitted" ? (wasSubmittedLate(row) ? "Terlambat" : "✓ Sudah Kirim") : value === "missing" ? "Belum Isi" : value === "on_leave" ? "Cuti" : "Draft"}</Tag>{row.submitted_at && <div className="mt-1 text-xs text-slate-500">{wasSubmittedLate(row) ? "Terlambat · " : "Dikirim "}{wibDateAndTime(row.submitted_at).time} WIB</div>}</div> },
+               { title: "Status laporan", width: "20%", dataIndex: "status", render: (value, row) => <div><Tag color={value === "submitted" ? (wasSubmittedLate(row) ? "orange" : "green") : value === "missing" ? "red" : value === "on_leave" ? "blue" : "gold"}>{value === "submitted" ? (wasSubmittedLate(row) ? "Terlambat" : "✓ Sudah Kirim") : value === "missing" ? "Belum Isi" : value === "on_leave" ? "Cuti" : "Draft"}</Tag>{row.submitted_at && <div className="mt-1 text-xs text-slate-500">{wasSubmittedLate(row) ? "Terlambat · " : "Dikirim "}{wibDateAndTime(row.submitted_at).time} WIB</div>}{row.can_review && <div className="mt-1 text-xs text-slate-500">{row.reviewed_at ? "✓ Sudah dicek" : "Menunggu dicek"}</div>}</div> },
               { title: "Aktivitas hari ini", width: "39%", render: (_value, row) => row.activities.length ? <div><p className="line-clamp-2">{row.activities[0].content}</p><Typography.Text type="secondary">{row.activities.length} aktivitas</Typography.Text></div> : <Typography.Text type="secondary">{row.status === "on_leave" ? "Cuti disetujui" : "Belum ada aktivitas tercatat."}</Typography.Text> },
               { title: "Aksi", width: "16%", render: (_value, row) => <Button type="link" onClick={() => { setSelectedTeamDay(row); setSelectedReportId(row.report_id); }}>{row.report_id ? row.activities.length ? "Lihat Detail" : "Lihat Status" : "Lihat Status"}</Button> },
             ]} /></div>

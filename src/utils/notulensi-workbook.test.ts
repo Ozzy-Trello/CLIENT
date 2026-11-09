@@ -6,8 +6,9 @@ describe("notulensi workbook", () => {
     tasks: [{
       id: "task-1", code: "N-1", title: "Prepare report", content: "Compile July metrics",
       status: "completed" as const, progress: 100 as const, priority: "urgent" as const,
+      taskOrigin: "General" as const, picProject: "Bima", jabatan: "Analyst",
       dueDate: "2026-07-30T09:00:00.000Z", creatorName: "Alya", creatorEmail: "alya@example.com",
-      creatorRole: "Manager", assignees: ["Bima", "Citra"], assigneeRoles: ["Analyst", "Reviewer"],
+      creatorRole: "Manager",
       createdAt: "2026-07-28T08:00:00.000Z", startedAt: "2026-07-28T09:00:00.000Z",
       completedAt: "2026-07-30T08:30:00.000Z", cancelledAt: null,
       privateNote: "private-note", projectType: "secret-project", reminderToken: "reminder-secret",
@@ -31,7 +32,7 @@ describe("notulensi workbook", () => {
     ]);
     expect(XLSX.utils.sheet_to_json(workbook.Sheets.Tasks, { header: 1 })).toEqual([
       NOTULENSI_EXPORT_HEADERS.Tasks,
-      ["task-1", "N-1", "Prepare report", "Compile July metrics", "completed", 100, "urgent", "2026-07-30T09:00:00.000Z", "Alya", "alya@example.com", "Manager", "Bima, Citra", "Analyst, Reviewer", "2026-07-28T08:00:00.000Z", "2026-07-28T09:00:00.000Z", "2026-07-30T08:30:00.000Z", ""],
+      ["task-1", "N-1", "Prepare report", "General", "2026-07-28T08:00:00.000Z", "2026-07-30T09:00:00.000Z", "completed", "urgent", 100, "Alya", "Bima", "Analyst", "Compile July metrics", "2026-07-28T09:00:00.000Z", "2026-07-30T08:30:00.000Z", ""],
     ]);
     expect(XLSX.utils.sheet_to_json(workbook.Sheets["Read Receipts"], { header: 1 })).toEqual([
       NOTULENSI_EXPORT_HEADERS["Read Receipts"], ["N-1", "Dewi", "Director", "2026-07-29T10:00:00.000Z"],

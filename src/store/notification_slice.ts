@@ -51,6 +51,7 @@ const COMMENT_TYPES = new Set([
   "comment_mention",
   "notulensi_mention",
   "notulensi_comment",
+  "daily_activity_comment",
   "mention",
 ]);
 

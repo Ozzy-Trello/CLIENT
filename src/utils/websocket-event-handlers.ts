@@ -9,8 +9,15 @@ import {
 
 export function invalidateNotulensiNotification(
   queryClient: QueryClient,
-  notification: { entityType?: string; entityId?: string | null; workspaceId?: string }
+  notification: { entityType?: string; entityId?: string | null; workspaceId?: string; activityId?: string | null }
 ) {
+  if (notification.entityType === "daily_activity") {
+    queryClient.invalidateQueries({ queryKey: ["daily-activity-access-status"] });
+    queryClient.invalidateQueries({ queryKey: ["daily-activity-reports"] });
+    if (notification.entityId) queryClient.invalidateQueries({ queryKey: ["daily-activity-report", notification.entityId] });
+    if (notification.activityId) queryClient.invalidateQueries({ queryKey: ["daily-activity-item-comments", notification.activityId] });
+    return;
+  }
   if (notification.entityType !== "notulensi" || !notification.workspaceId) return;
 
   queryClient.invalidateQueries({

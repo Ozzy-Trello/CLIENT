@@ -66,6 +66,7 @@ import {
   Skeleton,
   Space,
   Spin,
+  Tag,
   Tabs,
   Timeline,
   Typography,
@@ -485,6 +486,7 @@ export default function NotulensiDetailView({
             <div className="flex flex-wrap gap-2">
               <NotulensiStatusTag status={detail.status} />
               <NotulensiPriorityTag priority={detail.priority} />
+              <Tag>{detail.taskOrigin}</Tag>
               <Typography.Text>
                 Due: {detail.dueDate ? dayjs(detail.dueDate).format("DD MMM YYYY HH:mm") : "No due date"}
               </Typography.Text>
@@ -638,6 +640,14 @@ export default function NotulensiDetailView({
           <div>
             <Typography.Text type="secondary" className="block">Creator</Typography.Text>
             <Typography.Text>{detail.creator?.username || "Unknown user"}</Typography.Text>
+          </div>
+          <div>
+            <Typography.Text type="secondary" className="block">PIC Project</Typography.Text>
+            <Typography.Text>{detail.picProject?.username || "—"}</Typography.Text>
+          </div>
+          <div>
+            <Typography.Text type="secondary" className="block">Jabatan</Typography.Text>
+            <Typography.Text>{detail.jabatan || "—"}</Typography.Text>
           </div>
         </div>
 
