@@ -980,7 +980,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
           case "card_labels:removed_all": {
             const { cardId, workspaceId } = message.data;
 
-            // Only invalidate specific queries for this card
+            // Invalidate this card's label queries only.
             // FIXED: Use specific keys instead of exact: false which invalidated ALL labels
             if (workspaceId && cardId) {
               invalidateCardLabelQueries(queryClient, workspaceId, cardId);
@@ -1076,11 +1076,9 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               });
             }
 
-            // Only invalidate specific queries for this card
+            // Invalidate this card's label queries only.
             if (workspaceId && cardId) {
-              queryClient.invalidateQueries({
-                queryKey: ["cardLabels", workspaceId, cardId],
-              });
+              invalidateCardLabelQueries(queryClient, workspaceId, cardId);
             } else if (cardId) {
               queryClient.invalidateQueries({
                 predicate: (query) => {
@@ -1089,13 +1087,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
                 },
               });
             }
-            if (workspaceId) {
-              queryClient.invalidateQueries({
-                queryKey: ["labels", workspaceId],
-                exact: false,
-              });
-            }
-
             refreshDashcard = true;
             break;
           }
@@ -1139,9 +1130,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
 
             // Only invalidate specific queries for this card
             if (workspaceId && cardId) {
-              queryClient.invalidateQueries({
-                queryKey: ["cardLabels", workspaceId, cardId],
-              });
+              invalidateCardLabelQueries(queryClient, workspaceId, cardId);
             } else if (cardId) {
               queryClient.invalidateQueries({
                 predicate: (query) => {
@@ -1150,13 +1139,6 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
                 },
               });
             }
-            if (workspaceId) {
-              queryClient.invalidateQueries({
-                queryKey: ["labels", workspaceId],
-                exact: false,
-              });
-            }
-
             refreshDashcard = true;
             break;
           }
