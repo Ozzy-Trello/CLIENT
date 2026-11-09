@@ -7,6 +7,15 @@ import {
   WebSocketEventPayload,
 } from "@myTypes/event";
 
+export function invalidateCardLabelQueries(
+  queryClient: QueryClient,
+  workspaceId: string,
+  cardId: string,
+) {
+  queryClient.invalidateQueries({ queryKey: ["cardLabels", workspaceId, cardId] });
+  queryClient.invalidateQueries({ queryKey: ["labels", workspaceId, { cardId }] });
+}
+
 export function invalidateNotulensiNotification(
   queryClient: QueryClient,
   notification: { entityType?: string; entityId?: string | null; workspaceId?: string; activityId?: string | null }

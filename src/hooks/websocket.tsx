@@ -24,6 +24,7 @@ import {
   handleCustomFieldCleared,
   handleCustomFieldUpdated,
   handleListArchived,
+  invalidateCardLabelQueries,
   invalidateNotulensiNotification,
 } from "@utils/websocket-event-handlers";
 import { addNotification } from "@store/notification_slice";
@@ -911,19 +912,9 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               break;
             }
 
-            // Only invalidate specific queries for this card/workspace
+            // Invalidate the affected card's label queries only.
             // Removed card detail invalidation - labels are already optimistically updated
-            if (workspaceId && cardId) {
-              queryClient.invalidateQueries({
-                queryKey: ["cardLabels", workspaceId, cardId],
-              });
-            }
-            if (workspaceId) {
-              queryClient.invalidateQueries({
-                queryKey: ["labels", workspaceId],
-                exact: false, // Allow partial match for labels with params
-              });
-            }
+            if (workspaceId && cardId) invalidateCardLabelQueries(queryClient, workspaceId, cardId);
 
             // Skip dashcard refresh for label changes - too expensive
             break;
@@ -937,19 +928,8 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               break;
             }
 
-            // Only invalidate specific queries for this card/workspace
-            // FIXED: Use specific keys instead of exact: false which invalidated ALL labels
-            if (workspaceId && cardId) {
-              queryClient.invalidateQueries({
-                queryKey: ["cardLabels", workspaceId, cardId],
-              });
-            }
-            if (workspaceId) {
-              queryClient.invalidateQueries({
-                queryKey: ["labels", workspaceId],
-                exact: false, // Allow partial match for labels with params
-              });
-            }
+            // Invalidate the affected card's label queries only.
+            if (workspaceId && cardId) invalidateCardLabelQueries(queryClient, workspaceId, cardId);
 
             // Skip dashcard refresh for label changes - too expensive
             break;
@@ -1003,9 +983,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             // Only invalidate specific queries for this card
             // FIXED: Use specific keys instead of exact: false which invalidated ALL labels
             if (workspaceId && cardId) {
-              queryClient.invalidateQueries({
-                queryKey: ["cardLabels", workspaceId, cardId],
-              });
+              invalidateCardLabelQueries(queryClient, workspaceId, cardId);
             } else if (cardId) {
               // Fallback: invalidate card labels matching this cardId
               queryClient.invalidateQueries({
@@ -1017,8 +995,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             }
             if (workspaceId) {
               queryClient.invalidateQueries({
-                queryKey: ["labels", workspaceId],
-                exact: false,
+                queryKey: ["labels", workspaceId, { cardId }],
               });
             }
 
