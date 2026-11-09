@@ -60,6 +60,7 @@ const leavePeriod = (start: string, end: string) => start === end
 const leaveStatusLabel = (status: string) => status === "approved" ? "Disetujui" : status === "pending" ? "Menunggu persetujuan" : status === "rejected" ? "Ditolak" : "Dibatalkan";
 type PendingReference = { id: string; reference: { type: "link" | "card" | "notulensi"; url?: string; display_text?: string; card_id?: string; notulensi_id?: string; workspace_id?: string } };
 type PendingAttachment = { id: string; file: File };
+type ReviewFilter = "not_reviewed" | "reviewed";
 const referenceCardHref = (reference: any, fallbackWorkspaceId: string) => {
   if (reference.notulensi_id && reference.notulensi?.workspace_id) return `/workspace/${reference.notulensi.workspace_id}/notulensi/${reference.notulensi_id}`;
   const card = reference.card;
@@ -93,6 +94,7 @@ export default function DailyActivityPage() {
   const [reportSearch, setReportSearch] = useState("");
   const [divisionFilter, setDivisionFilter] = useState<string[]>([]);
   const [teamUserFilterIds, setTeamUserFilterIds] = useState<string[]>([]);
+  const [reviewFilter, setReviewFilter] = useState<ReviewFilter[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [selectedTeamDay, setSelectedTeamDay] = useState<DailyActivityDay | null>(null);
@@ -159,6 +161,7 @@ export default function DailyActivityPage() {
           : [];
       setDivisionFilter(savedDivisions.filter((value: unknown): value is string => typeof value === "string"));
       setTeamUserFilterIds(Array.isArray(stored.teamUserFilterIds) ? stored.teamUserFilterIds.filter((value: unknown): value is string => typeof value === "string") : []);
+      setReviewFilter(Array.isArray(stored.reviewFilter) ? stored.reviewFilter.filter((value: unknown): value is ReviewFilter => ["not_reviewed", "reviewed"].includes(String(value))) : []);
       setTeamDateRange(Array.isArray(stored.teamDateRange) && stored.teamDateRange.length === 2
         ? [String(stored.teamDateRange[0]), String(stored.teamDateRange[1])]
         : [today(), today()]);
@@ -167,6 +170,7 @@ export default function DailyActivityPage() {
       setStatusFilter("");
       setDivisionFilter([]);
       setTeamUserFilterIds([]);
+      setReviewFilter([]);
       setTeamDateRange([today(), today()]);
       setReportSearch("");
     }
@@ -175,8 +179,8 @@ export default function DailyActivityPage() {
 
   useEffect(() => {
     if (!activityFilterStorageKey || filterStorageReady !== activityFilterStorageKey) return;
-    localStorage.setItem(activityFilterStorageKey, JSON.stringify({ statusFilter, divisionFilter, teamUserFilterIds, teamDateRange, reportSearch }));
-  }, [activityFilterStorageKey, divisionFilter, filterStorageReady, reportSearch, statusFilter, teamDateRange, teamUserFilterIds]);
+    localStorage.setItem(activityFilterStorageKey, JSON.stringify({ statusFilter, divisionFilter, teamUserFilterIds, reviewFilter, teamDateRange, reportSearch }));
+  }, [activityFilterStorageKey, divisionFilter, filterStorageReady, reportSearch, reviewFilter, statusFilter, teamDateRange, teamUserFilterIds]);
 
   useEffect(() => {
     const oldestMissedDate = accessQuery.data?.oldest_missed_date;
@@ -406,10 +410,11 @@ export default function DailyActivityPage() {
   const filteredActivityRows = activityRows.filter((row) => {
     const matchesDivision = !divisionFilter.length || divisionFilter.includes(row.role_name || "");
     const matchesUser = !teamUserFilterIds.length || teamUserFilterIds.includes(row.user_id);
+    const matchesReview = !reviewFilter.length || (row.status === "submitted" && reviewFilter.includes(row.reviewed_at ? "reviewed" : "not_reviewed"));
     const matchesSearch = !normalizedSearch || `${row.username} ${row.role_name || ""} ${row.activities.map((item) => item.content).join(" ")}`.toLowerCase().includes(normalizedSearch);
     const matchesStatus = !statusFilter || (statusFilter === "pending" ? ["missing", "draft"].includes(row.status) : row.status === statusFilter);
     const matchesScope = !teamScopePreviewIds || teamScopePreviewIds.includes(row.user_id);
-    return matchesDivision && matchesUser && matchesSearch && matchesStatus && matchesScope;
+    return matchesDivision && matchesUser && matchesReview && matchesSearch && matchesStatus && matchesScope;
   });
   const rawStatusCounts = activityRows.reduce((counts, row) => {
     counts[row.status] = (counts[row.status] || 0) + 1;
@@ -783,10 +788,11 @@ export default function DailyActivityPage() {
               <label className="flex flex-col gap-1 text-xs">Rentang tanggal kerja<DatePicker.RangePicker value={[dayjs(teamDateRange[0]), dayjs(teamDateRange[1])]} disabledDate={(date) => date.isAfter(dayjs(), "day")} onChange={(values) => { if (values?.[0] && values[1]) { setTeamDateRange([values[0].format("YYYY-MM-DD"), values[1].format("YYYY-MM-DD")]); setSelectedReportId(null); setSelectedTeamDay(null); } }} /></label>
               <label className="flex min-w-56 flex-1 flex-col gap-1 text-xs">Nama / aktivitas<Input.Search allowClear placeholder="Cari nama atau isi laporan…" value={reportSearch} onChange={(event) => setReportSearch(event.target.value)} /></label>
               <label className="flex flex-col gap-1 text-xs">User wajib / ada riwayat<Select mode="multiple" showSearch optionFilterProp="label" allowClear className="min-w-52" placeholder="Semua user" value={teamUserFilterIds} onChange={setTeamUserFilterIds} maxTagCount={1} maxTagPlaceholder={(omitted) => `+${omitted.length}`} options={teamUserOptions} /></label>
+              <label className="flex flex-col gap-1 text-xs">Pengecekan atasan<Select<ReviewFilter[]> mode="multiple" allowClear className="min-w-48" placeholder="Semua status cek" value={reviewFilter} onChange={setReviewFilter} maxTagCount={1} maxTagPlaceholder={(omitted) => `+${omitted.length}`} options={[{ value: "not_reviewed", label: "Belum Cek" }, { value: "reviewed", label: "Sudah Cek" }]} /></label>
               <label className="flex flex-col gap-1 text-xs">Divisi / role<Select mode="multiple" showSearch optionFilterProp="label" allowClear className="min-w-52" placeholder="Semua" value={divisionFilter} onChange={setDivisionFilter} maxTagCount={1} maxTagPlaceholder={(omitted) => `+${omitted.length}`} options={divisions.map((division) => ({ value: division, label: division }))} /></label>
             </div>
             <div className="ozsummary"><strong>Total {statusCounts.all}</strong><span className="ozsep">·</span><span>Sudah Kirim {statusCounts.sent || 0}</span><span className="ozsep">·</span><span>Belum Kirim {rawStatusCounts.pending || 0}</span><span className="ozsep">·</span><span>Terlambat {rawStatusCounts.late || 0}</span>{rawStatusCounts.on_leave ? <><span className="ozsep">·</span><span>Cuti {rawStatusCounts.on_leave}</span></> : null}</div>
-              <div className="ozpills" aria-label="Filter status laporan">{[["pending", "Belum Kirim"], ["submitted", "Sudah Kirim"]].map(([value, label]) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value)}>{label}</button>)}<Button size="small" onClick={() => { setStatusFilter(""); setDivisionFilter([]); setTeamUserFilterIds([]); setReportSearch(""); setTeamDateRange([today(), today()]); }}>Clear Filter</Button></div>
+              <div className="ozpills" aria-label="Filter status laporan">{[["pending", "Belum Kirim"], ["submitted", "Sudah Kirim"]].map(([value, label]) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value)}>{label}</button>)}<Button size="small" onClick={() => { setStatusFilter(""); setDivisionFilter([]); setTeamUserFilterIds([]); setReviewFilter([]); setReportSearch(""); setTeamDateRange([today(), today()]); }}>Clear Filter</Button></div>
             <div className="oztablewrap"><Table rowKey={(row) => `${row.user_id}:${row.work_date}`} loading={teamQuery.isLoading} dataSource={filteredActivityRows} pagination={{ pageSize: 20 }} columns={[
               { title: "Nama / jabatan", width: "25%", render: (_value, row) => <div><Typography.Text strong>{row.username}</Typography.Text><br /><Typography.Text type="secondary">{row.role_name || "-"}</Typography.Text></div> },
                { title: "Status laporan", width: "20%", dataIndex: "status", render: (value, row) => <div><Tag color={value === "submitted" ? (wasSubmittedLate(row) ? "orange" : "green") : value === "missing" ? "red" : value === "on_leave" ? "blue" : "gold"}>{value === "submitted" ? (wasSubmittedLate(row) ? "Terlambat" : "✓ Sudah Kirim") : value === "missing" ? "Belum Isi" : value === "on_leave" ? "Cuti" : "Draft"}</Tag>{row.submitted_at && <div className="mt-1 text-xs text-slate-500">{wasSubmittedLate(row) ? "Terlambat · " : "Dikirim "}{wibDateAndTime(row.submitted_at).time} WIB</div>}{row.can_review && <div className="mt-1 text-xs text-slate-500">{row.reviewed_at ? "✓ Sudah dicek" : "Menunggu dicek"}</div>}</div> },

@@ -1,7 +1,6 @@
 import {
   NotulensiListFilters,
   NotulensiPriority,
-  NotulensiReadStatus,
   NotulensiScope,
   NotulensiSortBy,
   NotulensiSortOrder,
@@ -11,7 +10,6 @@ import {
 const statuses: NotulensiStatus[] = ["new", "in_progress", "waiting_review", "revision", "completed", "cancelled"];
 const priorities: NotulensiPriority[] = ["urgent", "reg", "minor"];
 const taskOrigins = ["General", "Weekly Meeting", "Monthly Eval", "Annual Meeting"] as const;
-const readStatuses: NotulensiReadStatus[] = ["checked", "unchecked"];
 const scopes: NotulensiScope[] = ["related", "created", "assigned", "all"];
 const sortFields: NotulensiSortBy[] = ["title", "status", "progress", "priority", "due_date", "creator", "created_at", "updated_at"];
 const sortOrders: NotulensiSortOrder[] = ["asc", "desc"];
@@ -32,7 +30,6 @@ export const parseNotulensiFilters = (raw: string | null, allowAll: boolean): No
       status: strings(value.status)?.filter((item): item is NotulensiStatus => statuses.includes(item as NotulensiStatus)),
       priority: strings(value.priority)?.filter((item): item is NotulensiPriority => priorities.includes(item as NotulensiPriority)),
       taskOrigin: strings(value.taskOrigin)?.filter((item): item is typeof taskOrigins[number] => taskOrigins.includes(item as typeof taskOrigins[number])),
-      readStatus: strings(value.readStatus)?.filter((item): item is NotulensiReadStatus => readStatuses.includes(item as NotulensiReadStatus)),
       assigneeIds: ids(value.assigneeIds),
       roleIds: ids(value.roleIds),
       dueFrom: date(value.dueFrom),
