@@ -9,7 +9,6 @@ import {
 import {
   copyNotulensiLink,
   formatNotulensiListDate,
-  getAssigneeNames,
   getListWorkflowActions,
   NOTULENSI_ACTION_META,
 } from "@components/notulensi/notulensi-detail-utils";
@@ -78,17 +77,6 @@ function DueDateText({ item }: { item: NotulensiSummary }) {
       <Typography.Text>{formatNotulensiListDate(item.dueDate)}</Typography.Text>
       {overdue ? <Typography.Text type="danger">Overdue</Typography.Text> : null}
     </div>
-  );
-}
-
-function AssigneeNames({ item, mobile = false }: { item: NotulensiSummary; mobile?: boolean }) {
-  const names = getAssigneeNames(item.assignees);
-  return (
-    <Tooltip title={mobile ? undefined : names}>
-      <Typography.Text className={mobile ? "whitespace-normal" : "block truncate"}>
-        {names}
-      </Typography.Text>
-    </Tooltip>
   );
 }
 
@@ -268,7 +256,9 @@ export default function NotulensiList({
                 <NotulensiStatusTag status={item.status} />
                 <Typography.Text>{item.progress}%</Typography.Text>
                 <NotulensiPriorityTag priority={item.priority} />
-                <AssigneeNames item={item} mobile />
+                <Typography.Text>{item.taskOrigin}</Typography.Text>
+                <Typography.Text>PIC: {item.picProject?.username || "—"}</Typography.Text>
+                <Typography.Text>Jabatan: {item.jabatan || "—"}</Typography.Text>
                 <DueDateText item={item} />
               </div>
             </div>
@@ -301,7 +291,7 @@ export default function NotulensiList({
           showSizeChanger: true,
           pageSizeOptions: [10, 20, 50],
         }}
-        scroll={{ x: 1390 }}
+        scroll={{ x: 1580 }}
         sortDirections={["ascend", "descend", "ascend"]}
         onChange={(_, __, sorter, extra) => {
           if (extra.action !== "sort") return;
@@ -336,6 +326,11 @@ export default function NotulensiList({
                 </Typography.Paragraph>
               </div>
             ),
+          },
+          {
+            title: "Asal Task",
+            dataIndex: "taskOrigin",
+            width: 150,
           },
           {
             title: "Created Date",
@@ -386,9 +381,15 @@ export default function NotulensiList({
             width: 140,
           },
           {
-            title: "Assignees",
-            render: (_, item: NotulensiSummary) => <AssigneeNames item={item} />,
+            title: "PIC Project",
+            render: (_, item: NotulensiSummary) => <Tooltip title={item.picProject?.username || "—"}><Typography.Text className="block truncate">{item.picProject?.username || "—"}</Typography.Text></Tooltip>,
             width: 180,
+          },
+          {
+            title: "Jabatan",
+            dataIndex: "jabatan",
+            render: (value: string | null) => value || "—",
+            width: 150,
           },
           {
             title: "Action",

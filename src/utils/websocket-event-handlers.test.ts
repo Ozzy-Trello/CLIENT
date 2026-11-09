@@ -72,4 +72,18 @@ describe("invalidateNotulensiNotification", () => {
     });
     expect(invalidate).not.toHaveBeenCalled();
   });
+
+  it("invalidates Daily Activity report, comments, and access on a comment notification", () => {
+    const queryClient = { invalidateQueries: jest.fn() } as any;
+    invalidateNotulensiNotification(queryClient, {
+      entityType: "daily_activity",
+      entityId: "report-1",
+      activityId: "item-1",
+    });
+
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["daily-activity-access-status"] });
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["daily-activity-reports"] });
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["daily-activity-report", "report-1"] });
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["daily-activity-item-comments", "item-1"] });
+  });
 });

@@ -7,6 +7,7 @@ export type NotulensiStatus =
   | "cancelled";
 
 export type NotulensiPriority = "urgent" | "reg" | "minor";
+export type NotulensiTaskOrigin = "General" | "Weekly Meeting" | "Monthly Eval" | "Annual Meeting";
 
 export type NotulensiProgress = 0 | 25 | 50 | 75 | 100;
 
@@ -147,6 +148,10 @@ export interface NotulensiSummary {
   content: string;
   status: NotulensiStatus;
   priority: NotulensiPriority;
+  taskOrigin: NotulensiTaskOrigin;
+  picProjectId: string | null;
+  picProject: NotulensiUser | null;
+  jabatan: string | null;
   progress: NotulensiProgress;
   dueDate: string | null;
   createdBy: string;
@@ -213,6 +218,7 @@ export interface NotulensiListFilters {
   assigneeId?: string;
   assigneeIds?: string[];
   roleIds?: string[];
+  taskOrigin?: NotulensiTaskOrigin[];
   creatorId?: string;
   dueFrom?: string;
   dueTo?: string;
@@ -240,6 +246,9 @@ export interface NotulensiCalendarTask {
   title: string;
   status: NotulensiStatus;
   priority: NotulensiPriority;
+  taskOrigin: NotulensiTaskOrigin;
+  picProject: string | null;
+  jabatan: string | null;
   dueDate: string;
   createdBy?: string;
   creatorUsername?: string | null;
@@ -271,12 +280,13 @@ export interface NotulensiExportTask {
   status: NotulensiStatus;
   progress: NotulensiProgress;
   priority: NotulensiPriority;
+  taskOrigin: NotulensiTaskOrigin;
+  picProject: string | null;
+  jabatan: string | null;
   dueDate: string | null;
   creatorName: string | null;
   creatorEmail: string | null;
   creatorRole: string | null;
-  assignees: string[];
-  assigneeRoles: string[];
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
@@ -340,6 +350,8 @@ export interface CreateNotulensiPayload {
   priority?: NotulensiPriority;
   dueDate?: string | null;
   assigneeIds: string[];
+  taskOrigin: NotulensiTaskOrigin;
+  picProjectId: string;
   checklist?: {
     title: string;
     items: Array<{
@@ -355,6 +367,8 @@ export interface UpdateNotulensiPayload {
   priority?: NotulensiPriority;
   dueDate?: string | null;
   assigneeIds?: string[];
+  taskOrigin?: NotulensiTaskOrigin;
+  picProjectId?: string;
 }
 
 export type NotulensiWorkflowAction = Exclude<NotulensiAction, "update_progress">;

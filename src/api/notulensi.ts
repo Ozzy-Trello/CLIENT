@@ -30,6 +30,7 @@ const omitEmpty = (filters: NotulensiListFilters) => {
     search: filters.search?.trim() || undefined,
     status: filters.status?.length ? filters.status.join(",") : undefined,
     priority: filters.priority?.length ? filters.priority.join(",") : undefined,
+    task_origin: filters.taskOrigin?.length ? filters.taskOrigin.join(",") : undefined,
     assignee_id: filters.assigneeId || undefined,
     assignee_ids: filters.assigneeIds?.length ? filters.assigneeIds.join(",") : undefined,
     role_ids: filters.roleIds?.length ? filters.roleIds.join(",") : undefined,

@@ -104,6 +104,16 @@ describe("getNotificationTarget", () => {
     );
   });
 
+  it("routes Daily Activity comment notifications to the report and activity", () => {
+    expect(getNotificationTarget({
+      ...baseNotification,
+      type: "daily_activity_comment",
+      entityType: "daily_activity",
+      entityId: "report-1",
+      activityId: "item-1",
+    })).toBe("/workspace/ws-1/daily-activity?reportId=report-1&itemId=item-1");
+  });
+
   it("routes card notifications using canonical entity ID", () => {
     expect(
       getNotificationTarget({

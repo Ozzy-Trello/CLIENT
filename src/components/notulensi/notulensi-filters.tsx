@@ -143,6 +143,16 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
           />
           <Select<string[]>
             mode="multiple"
+            value={value.taskOrigin}
+            onChange={(taskOrigin) => applyPatch({ taskOrigin: taskOrigin.length ? taskOrigin as NotulensiListFilters["taskOrigin"] : undefined })}
+            placeholder="Asal Task"
+            allowClear
+            maxTagCount="responsive"
+            className={screens.lg ? "w-56" : "w-full"}
+            options={["General", "Weekly Meeting", "Monthly Eval", "Annual Meeting"].map((origin) => ({ value: origin, label: origin }))}
+          />
+          <Select<string[]>
+            mode="multiple"
             value={value.assigneeIds}
             onChange={(assigneeIds) => applyPatch({ assigneeIds: assigneeIds.length ? assigneeIds : undefined })}
             placeholder="Assignees"

@@ -24,6 +24,7 @@ import {
   CreateNotulensiPayload,
   NotulensiDetail,
   NotulensiPriority,
+  NotulensiTaskOrigin,
   UpdateNotulensiPayload,
 } from "@myTypes/notulensi";
 import { Button, Checkbox, Form, Input, Result, Select, Typography, message } from "antd";
@@ -40,6 +41,8 @@ type FormValues = {
   assigneeIds: string[];
   priority: NotulensiPriority;
   dueDate?: Dayjs;
+  taskOrigin: NotulensiTaskOrigin;
+  picProjectId?: string;
 };
 
 type Props = {
@@ -133,6 +136,7 @@ export default function NotulensiForm({
     if (!initialData) {
       return {
         priority: "reg",
+        taskOrigin: "General",
         assigneeIds: [],
         title: "",
         content: "",
@@ -145,6 +149,8 @@ export default function NotulensiForm({
       assigneeIds: initialData.assignees.map((assignee) => assignee.userId),
       priority: initialData.priority,
       dueDate: initialData.dueDate ? dayjs(initialData.dueDate) : undefined,
+      taskOrigin: initialData.taskOrigin,
+      picProjectId: initialData.picProjectId || initialData.assignees[0]?.userId,
     };
   }, [initialData]);
 
@@ -159,6 +165,11 @@ export default function NotulensiForm({
         layout="vertical"
         initialValues={initialValues}
         disabled={loading || !canEdit}
+        onValuesChange={(changed, values) => {
+          if (changed.assigneeIds && (!values.picProjectId || !values.assigneeIds?.includes(values.picProjectId))) {
+            form.setFieldValue("picProjectId", undefined);
+          }
+        }}
         onFinish={async (values) => {
           if (!isNotulensiContentValid(values.content)) {
             message.error(`Content must be ${MAX_NOTULENSI_CONTENT_TEXT_LENGTH.toLocaleString()} visible characters or less`);
@@ -182,6 +193,8 @@ export default function NotulensiForm({
               ? values.dueDate.hour(12).minute(0).second(0).millisecond(0).toISOString()
               : null,
             assigneeIds: values.assigneeIds,
+            taskOrigin: values.taskOrigin,
+            picProjectId: values.picProjectId,
             ...(mode === "create" && normalizedChecklistItems.length ? {
               checklist: {
                 title: checklistTitle.trim() || "Checklist",
@@ -199,6 +212,9 @@ export default function NotulensiForm({
         }}
       >
         <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
+          <Form.Item name="taskOrigin" label="Asal Task" rules={[{ required: true, message: "Asal Task is required" }]}>
+            <Select options={["General", "Weekly Meeting", "Monthly Eval", "Annual Meeting"].map((value) => ({ value, label: value }))} />
+          </Form.Item>
           <Form.Item
             name="title"
             label="Title"
@@ -233,6 +249,21 @@ export default function NotulensiForm({
             rules={[{ required: true, type: "array", min: 1, message: "Select at least one assignee" }]}
           >
             <NotulensiUserSelect />
+          </Form.Item>
+
+          <Form.Item noStyle shouldUpdate={(previous, current) => previous.assigneeIds !== current.assigneeIds}>
+            {() => (
+              <Form.Item name="picProjectId" label="PIC Project" rules={[{ required: true, message: "PIC Project is required" }]}>
+                <Select
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder="Select PIC from assignees"
+                  options={(eligibleAssignees.data?.data || [])
+                    .filter((user) => (form.getFieldValue("assigneeIds") || []).includes(user.id))
+                    .map((user) => ({ value: user.id, label: user.username }))}
+                />
+              </Form.Item>
+            )}
           </Form.Item>
 
           <Form.Item noStyle shouldUpdate={(previous, current) => previous.assigneeIds !== current.assigneeIds}>

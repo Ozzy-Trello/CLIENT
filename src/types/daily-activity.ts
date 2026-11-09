@@ -3,11 +3,12 @@ export type DailyActivityTab = "mine" | "team" | "settings" | "structure" | "cal
 
 export interface DailyActivityReference {
   id: string;
-  reference_type: "file" | "link" | "card";
+  reference_type: "file" | "link" | "card" | "notulensi";
   file_id?: string | null;
   url?: string | null;
   display_text?: string | null;
   card_id?: string | null;
+  notulensi_id?: string | null;
   file_url?: string | null;
   file_mime_type?: string | null;
   card?: {
@@ -18,12 +19,14 @@ export interface DailyActivityReference {
       board?: { id: string; workspace_id?: string; workspaceId?: string } | null;
     } | null;
   } | null;
+  notulensi?: { id: string; workspace_id: string; code: string; title: string } | null;
 }
 
 export interface DailyActivityItem {
   id: string;
   content: string;
   order: number;
+  comments_count?: number;
   references?: DailyActivityReference[];
 }
 
@@ -33,6 +36,9 @@ export interface DailyActivityReport {
   work_date: string;
   status: "draft" | "submitted";
   first_submitted_at: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  can_review?: boolean;
   activities: DailyActivityItem[];
   history?: Array<{ action: string; snapshot: unknown; created_at: string }>;
 }
@@ -48,6 +54,9 @@ export interface DailyActivityDay {
   leave?: { start_date: string; end_date: string; note?: string | null } | null;
   submitted_at?: string | null;
   deadline_time?: string;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  can_review?: boolean;
   activities: Array<{ id: string; content: string; references: DailyActivityReference[] }>;
 }
 
@@ -75,6 +84,19 @@ export interface DailyActivityAccessStatus {
   locked: boolean;
   missed_dates: string[];
   oldest_missed_date: string | null;
+  unread_comment_count?: number;
+  oldest_unread_comment?: { comment_id: string; report_id: string; item_id: string; work_date: string; owner_id: string } | null;
+  pending_review_count?: number;
+  oldest_pending_review?: { report_id: string; work_date: string; user_id: string } | null;
+}
+
+export interface DailyActivityComment {
+  id: string;
+  item_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  user: DailyActivityUser | null;
 }
 
 export interface DailyActivityUser {
