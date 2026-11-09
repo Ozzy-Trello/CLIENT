@@ -316,6 +316,7 @@ export default function NotulensiList({
             key: "title",
             sorter: true,
             sortOrder: orderFor("title"),
+            width: 360,
             render: (_, item: NotulensiSummary) => (
               <div className="min-w-0">
                 <Link href={`/workspace/${workspaceId}/notulensi/${item.id}`} className="font-semibold">

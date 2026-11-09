@@ -31,13 +31,14 @@ const omitEmpty = (filters: NotulensiListFilters) => {
     status: filters.status?.length ? filters.status.join(",") : undefined,
     priority: filters.priority?.length ? filters.priority.join(",") : undefined,
     task_origin: filters.taskOrigin?.length ? filters.taskOrigin.join(",") : undefined,
+    read_status: filters.readStatus?.length ? filters.readStatus.join(",") : undefined,
     assignee_id: filters.assigneeId || undefined,
     assignee_ids: filters.assigneeIds?.length ? filters.assigneeIds.join(",") : undefined,
     role_ids: filters.roleIds?.length ? filters.roleIds.join(",") : undefined,
     creator_id: filters.creatorId || undefined,
     due_from: filters.dueFrom || undefined,
     due_to: filters.dueTo || undefined,
-    scope: filters.scope || undefined,
+    scope: Array.isArray(filters.scope) ? (filters.scope.length ? filters.scope.join(",") : undefined) : filters.scope || undefined,
     sort_by: filters.sortBy || undefined,
     sort_order: filters.sortOrder || undefined,
     page: filters.page,
@@ -225,7 +226,7 @@ export const getNotulensiCalendar = async (
 ): Promise<NotulensiCalendarResponse> => {
   const response = await api.get(`${notulensiBasePath(workspaceId)}/calendar`, {
     params: {
-      scope: filters.scope || undefined,
+      scope: Array.isArray(filters.scope) ? (filters.scope.length ? filters.scope.join(",") : undefined) : filters.scope || undefined,
       assignee_ids: filters.assigneeIds?.length
         ? filters.assigneeIds.join(",")
         : undefined,

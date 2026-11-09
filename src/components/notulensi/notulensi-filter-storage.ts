@@ -1,6 +1,7 @@
 import {
   NotulensiListFilters,
   NotulensiPriority,
+  NotulensiReadStatus,
   NotulensiScope,
   NotulensiSortBy,
   NotulensiSortOrder,
@@ -10,6 +11,7 @@ import {
 const statuses: NotulensiStatus[] = ["new", "in_progress", "waiting_review", "revision", "completed", "cancelled"];
 const priorities: NotulensiPriority[] = ["urgent", "reg", "minor"];
 const taskOrigins = ["General", "Weekly Meeting", "Monthly Eval", "Annual Meeting"] as const;
+const readStatuses: NotulensiReadStatus[] = ["checked", "unchecked"];
 const scopes: NotulensiScope[] = ["related", "created", "assigned", "all"];
 const sortFields: NotulensiSortBy[] = ["title", "status", "progress", "priority", "due_date", "creator", "created_at", "updated_at"];
 const sortOrders: NotulensiSortOrder[] = ["asc", "desc"];
@@ -19,21 +21,23 @@ const ids = (value: unknown) => strings(value)?.filter((item) => uuid.test(item)
 const date = (value: unknown) => typeof value === "string" && !Number.isNaN(Date.parse(value)) ? value : undefined;
 
 export const parseNotulensiFilters = (raw: string | null, allowAll: boolean): NotulensiListFilters => {
-  const defaults: NotulensiListFilters = { scope: "related", page: 1, limit: 20 };
+  const defaults: NotulensiListFilters = { scope: ["related"], page: 1, limit: 20 };
   if (!raw) return defaults;
   try {
     const value = JSON.parse(raw) as Record<string, unknown>;
-    const scope = scopes.includes(value.scope as NotulensiScope) ? value.scope as NotulensiScope : "related";
+    const savedScopes = Array.isArray(value.scope) ? value.scope : typeof value.scope === "string" ? [value.scope] : [];
+    const selectedScopes = savedScopes.filter((item): item is NotulensiScope => scopes.includes(item as NotulensiScope) && (allowAll || item !== "all"));
     return {
       search: typeof value.search === "string" ? value.search : undefined,
       status: strings(value.status)?.filter((item): item is NotulensiStatus => statuses.includes(item as NotulensiStatus)),
       priority: strings(value.priority)?.filter((item): item is NotulensiPriority => priorities.includes(item as NotulensiPriority)),
       taskOrigin: strings(value.taskOrigin)?.filter((item): item is typeof taskOrigins[number] => taskOrigins.includes(item as typeof taskOrigins[number])),
+      readStatus: strings(value.readStatus)?.filter((item): item is NotulensiReadStatus => readStatuses.includes(item as NotulensiReadStatus)),
       assigneeIds: ids(value.assigneeIds),
       roleIds: ids(value.roleIds),
       dueFrom: date(value.dueFrom),
       dueTo: date(value.dueTo),
-      scope: scope === "all" && !allowAll ? "related" : scope,
+      scope: selectedScopes.length ? selectedScopes : ["related"],
       sortBy: sortFields.includes(value.sortBy as NotulensiSortBy) ? value.sortBy as NotulensiSortBy : undefined,
       sortOrder: sortOrders.includes(value.sortOrder as NotulensiSortOrder) ? value.sortOrder as NotulensiSortOrder : undefined,
       page: 1,

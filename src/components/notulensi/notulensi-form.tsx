@@ -41,7 +41,7 @@ type FormValues = {
   assigneeIds: string[];
   priority: NotulensiPriority;
   dueDate?: Dayjs;
-  taskOrigin: NotulensiTaskOrigin;
+  taskOrigin?: NotulensiTaskOrigin;
   picProjectId?: string;
 };
 
@@ -136,7 +136,6 @@ export default function NotulensiForm({
     if (!initialData) {
       return {
         priority: "reg",
-        taskOrigin: "General",
         assigneeIds: [],
         title: "",
         content: "",
@@ -193,7 +192,7 @@ export default function NotulensiForm({
               ? values.dueDate.hour(12).minute(0).second(0).millisecond(0).toISOString()
               : null,
             assigneeIds: values.assigneeIds,
-            taskOrigin: values.taskOrigin,
+            taskOrigin: values.taskOrigin!,
             picProjectId: values.picProjectId,
             ...(mode === "create" && normalizedChecklistItems.length ? {
               checklist: {
@@ -213,7 +212,7 @@ export default function NotulensiForm({
       >
         <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
           <Form.Item name="taskOrigin" label="Asal Task" rules={[{ required: true, message: "Asal Task is required" }]}>
-            <Select options={["General", "Weekly Meeting", "Monthly Eval", "Annual Meeting"].map((value) => ({ value, label: value }))} />
+            <Select placeholder="Select Asal Task" options={["General", "Weekly Meeting", "Monthly Eval", "Annual Meeting"].map((value) => ({ value, label: value }))} />
           </Form.Item>
           <Form.Item
             name="title"

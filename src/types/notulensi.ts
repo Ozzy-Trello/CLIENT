@@ -8,6 +8,7 @@ export type NotulensiStatus =
 
 export type NotulensiPriority = "urgent" | "reg" | "minor";
 export type NotulensiTaskOrigin = "General" | "Weekly Meeting" | "Monthly Eval" | "Annual Meeting";
+export type NotulensiReadStatus = "checked" | "unchecked";
 
 export type NotulensiProgress = 0 | 25 | 50 | 75 | 100;
 
@@ -219,10 +220,11 @@ export interface NotulensiListFilters {
   assigneeIds?: string[];
   roleIds?: string[];
   taskOrigin?: NotulensiTaskOrigin[];
+  readStatus?: NotulensiReadStatus[];
   creatorId?: string;
   dueFrom?: string;
   dueTo?: string;
-  scope?: NotulensiScope;
+  scope?: NotulensiScope | NotulensiScope[];
   sortBy?: NotulensiSortBy;
   sortOrder?: NotulensiSortOrder;
   page?: number;
