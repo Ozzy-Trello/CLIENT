@@ -35,7 +35,7 @@ const PopoverLabel: React.FC<PopoverLabel> = ({
 
   const { allLabels } = useLabels(workspaceId as string, targetCard?.id, {
     cardId: targetCard?.id,
-  });
+  }, { enabled: open });
 
   // No need for reset since we're fetching all labels at once
 
