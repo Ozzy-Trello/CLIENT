@@ -169,7 +169,7 @@ const RegularCard: React.FC<RegularCardProps> = (props) => {
       ? (workspaceId[0] as string)
       : (workspaceId as string),
     card.id,
-    { cardId: card.id },
+    undefined,
     { enabled: loadRelatedData && !isTempCard }
   );
 
