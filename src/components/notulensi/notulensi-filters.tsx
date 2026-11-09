@@ -153,16 +153,6 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
           />
           <Select<string[]>
             mode="multiple"
-            value={value.readStatus}
-            onChange={(readStatus) => applyPatch({ readStatus: readStatus.length ? readStatus as NotulensiListFilters["readStatus"] : undefined })}
-            placeholder="Belum Cek / Sudah Cek"
-            allowClear
-            maxTagCount="responsive"
-            className={screens.lg ? "w-56" : "w-full"}
-            options={[{ value: "unchecked", label: "Belum Cek" }, { value: "checked", label: "Sudah Cek" }]}
-          />
-          <Select<string[]>
-            mode="multiple"
             value={value.assigneeIds}
             onChange={(assigneeIds) => applyPatch({ assigneeIds: assigneeIds.length ? assigneeIds : undefined })}
             placeholder="Assignees"
