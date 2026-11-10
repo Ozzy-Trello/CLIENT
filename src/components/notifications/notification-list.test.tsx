@@ -493,6 +493,27 @@ describe("NotificationList", () => {
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ payload: false }));
   });
 
+  it("waits for Daily Activity comments to load before marking the notification read", () => {
+    const commentNotification = {
+      ...baseNotification,
+      id: "daily-comment-1",
+      groupId: "report-1",
+      type: "daily_activity_comment",
+      activityId: "item-1",
+      entityType: "daily_activity",
+      entityId: "report-1",
+      workspaceId: "ws-1",
+    };
+    mockState.notificationState.notificationsByCategory.comment = [commentNotification];
+    mockState.notificationState.totalByCategory.comment = 1;
+
+    render(<NotificationList category="comment" />);
+    fireEvent.click(screen.getByRole("link", { name: /New item/i }));
+
+    expect(markNotificationGroupRead).not.toHaveBeenCalled();
+    expect(startGrace).not.toHaveBeenCalled();
+  });
+
   it("prevents opening mandatory comment notifications in another tab", () => {
     const commentNotification = {
       ...baseNotification,

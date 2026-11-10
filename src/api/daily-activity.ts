@@ -67,6 +67,7 @@ function normalizeReport(value: any): DailyActivityReport {
     reviewed_by: field(value, "reviewed_by", "reviewedBy") ?? null,
     reviewed_at: field(value, "reviewed_at", "reviewedAt") ?? null,
     can_review: field(value, "can_review", "canReview") ?? false,
+    review_required: field(value, "review_required", "reviewRequired") ?? false,
     activities: asArray<any>(value?.activities).map(normalizeActivity),
     history: asArray<any>(value?.history).map((entry) => ({
       ...entry,
@@ -92,6 +93,7 @@ function normalizeDay(value: any): DailyActivityDay {
     reviewed_by: field(value, "reviewed_by", "reviewedBy") ?? null,
     reviewed_at: field(value, "reviewed_at", "reviewedAt") ?? null,
     can_review: field(value, "can_review", "canReview") ?? false,
+    review_required: field(value, "review_required", "reviewRequired") ?? false,
     activities: asArray<any>(value?.activities).map(normalizeActivity),
   };
 }
@@ -261,6 +263,16 @@ export async function getDailyActivityConfiguration() {
   return {
     roles: asArray<any>(payload?.roles).map((role) => ({ ...role, manager_role_id: field(role, "manager_role_id", "managerRoleId") ?? null })),
     users: asArray<any>(payload?.users).map(normalizeUser),
+    reviewers: asArray<any>(payload?.reviewers).map((reviewer) => ({
+      ...reviewer,
+      user_id: field(reviewer, "user_id", "userId"),
+      role_id: field(reviewer, "role_id", "roleId") ?? null,
+      role_name: field(reviewer, "role_name", "roleName") ?? null,
+      is_required: field(reviewer, "is_required", "isRequired") === true,
+      scope_configured: field(reviewer, "scope_configured", "scopeConfigured") === true,
+      direct_subordinate_ids: asArray<string>(field(reviewer, "direct_subordinate_ids", "directSubordinateIds")),
+      subordinate_ids: asArray<string>(field(reviewer, "subordinate_ids", "subordinateIds")),
+    })),
     role_rules: asArray<any>(payload?.role_rules ?? payload?.roleRules).map((rule) => ({ ...rule, role_id: field(rule, "role_id", "roleId"), effective_from: field(rule, "effective_from", "effectiveFrom"), is_required: field(rule, "is_required", "isRequired") })),
     user_overrides: asArray<any>(payload?.user_overrides ?? payload?.userOverrides).map((rule) => ({ ...rule, user_id: field(rule, "user_id", "userId"), effective_from: field(rule, "effective_from", "effectiveFrom") })),
     settings: asArray<any>(payload?.settings).map((setting) => ({ ...setting, deadline_time: field(setting, "deadline_time", "deadlineTime"), effective_from: field(setting, "effective_from", "effectiveFrom") })),
@@ -276,6 +288,14 @@ export async function setDailyActivityRoleRule(roleId: string, isRequired: boole
 export async function setDailyActivityUserOverride(userId: string, rule: "follow_role" | "required" | "exempt", effectiveFrom: string) {
   const { data } = await api.post(`/daily-activity/configuration/users/${userId}`, { rule, effective_from: effectiveFrom });
   return data.data;
+}
+
+export async function setDailyActivityReviewerConfiguration(userId: string, isRequired: boolean, subordinateUserIds: string[]) {
+  const { data } = await api.put(`/daily-activity/configuration/reviewers/${userId}`, {
+    is_required: isRequired,
+    subordinate_user_ids: subordinateUserIds,
+  });
+  return payloadOf(data);
 }
 
 export async function setDailyActivityDeadline(deadline: string, effectiveFrom: string) {

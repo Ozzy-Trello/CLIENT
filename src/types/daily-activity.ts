@@ -39,6 +39,7 @@ export interface DailyActivityReport {
   reviewed_by?: string | null;
   reviewed_at?: string | null;
   can_review?: boolean;
+  review_required?: boolean;
   activities: DailyActivityItem[];
   history?: Array<{ action: string; snapshot: unknown; created_at: string }>;
 }
@@ -57,6 +58,7 @@ export interface DailyActivityDay {
   reviewed_by?: string | null;
   reviewed_at?: string | null;
   can_review?: boolean;
+  review_required?: boolean;
   activities: Array<{ id: string; content: string; references: DailyActivityReference[] }>;
 }
 
@@ -116,6 +118,16 @@ export interface DailyActivityStructureRole {
 export interface DailyActivityConfiguration {
   roles: Array<{ id: string; name: string; manager_role_id: string | null }>;
   users: DailyActivityUser[];
+  reviewers: Array<{
+    user_id: string;
+    username: string;
+    role_id: string | null;
+    role_name: string | null;
+    is_required: boolean;
+    scope_configured: boolean;
+    direct_subordinate_ids: string[];
+    subordinate_ids: string[];
+  }>;
   role_rules: Array<{ id: string; role_id: string; is_required: boolean; effective_from: string }>;
   user_overrides: Array<{ id: string; user_id: string; rule: "follow_role" | "required" | "exempt"; effective_from: string }>;
   settings: Array<{ id: number; deadline_time: string; effective_from: string }>;

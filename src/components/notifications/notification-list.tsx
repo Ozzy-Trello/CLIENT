@@ -234,7 +234,9 @@ export function NotificationList({ category }: NotificationListProps) {
       event.preventDefault();
       return;
     }
-    readCommentGroup(group, !group.isRead || !selected.isRead);
+    if (group.entityType !== "daily_activity") {
+      readCommentGroup(group, !group.isRead || !selected.isRead);
+    }
     dispatch(setOpen(false));
   };
 
@@ -339,7 +341,7 @@ export function NotificationList({ category }: NotificationListProps) {
             >
               <span className={`flex min-w-0 items-center gap-2 text-sm ${!n.isRead ? "font-semibold" : "font-normal"}`}>
                 <span className="truncate" title={n.title}>{n.title}</span>
-                {(n.unreadCount || 0) > 0 && <Badge count={n.unreadCount} size="small" />}
+                {(n.unreadCount || 0) > 0 && <Badge count={n.unreadCount} overflowCount={Number.MAX_SAFE_INTEGER} size="small" />}
               </span>
               {n.message && <span className="truncate text-xs text-gray-500" title={n.message}>{n.message}</span>}
               <span className="text-xs text-gray-400">{dayjs(n.createdAt).fromNow()}</span>

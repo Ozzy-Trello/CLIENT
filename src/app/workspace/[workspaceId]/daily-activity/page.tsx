@@ -25,12 +25,14 @@ import {
   setDailyActivityDeadline,
   setDailyActivityRoleRule,
   setDailyActivityUserOverride,
+  setDailyActivityReviewerConfiguration,
   submitDailyActivity,
   uploadDailyActivityAttachment,
   updateDailyActivityRoleManager,
 } from "@api/daily-activity";
 import { searchCards } from "@api/card";
 import { getNotulensiList } from "@api/notulensi";
+import { getUnreadCount } from "@api/notifications";
 import { DailyActivityDay, DailyActivityTab, DailyActivityUser, DailyActivityStructureRole, DailyActivityReference } from "@myTypes/daily-activity";
 import { Card } from "@myTypes/card";
 import { NotulensiSummary } from "@myTypes/notulensi";
@@ -38,12 +40,21 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CloseOutlined, PaperClipOutlined } from "@ant-design/icons";
 import { Alert, Button, Checkbox, DatePicker, Image, Input, Modal, Select, Spin, Table, Tag, TimePicker, Typography, message } from "antd";
 import dayjs, { Dayjs } from "dayjs";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { usePermissions } from "@hooks/account";
 import { useCurrentAccount } from "@hooks/account";
+import { useDispatch } from "react-redux";
+import { setUnreadCounts } from "@store/notification_slice";
 
 const today = () => dayjs().format("YYYY-MM-DD");
+const wibDateLabel = (value: string) => new Intl.DateTimeFormat("id-ID", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "Asia/Jakarta",
+}).format(new Date(`${value}T00:00:00+07:00`));
 const wibDateAndTime = (value: string) => {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(value));
   const read = (type: string) => parts.find((part) => part.type === type)?.value || "00";
@@ -99,7 +110,7 @@ export default function DailyActivityPage() {
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [selectedTeamDay, setSelectedTeamDay] = useState<DailyActivityDay | null>(null);
   const [commentItemId, setCommentItemId] = useState<string | null>(null);
-  const [commentDraft, setCommentDraft] = useState("");
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [scopeViewerId, setScopeViewerId] = useState<string>();
   const [scopePreview, setScopePreview] = useState<string[]>([]);
   const [teamScopePreviewIds, setTeamScopePreviewIds] = useState<string[] | null>(null);
@@ -117,10 +128,19 @@ export default function DailyActivityPage() {
   const [roleRequiredDraft, setRoleRequiredDraft] = useState<Record<string, boolean>>({});
   const [userOverrideDrafts, setUserOverrideDrafts] = useState<Record<string, "follow_role" | "required" | "exempt">>({});
   const [userOverrideBaseline, setUserOverrideBaseline] = useState<Record<string, "follow_role" | "required" | "exempt">>({});
+  const [reviewerRequiredDraft, setReviewerRequiredDraft] = useState<Record<string, boolean>>({});
+  const [reviewerRequiredBaseline, setReviewerRequiredBaseline] = useState<Record<string, boolean>>({});
+  const [reviewerScopeDrafts, setReviewerScopeDrafts] = useState<Record<string, string[]>>({});
+  const [reviewerScopeBaseline, setReviewerScopeBaseline] = useState<Record<string, string[]>>({});
+  const [reviewerToAdd, setReviewerToAdd] = useState<string>();
+  const [scopeModalReviewerId, setScopeModalReviewerId] = useState<string | null>(null);
+  const [scopeModalDraft, setScopeModalDraft] = useState<string[]>([]);
   const [overrideSearch, setOverrideSearch] = useState("");
   const [overrideRoleFilter, setOverrideRoleFilter] = useState<string>();
   const [filterStorageReady, setFilterStorageReady] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const dispatch = useDispatch();
+  const didAutoOpenUnreadComment = useRef(false);
   const { isSuperAdmin } = usePermissions();
   const accountQuery = useCurrentAccount();
   const currentUserId = accountQuery.data?.data?.id;
@@ -201,6 +221,8 @@ export default function DailyActivityPage() {
   }, [accessQuery.data?.oldest_pending_review?.report_id, accessQuery.data?.oldest_pending_review?.work_date, accessQuery.data?.oldest_missed_date]);
 
   useEffect(() => {
+    if (!accessQuery.isSuccess || didAutoOpenUnreadComment.current) return;
+    didAutoOpenUnreadComment.current = true;
     const unread = accessQuery.data?.oldest_unread_comment;
     if (!unread || !currentUserId) return;
     setCommentItemId(unread.item_id);
@@ -212,7 +234,7 @@ export default function DailyActivityPage() {
       setSelectedReportId(unread.report_id);
       setTeamDateRange([unread.work_date, unread.work_date]);
     }
-  }, [accessQuery.data?.oldest_unread_comment?.item_id, accessQuery.data?.oldest_unread_comment?.report_id, accessQuery.data?.oldest_unread_comment?.work_date, accessQuery.data?.oldest_unread_comment?.owner_id, currentUserId]);
+  }, [accessQuery.data, accessQuery.isSuccess, currentUserId]);
 
   useEffect(() => {
     if (!notificationReportId || !notificationItemId) return;
@@ -246,9 +268,15 @@ export default function DailyActivityPage() {
         .at(-1);
       overrides[user.id] = current?.rule || "follow_role";
     }
+    const reviewerRequired = Object.fromEntries(configQuery.data.reviewers.map((reviewer) => [reviewer.user_id, reviewer.is_required]));
+    const reviewerScopes = Object.fromEntries(configQuery.data.reviewers.map((reviewer) => [reviewer.user_id, reviewer.subordinate_ids]));
     setRoleRequiredDraft(roleDefaults);
     setUserOverrideDrafts(overrides);
     setUserOverrideBaseline(overrides);
+    setReviewerRequiredDraft(reviewerRequired);
+    setReviewerRequiredBaseline(reviewerRequired);
+    setReviewerScopeDrafts(reviewerScopes);
+    setReviewerScopeBaseline(reviewerScopes);
     const currentDeadline = configQuery.data.settings
       .filter((setting) => setting.effective_from <= effectiveFrom)
       .sort((left, right) => left.effective_from.localeCompare(right.effective_from))
@@ -322,10 +350,10 @@ export default function DailyActivityPage() {
   });
 
   const commentMutation = useMutation({
-    mutationFn: () => addDailyActivityItemComment(commentItemId!, commentDraft, workspaceId),
-    onSuccess: () => {
-      setCommentDraft("");
-      void queryClient.invalidateQueries({ queryKey: ["daily-activity-item-comments", commentItemId] });
+    mutationFn: ({ itemId, content }: { itemId: string; content: string }) => addDailyActivityItemComment(itemId, content, workspaceId),
+    onSuccess: (_result, { itemId }) => {
+      setCommentDrafts((drafts) => ({ ...drafts, [itemId]: "" }));
+      void queryClient.invalidateQueries({ queryKey: ["daily-activity-item-comments", itemId] });
       void queryClient.invalidateQueries({ queryKey: ["daily-activity-access-status"] });
       void queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
@@ -346,7 +374,8 @@ export default function DailyActivityPage() {
     if (!commentsQuery.dataUpdatedAt) return;
     void queryClient.invalidateQueries({ queryKey: ["daily-activity-access-status"] });
     void queryClient.invalidateQueries({ queryKey: ["notifications"] });
-  }, [commentsQuery.dataUpdatedAt, queryClient]);
+    void getUnreadCount().then((counts) => dispatch(setUnreadCounts(counts))).catch(() => {});
+  }, [commentsQuery.dataUpdatedAt, dispatch, queryClient]);
 
   const roleManagerMutation = useMutation({ mutationFn: ({ roleId, managerRoleId }: { roleId: string; managerRoleId: string | null }) => updateDailyActivityRoleManager(roleId, managerRoleId), onSuccess: () => { message.success("Atasan role diperbarui"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] }); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); }, onError: (error: any) => { message.error(error?.response?.data?.message || "Gagal memperbarui atasan role"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] }); } });
   const savePolicyMutation = useMutation({
@@ -354,10 +383,18 @@ export default function DailyActivityPage() {
       await Promise.all([
         ...roleRows.map((role) => setDailyActivityRoleRule(role.id, roleRequiredDraft[role.id] === true, effectiveFrom)),
         ...users.filter((user) => userOverrideDrafts[user.id] !== userOverrideBaseline[user.id]).map((user) => setDailyActivityUserOverride(user.id, userOverrideDrafts[user.id], effectiveFrom)),
+        ...reviewerRows.filter((reviewer) => (
+          reviewerRequiredDraft[reviewer.user_id] !== reviewerRequiredBaseline[reviewer.user_id]
+          || JSON.stringify(reviewerScopeDrafts[reviewer.user_id] || []) !== JSON.stringify(reviewerScopeBaseline[reviewer.user_id] || [])
+        )).map((reviewer) => setDailyActivityReviewerConfiguration(
+          reviewer.user_id,
+          reviewerRequiredDraft[reviewer.user_id] ?? reviewer.is_required,
+          reviewerScopeDrafts[reviewer.user_id] || [],
+        )),
         setDailyActivityDeadline(deadline, effectiveFrom),
       ]);
     },
-    onSuccess: () => { message.success("Pengaturan Daily Activity disimpan"); setUserOverrideBaseline(userOverrideDrafts); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); },
+    onSuccess: () => { message.success("Pengaturan Daily Activity disimpan"); setUserOverrideBaseline(userOverrideDrafts); setReviewerRequiredBaseline(reviewerRequiredDraft); setReviewerScopeBaseline(reviewerScopeDrafts); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); void queryClient.invalidateQueries({ queryKey: ["daily-activity-access-status"] }); void queryClient.invalidateQueries({ queryKey: ["daily-activity-reports"] }); },
     onError: (error: any) => message.error(error?.response?.data?.message || "Gagal menyimpan pengaturan"),
   });
   const holidayMutation = useMutation({ mutationFn: () => addDailyActivityHoliday(holidayDate, holidayName), onSuccess: () => { setHolidayName(""); message.success("Hari libur ditambahkan"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); } });
@@ -386,6 +423,28 @@ export default function DailyActivityPage() {
   const scopePreviewMutation = useMutation({ mutationFn: previewDailyActivityScope, onSuccess: (result) => { setScopePreview(result.user_ids); setTeamScopePreviewIds(result.user_ids); }, onError: (error: any) => message.error(error?.response?.data?.message || "Gagal memuat cakupan") });
 
   const users = configQuery.data?.users || [];
+  const reviewerIds = new Set([
+    ...(configQuery.data?.reviewers || []).map((reviewer) => reviewer.user_id),
+    ...Object.keys(reviewerRequiredDraft),
+  ]);
+  const reviewerRows = Array.from(reviewerIds).flatMap((userId) => {
+    const user = users.find((candidate) => candidate.id === userId);
+    if (!user) return [];
+    const configured = configQuery.data?.reviewers.find((reviewer) => reviewer.user_id === userId);
+    const directSubordinateIds = configured?.direct_subordinate_ids ?? (user.role_id
+      ? users.filter((candidate) => configQuery.data?.roles.find((role) => role.id === candidate.role_id)?.manager_role_id === user.role_id).map((candidate) => candidate.id)
+      : []);
+    const subordinateIds = reviewerScopeDrafts[userId] ?? configured?.subordinate_ids ?? directSubordinateIds;
+    return [{
+      user_id: userId,
+      username: user.username,
+      role_name: user.role_name || null,
+      is_required: reviewerRequiredDraft[userId] ?? configured?.is_required ?? false,
+      direct_subordinate_ids: directSubordinateIds,
+      subordinate_ids: subordinateIds,
+    }];
+  }).sort((left, right) => left.username.localeCompare(right.username));
+  const scopeModalReviewer = reviewerRows.find((reviewer) => reviewer.user_id === scopeModalReviewerId);
   const cardResults = ((cardSearchQuery.data || []) as Card[]).filter((card) => !card.archive);
   const taskResults: NotulensiSummary[] = taskSearchQuery.data?.data || [];
   const teamRows = teamQuery.data || [];
@@ -410,7 +469,7 @@ export default function DailyActivityPage() {
   const filteredActivityRows = activityRows.filter((row) => {
     const matchesDivision = !divisionFilter.length || divisionFilter.includes(row.role_name || "");
     const matchesUser = !teamUserFilterIds.length || teamUserFilterIds.includes(row.user_id);
-    const matchesReview = !reviewFilter.length || (row.status === "submitted" && reviewFilter.includes(row.reviewed_at ? "reviewed" : "not_reviewed"));
+    const matchesReview = !reviewFilter.length || (row.can_review && row.review_required && row.status === "submitted" && reviewFilter.includes(row.reviewed_at ? "reviewed" : "not_reviewed"));
     const matchesSearch = !normalizedSearch || `${row.username} ${row.role_name || ""} ${row.activities.map((item) => item.content).join(" ")}`.toLowerCase().includes(normalizedSearch);
     const matchesStatus = !statusFilter || (statusFilter === "pending" ? ["missing", "draft"].includes(row.status) : row.status === statusFilter);
     const matchesScope = !teamScopePreviewIds || teamScopePreviewIds.includes(row.user_id);
@@ -665,10 +724,10 @@ export default function DailyActivityPage() {
     </div>;
   };
   const renderCommentPanel = (itemId: string) => commentItemId === itemId ? <section className="mt-3 grid gap-3 rounded-lg border bg-slate-50 p-3" aria-label="Komentar aktivitas">
-    <div className="flex items-center justify-between gap-2"><Typography.Text strong>Komentar aktivitas</Typography.Text><Button size="small" onClick={() => { setCommentItemId(null); setCommentDraft(""); }}>Tutup</Button></div>
+    <div className="flex items-center justify-between gap-2"><Typography.Text strong>Komentar aktivitas</Typography.Text><Button size="small" onClick={() => setCommentItemId(null)}>Tutup</Button></div>
     {commentsQuery.isLoading ? <Spin size="small" /> : commentsQuery.data?.length ? <div className="grid gap-3">{commentsQuery.data.map((comment) => <article key={comment.id} className="rounded border bg-white p-2"><div className="flex flex-wrap items-baseline gap-2"><Typography.Text strong>{comment.user?.username || "Pengguna"}</Typography.Text><Typography.Text type="secondary" className="text-xs">{wibDateAndTime(comment.created_at).date} {wibDateAndTime(comment.created_at).time} WIB</Typography.Text></div><p className="mt-1 whitespace-pre-wrap">{comment.content}</p></article>)}</div> : <Typography.Text type="secondary">Belum ada komentar.</Typography.Text>}
-    <Input.TextArea aria-label="Tulis komentar aktivitas" value={commentDraft} onChange={(event) => setCommentDraft(event.target.value)} maxLength={3000} autoSize={{ minRows: 2, maxRows: 5 }} placeholder="Tulis komentar atau balasan…" />
-    <div className="flex justify-end"><Button type="primary" disabled={!commentDraft.trim()} loading={commentMutation.isPending} onClick={() => commentMutation.mutate()}>Kirim Komentar</Button></div>
+    <Input.TextArea aria-label="Tulis komentar aktivitas" value={commentDrafts[itemId] || ""} onChange={(event) => setCommentDrafts((drafts) => ({ ...drafts, [itemId]: event.target.value }))} maxLength={3000} autoSize={{ minRows: 2, maxRows: 5 }} placeholder="Tulis komentar atau balasan…" />
+    <div className="flex justify-end"><Button type="primary" disabled={!(commentDrafts[itemId] || "").trim()} loading={commentMutation.isPending} onClick={() => commentMutation.mutate({ itemId, content: commentDrafts[itemId] || "" })}>Kirim Komentar</Button></div>
   </section> : null;
   return (
     <>
@@ -754,7 +813,7 @@ export default function DailyActivityPage() {
               <div className="ozactions"><Button onClick={() => { setActivities((items) => [...items, ""]); setActivityIds((items) => [...items, ""]); }} disabled={saveMutation.isPending}>+ Aktivitas</Button><Button onClick={cancelActivityEdit} disabled={saveMutation.isPending}>Batal</Button>{reportQuery.data?.report?.status !== "submitted" && <Button onClick={() => runSaveActivities(false)} loading={saveMutation.isPending}>Simpan Draft</Button>}<Button type="primary" onClick={() => runSaveActivities(true)} loading={saveMutation.isPending}>{reportQuery.data?.report?.status === "submitted" ? "Simpan Perubahan" : "Simpan Aktivitas"}</Button></div>
             </> : <>
                <div className="mb-1 flex items-center justify-between"><div><Typography.Title level={4} className="!mb-0">Aktivitas saya</Typography.Title><Typography.Text type="secondary">{dayjs(workDate).format("dddd, D MMMM YYYY")}</Typography.Text></div><div className="flex items-center gap-2">{reportQuery.data?.report && <Tag color={reportQuery.data.report.status === "submitted" ? "green" : "gold"}>{reportQuery.data.report.status === "submitted" ? "Sudah Kirim" : "Draft"}</Tag>}{canActOnSelectedDate && Boolean(reportQuery.data?.report?.activities.length) && activeLeave?.status !== "approved" ? <Button size="small" onClick={openActivityEditor}>Edit Aktivitas</Button> : null}</div></div>
-                {reportQuery.data?.report?.activities.length ? <div className="grid gap-3">{reportQuery.data.report.activities.map((activity, index) => <article key={activity.id} className="rounded-lg border bg-white p-4"><div className="mb-2 flex gap-3"><span className="text-sm text-slate-500">{index + 1}.</span><p className="whitespace-pre-wrap">{activity.content}</p></div>{activity.references?.length ? renderActivityReferences(activity.references, activity.id, canActOnSelectedDate) : null}{reportQuery.data?.report?.status === "submitted" && <Button className="mt-2" size="small" type={commentItemId === activity.id ? "primary" : "default"} onClick={() => { setCommentItemId((current) => current === activity.id ? null : activity.id); setCommentDraft(""); }} aria-expanded={commentItemId === activity.id}>Komentar{activity.comments_count ? ` · ${activity.comments_count}` : ""}{accessQuery.data?.oldest_unread_comment?.item_id === activity.id ? " · Belum Dibaca" : ""}</Button>}{renderCommentPanel(activity.id)}</article>)}</div> : activeLeave?.status === "approved" ? <div className="quiet">Cuti disetujui. Tidak perlu mencatat aktivitas.</div> : <div className="grid justify-items-center gap-3 rounded-lg border border-dashed p-8 text-center"><h3>Belum ada aktivitas yang dicatat</h3><p className="text-slate-500">Pilih tanggal dan catat aktivitas yang dikerjakan.</p>{canActOnSelectedDate && <Button type="primary" onClick={openActivityEditor}>+ Catat Aktivitas</Button>}</div>}
+                {reportQuery.data?.report?.activities.length ? <div className="grid gap-3">{reportQuery.data.report.activities.map((activity, index) => <article key={activity.id} className="rounded-lg border bg-white p-4"><div className="mb-2 flex gap-3"><span className="text-sm text-slate-500">{index + 1}.</span><p className="whitespace-pre-wrap">{activity.content}</p></div>{activity.references?.length ? renderActivityReferences(activity.references, activity.id, canActOnSelectedDate) : null}{reportQuery.data?.report?.status === "submitted" && <Button className="mt-2" size="small" type={commentItemId === activity.id ? "primary" : "default"} onClick={() => setCommentItemId((current) => current === activity.id ? null : activity.id)} aria-expanded={commentItemId === activity.id}>Komentar{activity.comments_count ? ` · ${activity.comments_count}` : ""}{accessQuery.data?.oldest_unread_comment?.item_id === activity.id ? " · Belum Dibaca" : ""}</Button>}{renderCommentPanel(activity.id)}</article>)}</div> : activeLeave?.status === "approved" ? <div className="quiet">Cuti disetujui. Tidak perlu mencatat aktivitas.</div> : <div className="grid justify-items-center gap-3 rounded-lg border border-dashed p-8 text-center"><h3>Belum ada aktivitas yang dicatat</h3><p className="text-slate-500">Pilih tanggal dan catat aktivitas yang dikerjakan.</p>{canActOnSelectedDate && <Button type="primary" onClick={openActivityEditor}>+ Catat Aktivitas</Button>}</div>}
               {myLeaveRequests.length > 0 && <section className="rounded-lg border p-4"><Typography.Text strong>Pengajuan cuti saya</Typography.Text><div className="mt-2 grid gap-2">{myLeaveRequests.map((request) => <div key={request.id} className="flex flex-wrap items-center justify-between gap-2 border-t pt-2"><div><span>{leavePeriod(request.start_date, request.end_date)}</span><Tag className="ml-2" color={request.status === "approved" ? "green" : request.status === "pending" ? "gold" : request.status === "rejected" ? "red" : "default"}>{leaveStatusLabel(request.status)}</Tag><Typography.Text className="ml-2" type="secondary">{request.approver_role_name ? `Atasan: ${request.approver_role_name}` : "Atasan: Super Admin"}</Typography.Text>{request.note && <div className="mt-1 text-sm">{request.note}</div>}{request.decision_note && <div className="mt-1 text-sm text-slate-500">Catatan: {request.decision_note}</div>}</div>{request.status === "pending" && <Button danger size="small" loading={cancelLeaveMutation.isPending} onClick={() => cancelLeaveMutation.mutate(request.id)}>Batalkan</Button>}</div>)}</div></section>}
             </>}
           </>}
@@ -775,8 +834,8 @@ export default function DailyActivityPage() {
                 {detailQuery.data && <Tag color={detailQuery.data.status === "submitted" ? "green" : "gold"}>{detailQuery.data.status === "submitted" ? "Sudah Kirim" : "Draft"}</Tag>}
               </div>
               {selectedReportId && detailQuery.isLoading ? <Spin /> : selectedReportId && detailQuery.data ? <>
-                <Typography.Title level={4}>{selectedTeamDay.username} · {dayjs(selectedTeamDay.work_date).format("DD MMMM YYYY")}</Typography.Title>
-                {detailQuery.data.activities.map((activity, index) => <article key={activity.id} className="mb-3 rounded-lg border p-3"><Typography.Text type="secondary">Aktivitas {index + 1}</Typography.Text><p className="whitespace-pre-wrap">{activity.content}</p>{activity.references?.length ? <div className="mt-2">{renderActivityReferences(activity.references, activity.id, false)}</div> : null}<Button className="mt-2" size="small" type={commentItemId === activity.id ? "primary" : "default"} onClick={() => { setCommentItemId((current) => current === activity.id ? null : activity.id); setCommentDraft(""); }} aria-expanded={commentItemId === activity.id}>Komentar{activity.comments_count ? ` · ${activity.comments_count}` : ""}{accessQuery.data?.oldest_unread_comment?.item_id === activity.id ? " · Belum Dibaca" : ""}</Button>{renderCommentPanel(activity.id)}</article>)}
+                <Typography.Title level={4}>{selectedTeamDay.username} · {wibDateLabel(selectedTeamDay.work_date)}</Typography.Title>
+                {detailQuery.data.activities.map((activity, index) => <article key={activity.id} className="mb-3 rounded-lg border p-3"><Typography.Text type="secondary">Aktivitas {index + 1}</Typography.Text><p className="whitespace-pre-wrap">{activity.content}</p>{activity.references?.length ? <div className="mt-2">{renderActivityReferences(activity.references, activity.id, false)}</div> : null}<Button className="mt-2" size="small" type={commentItemId === activity.id ? "primary" : "default"} onClick={() => setCommentItemId((current) => current === activity.id ? null : activity.id)} aria-expanded={commentItemId === activity.id}>Komentar{activity.comments_count ? ` · ${activity.comments_count}` : ""}{accessQuery.data?.oldest_unread_comment?.item_id === activity.id ? " · Belum Dibaca" : ""}</Button>{renderCommentPanel(activity.id)}</article>)}
                 {detailQuery.data.history?.length ? <details className="mt-4"><summary>Riwayat laporan</summary><ul>{detailQuery.data.history.map((entry, index) => <li key={`${entry.created_at}:${index}`}>{dayjs(entry.created_at).format("DD MMM YYYY HH:mm")} · {entry.action.replaceAll("_", " ")}</li>)}</ul></details> : null}
                 {detailQuery.data.can_review && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 p-3">{detailQuery.data.reviewed_at ? <Typography.Text type="success">✓ Sudah dicek {wibDateAndTime(detailQuery.data.reviewed_at).date} {wibDateAndTime(detailQuery.data.reviewed_at).time} WIB</Typography.Text> : <Typography.Text type="warning">Belum ditandai sudah dicek</Typography.Text>}<Button type="primary" disabled={!!detailQuery.data.reviewed_at} loading={reviewMutation.isPending} onClick={() => selectedReportId && reviewMutation.mutate(selectedReportId)}>Tandai Sudah Dicek</Button></div>}
                 {detailQuery.data.user_id === currentUserId && <Button type="primary" className="mt-3" onClick={() => { setWorkDate(detailQuery.data!.work_date); setTab("mine"); }}>Edit Daily Saya</Button>}
@@ -795,7 +854,7 @@ export default function DailyActivityPage() {
               <div className="ozpills" aria-label="Filter status laporan">{[["pending", "Belum Kirim"], ["submitted", "Sudah Kirim"]].map(([value, label]) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value)}>{label}</button>)}<Button size="small" onClick={() => { setStatusFilter(""); setDivisionFilter([]); setTeamUserFilterIds([]); setReviewFilter([]); setReportSearch(""); setTeamDateRange([today(), today()]); }}>Clear Filter</Button></div>
             <div className="oztablewrap"><Table rowKey={(row) => `${row.user_id}:${row.work_date}`} loading={teamQuery.isLoading} dataSource={filteredActivityRows} pagination={{ pageSize: 20 }} columns={[
               { title: "Nama / jabatan", width: "25%", render: (_value, row) => <div><Typography.Text strong>{row.username}</Typography.Text><br /><Typography.Text type="secondary">{row.role_name || "-"}</Typography.Text></div> },
-               { title: "Status laporan", width: "20%", dataIndex: "status", render: (value, row) => <div><Tag color={value === "submitted" ? (wasSubmittedLate(row) ? "orange" : "green") : value === "missing" ? "red" : value === "on_leave" ? "blue" : "gold"}>{value === "submitted" ? (wasSubmittedLate(row) ? "Terlambat" : "✓ Sudah Kirim") : value === "missing" ? "Belum Isi" : value === "on_leave" ? "Cuti" : "Draft"}</Tag>{row.submitted_at && <div className="mt-1 text-xs text-slate-500">{wasSubmittedLate(row) ? "Terlambat · " : "Dikirim "}{wibDateAndTime(row.submitted_at).time} WIB</div>}{row.can_review && <div className="mt-1 text-xs text-slate-500">{row.reviewed_at ? "✓ Sudah dicek" : "Menunggu dicek"}</div>}</div> },
+               { title: "Status laporan", width: "20%", dataIndex: "status", render: (value, row) => <div><Tag color={value === "submitted" ? (wasSubmittedLate(row) ? "orange" : "green") : value === "missing" ? "red" : value === "on_leave" ? "blue" : "gold"}>{value === "submitted" ? (wasSubmittedLate(row) ? "Terlambat" : "✓ Sudah Kirim") : value === "missing" ? "Belum Isi" : value === "on_leave" ? "Cuti" : "Draft"}</Tag>{row.submitted_at && <div className="mt-1 text-xs text-slate-500">{wasSubmittedLate(row) ? "Terlambat · " : "Dikirim "}{wibDateAndTime(row.submitted_at).time} WIB</div>}{row.review_required && value === "submitted" && <div className="mt-1 text-xs text-slate-500">{row.reviewed_at ? "✓ Sudah dicek" : "Menunggu dicek"}</div>}</div> },
               { title: "Aktivitas hari ini", width: "39%", render: (_value, row) => row.activities.length ? <div><p className="line-clamp-2">{row.activities[0].content}</p><Typography.Text type="secondary">{row.activities.length} aktivitas</Typography.Text></div> : <Typography.Text type="secondary">{row.status === "on_leave" ? "Cuti disetujui" : "Belum ada aktivitas tercatat."}</Typography.Text> },
               { title: "Aksi", width: "16%", render: (_value, row) => <Button type="link" onClick={() => { setSelectedTeamDay(row); setSelectedReportId(row.report_id); }}>{row.report_id ? row.activities.length ? "Lihat Detail" : "Lihat Status" : "Lihat Status"}</Button> },
             ]} /></div>
@@ -841,6 +900,40 @@ export default function DailyActivityPage() {
             </section>
           </div>
           <section className="ozpanel">
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+              <div><Typography.Title level={4}>Atur kewajiban cek per akun atasan</Typography.Title><Typography.Text type="secondary">Cakupan awal mengikuti Struktur per Role. Atur bawahan per akun, termasuk rekan satu level.</Typography.Text></div>
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                className="min-w-64"
+                aria-label="Tambah akun atasan"
+                value={reviewerToAdd}
+                placeholder="Tambah akun atasan"
+                options={users.filter((user) => !reviewerIds.has(user.id)).map((user) => ({ value: user.id, label: `${user.username}${user.role_name ? ` · ${user.role_name}` : ""}` }))}
+                onChange={(userId) => {
+                  if (!userId) return;
+                  setReviewerToAdd(undefined);
+                  setReviewerRequiredDraft((current) => ({ ...current, [userId]: false }));
+                  setReviewerScopeDrafts((current) => ({ ...current, [userId]: [] }));
+                }}
+              />
+            </div>
+            {configQuery.isLoading ? <Spin /> : reviewerRows.length ? <div className="grid gap-2">
+              {reviewerRows.map((reviewer) => {
+                const subordinateNames = reviewer.subordinate_ids.map((id) => users.find((user) => user.id === id)?.username).filter(Boolean);
+                const outsideScopeCount = Math.max(0, users.length - reviewer.subordinate_ids.length - 1);
+                return <div key={reviewer.user_id} className="flex flex-wrap items-center justify-between gap-3 border-t py-3">
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    <Checkbox aria-label={`Wajib cek ${reviewer.username}`} checked={reviewer.is_required} onChange={(event) => setReviewerRequiredDraft((current) => ({ ...current, [reviewer.user_id]: event.target.checked }))} />
+                    <div className="min-w-0"><Typography.Text strong>{reviewer.username}</Typography.Text><Typography.Text type="secondary" className="ml-2">{reviewer.role_name || "-"}</Typography.Text><div className="mt-1 text-xs text-slate-500">{reviewer.subordinate_ids.length} bawahan dalam cakupan{subordinateNames.length ? ` · ${subordinateNames.join(", ")}` : ""} · {outsideScopeCount} akun di luar cakupan</div><div className="text-xs text-slate-500">{reviewer.is_required ? "Wajib cek laporan yang dikirim" : "Tidak wajib cek"}</div></div>
+                  </div>
+                  <Button aria-label={`Atur bawahan ${reviewer.username}`} onClick={() => { setScopeModalReviewerId(reviewer.user_id); setScopeModalDraft(reviewer.subordinate_ids); }}>Atur Bawahan</Button>
+                </div>;
+              })}
+            </div> : <Typography.Text type="secondary">Belum ada akun atasan. Tambahkan akun untuk mengatur kewajiban cek.</Typography.Text>}
+          </section>
+          <section className="ozpanel">
             <Typography.Title level={4}>Kewajiban per orang</Typography.Title>
             <Typography.Paragraph type="secondary">Aturan per orang mengalahkan aturan role.</Typography.Paragraph>
             <Alert className="mb-3" type="info" showIcon message="Kewajiban Daily Activity dikecualikan pada tanggal cuti yang sudah disetujui atasan." />
@@ -883,6 +976,32 @@ export default function DailyActivityPage() {
           <label className="flex flex-col gap-1 text-sm">Rentang tanggal<DatePicker.RangePicker className="w-full" value={[leaveStart, leaveEnd]} onChange={(value) => { setLeaveStart(value?.[0] || null); setLeaveEnd(value?.[1] || null); }} /></label>
           <label className="flex flex-col gap-1 text-sm">Catatan (opsional)<Input.TextArea maxLength={1000} rows={3} value={leaveNote} onChange={(event) => setLeaveNote(event.target.value)} placeholder="Tambahkan catatan bila perlu" /></label>
           <Typography.Text type="secondary">Atasan ditentukan otomatis dari struktur role. Daily Activity tetap wajib sampai cuti disetujui.</Typography.Text>
+        </div>
+      </Modal>
+      <Modal
+        title={`Atur Bawahan${scopeModalReviewer ? ` · ${scopeModalReviewer.username}` : ""}`}
+        open={!!scopeModalReviewerId}
+        okText="Simpan Daftar"
+        cancelText="Batal"
+        onCancel={() => setScopeModalReviewerId(null)}
+        onOk={() => {
+          if (scopeModalReviewerId) setReviewerScopeDrafts((current) => ({ ...current, [scopeModalReviewerId]: scopeModalDraft }));
+          setScopeModalReviewerId(null);
+        }}
+      >
+        <div className="grid gap-3 py-2">
+          <Typography.Text type="secondary">Pilih akun yang menjadi tanggung jawab atasan ini. Anda dapat memasukkan rekan satu level; daftar setiap atasan disimpan terpisah.</Typography.Text>
+          <Select
+            mode="multiple"
+            showSearch
+            optionFilterProp="label"
+            className="w-full"
+            aria-label={`Bawahan untuk ${scopeModalReviewer?.username || "atasan"}`}
+            value={scopeModalDraft}
+            onChange={setScopeModalDraft}
+            options={users.filter((user) => user.id !== scopeModalReviewerId).map((user) => ({ value: user.id, label: `${user.username}${user.role_name ? ` · ${user.role_name}` : ""}` }))}
+            placeholder="Pilih akun yang menjadi tanggung jawab atasan"
+          />
         </div>
       </Modal>
       <Modal
