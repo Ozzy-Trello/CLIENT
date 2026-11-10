@@ -173,7 +173,19 @@ describe("UnreadCommentGate", () => {
     ).toBeNull());
   });
 
-  it("fails open when the canonical count request fails", async () => {
+  it("keeps the gate visible from a known unread count when refresh fails", async () => {
+    state.notificationState.commentUnreadCount = 2;
+    state.notificationState.commentUnreadGroupCount = 1;
+    state.notificationState.commentGateEnabled = true;
+    (getUnreadCount as jest.Mock).mockRejectedValue(new Error("offline"));
+
+    render(<UnreadCommentGate />);
+
+    await waitFor(() => expect(getUnreadCount).toHaveBeenCalled());
+    expect(await screen.findByRole("dialog")).not.toBeNull();
+  });
+
+  it("fails open when a count refresh fails and there is no cached unread count", async () => {
     (getUnreadCount as jest.Mock).mockRejectedValue(new Error("offline"));
 
     render(<UnreadCommentGate />);

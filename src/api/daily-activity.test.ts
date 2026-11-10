@@ -1,5 +1,5 @@
 import { api } from "@api/index";
-import { addDailyActivityItemComment, getDailyActivityConfiguration, getDailyActivityItemComments, reviewDailyActivityReport } from "./daily-activity";
+import { addDailyActivityItemComment, getDailyActivityConfiguration, getDailyActivityItemComments, reviewDailyActivityReport, setDailyActivityReviewerConfiguration } from "./daily-activity";
 
 jest.mock("@api/index", () => ({ api: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn(), patch: jest.fn() } }));
 
@@ -14,6 +14,7 @@ describe("daily activity configuration api", () => {
     await expect(getDailyActivityConfiguration()).resolves.toEqual({
       roles: [{ id: "role-1", name: "SPV", manager_role_id: null }],
       users: [],
+      reviewers: [],
       role_rules: [],
       user_overrides: [],
       settings: [],
@@ -27,6 +28,31 @@ describe("daily activity configuration api", () => {
     const result = await getDailyActivityConfiguration();
     expect(result.role_rules).toEqual([{ id: "rule-1" }]);
     expect(result.user_overrides).toEqual([{ id: "override-1" }]);
+  });
+
+  it("normalizes account-specific reviewer scopes", async () => {
+    mockedApi.get.mockResolvedValue({ data: { data: { reviewers: [{ userId: "reviewer-1", isRequired: true, scopeConfigured: true, directSubordinateIds: ["direct-1"], subordinateIds: ["peer-1"] }] } } } as any);
+
+    await expect(getDailyActivityConfiguration()).resolves.toMatchObject({
+      reviewers: [{
+        user_id: "reviewer-1",
+        is_required: true,
+        scope_configured: true,
+        direct_subordinate_ids: ["direct-1"],
+        subordinate_ids: ["peer-1"],
+      }],
+    });
+  });
+
+  it("saves reviewer duty and the exact account scope", async () => {
+    mockedApi.put.mockResolvedValue({ data: { data: { user_id: "reviewer-1" } } } as any);
+
+    await setDailyActivityReviewerConfiguration("reviewer-1", true, ["peer-1", "peer-2"]);
+
+    expect(mockedApi.put).toHaveBeenCalledWith("/daily-activity/configuration/reviewers/reviewer-1", {
+      is_required: true,
+      subordinate_user_ids: ["peer-1", "peer-2"],
+    });
   });
 
   it("uses the direct-manager review and per-activity comment endpoints", async () => {

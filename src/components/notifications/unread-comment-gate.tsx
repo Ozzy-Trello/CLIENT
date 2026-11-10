@@ -43,7 +43,7 @@ export function UnreadCommentGate({ disabled = false }: { disabled?: boolean }) 
       dispatch(setUnreadCounts(counts));
       setIsCountKnown(true);
     } catch {
-      setIsCountKnown(false);
+      setIsCountKnown(commentGateEnabled && commentUnreadCount > 0);
     }
   };
 
