@@ -238,7 +238,7 @@ const Sidebar = () => {
             href={`/workspace/${resolvedWorkspaceId}/notulensi`}
           >
             <span>Tasks and Projects</span>
-            <Badge count={assignedNotulensiCount} />
+            <Badge count={assignedNotulensiCount} overflowCount={Number.MAX_SAFE_INTEGER} />
           </Link>
         ),
         icon: <ClipboardList size={16} />,

@@ -78,7 +78,7 @@ export function NotificationBell() {
               {
                 key: "general",
                 label: (
-                  <Badge count={generalUnreadCount} size="small" offset={[8, 0]}>
+                  <Badge count={generalUnreadCount} overflowCount={Number.MAX_SAFE_INTEGER} size="small" offset={[8, 0]}>
                     <span className="pr-3">General</span>
                   </Badge>
                 ),
@@ -87,7 +87,7 @@ export function NotificationBell() {
               {
                 key: "comment",
                 label: (
-                  <Badge count={commentUnreadCount} size="small" offset={[8, 0]}>
+                  <Badge count={commentUnreadCount} overflowCount={Number.MAX_SAFE_INTEGER} size="small" offset={[8, 0]}>
                     <span className="pr-3">Comment</span>
                   </Badge>
                 ),
@@ -106,7 +106,7 @@ export function NotificationBell() {
         width: "min(384px, calc(100vw - 16px))",
       }}
     >
-      <Badge count={unreadCount} size="small" offset={[-2, 2]}>
+      <Badge count={unreadCount} overflowCount={Number.MAX_SAFE_INTEGER} size="small" offset={[-2, 2]}>
         <BellOutlined
           style={{ fontSize: 20, cursor: "pointer" }}
           className="text-gray-600 hover:text-gray-900"

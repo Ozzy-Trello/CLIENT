@@ -672,6 +672,7 @@ const GenericPlannerView: React.FC<GenericPlannerViewProps> = ({
             {activeFiltersCount > 0 && (
               <Badge
                 count={activeFiltersCount}
+                overflowCount={Number.MAX_SAFE_INTEGER}
                 style={{ backgroundColor: "#faad14" }}
               />
             )}

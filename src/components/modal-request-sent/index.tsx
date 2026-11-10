@@ -2324,7 +2324,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
           <Badge
             count={data?.pagination?.total || 0}
             style={{ backgroundColor: "#52c41a" }}
-            overflowCount={999}
+            overflowCount={Number.MAX_SAFE_INTEGER}
           />
         </Space>
       }
@@ -2354,6 +2354,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
             {totalActiveFilters > 0 && (
               <Badge
                 count={totalActiveFilters}
+                overflowCount={Number.MAX_SAFE_INTEGER}
                 style={{ backgroundColor: "#faad14" }}
               />
             )}

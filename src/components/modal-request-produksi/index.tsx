@@ -761,6 +761,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
           </Title>
           <Badge
             count={totalRequests}
+            overflowCount={Number.MAX_SAFE_INTEGER}
             style={{
               backgroundColor: "#f0f0f0",
               color: "#666",
@@ -796,6 +797,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
             {totalActiveFilters > 0 && (
               <Badge
                 count={totalActiveFilters}
+                overflowCount={Number.MAX_SAFE_INTEGER}
                 style={{ backgroundColor: "#faad14" }}
               />
             )}
