@@ -32,7 +32,7 @@ import {
 } from "@api/daily-activity";
 import { searchCards } from "@api/card";
 import { getNotulensiList } from "@api/notulensi";
-import { getUnreadCount, markNotificationGroupRead } from "@api/notifications";
+import { getUnreadCount } from "@api/notifications";
 import { DailyActivityDay, DailyActivityTab, DailyActivityUser, DailyActivityStructureRole, DailyActivityReference } from "@myTypes/daily-activity";
 import { Card } from "@myTypes/card";
 import { NotulensiSummary } from "@myTypes/notulensi";
@@ -94,7 +94,6 @@ export default function DailyActivityPage() {
   const workspaceId = routeParams.workspaceId;
   const notificationReportId = searchParams.get("reportId");
   const notificationItemId = searchParams.get("itemId");
-  const notificationGroupId = searchParams.get("notificationGroupId");
   const [tab, setTab] = useState<DailyActivityTab>("mine");
   const [workDate, setWorkDate] = useState(today());
   const [teamDateRange, setTeamDateRange] = useState<[string, string]>([today(), today()]);
@@ -378,12 +377,8 @@ export default function DailyActivityPage() {
     if (!commentsQuery.dataUpdatedAt) return;
     void queryClient.invalidateQueries({ queryKey: ["daily-activity-access-status"] });
     void queryClient.invalidateQueries({ queryKey: ["notifications"] });
-    const refreshUnreadCounts = () => getUnreadCount().then((counts) => dispatch(setUnreadCounts(counts)));
-    const markGroupRead = notificationGroupId
-      ? markNotificationGroupRead(notificationGroupId).then(refreshUnreadCounts)
-      : refreshUnreadCounts();
-    void markGroupRead.catch(() => {});
-  }, [commentsQuery.dataUpdatedAt, dispatch, notificationGroupId, queryClient]);
+    void getUnreadCount().then((counts) => dispatch(setUnreadCounts(counts))).catch(() => {});
+  }, [commentsQuery.dataUpdatedAt, dispatch, queryClient]);
 
   const roleManagerMutation = useMutation({ mutationFn: ({ roleId, managerRoleId }: { roleId: string; managerRoleId: string | null }) => updateDailyActivityRoleManager(roleId, managerRoleId), onSuccess: () => { message.success("Atasan role diperbarui"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] }); void queryClient.invalidateQueries({ queryKey: ["daily-activity-configuration"] }); }, onError: (error: any) => { message.error(error?.response?.data?.message || "Gagal memperbarui atasan role"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-structure"] }); } });
   const savePolicyMutation = useMutation({
@@ -733,7 +728,7 @@ export default function DailyActivityPage() {
   };
   const renderCommentPanel = (itemId: string) => commentItemId === itemId ? <section className="mt-3 grid gap-3 rounded-lg border bg-slate-50 p-3" aria-label="Komentar aktivitas">
     <div className="flex items-center justify-between gap-2"><Typography.Text strong>Komentar aktivitas</Typography.Text><Button size="small" onClick={() => setCommentItemId(null)}>Tutup</Button></div>
-    {commentsQuery.isLoading ? <Spin size="small" /> : commentsQuery.isError ? <Alert type="error" showIcon message="Komentar gagal dimuat." action={<Button size="small" onClick={() => void commentsQuery.refetch()}>Coba Lagi</Button>} /> : commentsQuery.data?.length ? <div className="grid gap-3">{commentsQuery.data.map((comment) => <article key={comment.id} className="rounded border bg-white p-2"><div className="flex flex-wrap items-baseline gap-2"><Typography.Text strong>{comment.user?.username || "Pengguna"}</Typography.Text><Typography.Text type="secondary" className="text-xs">{wibDateAndTime(comment.created_at).date} {wibDateAndTime(comment.created_at).time} WIB</Typography.Text></div><p className="mt-1 whitespace-pre-wrap">{comment.content}</p></article>)}</div> : <Typography.Text type="secondary">Belum ada komentar.</Typography.Text>}
+    {commentsQuery.isLoading ? <Spin size="small" /> : commentsQuery.isError ? <Alert type="error" showIcon message={(commentsQuery.error as any)?.response?.status === 403 ? "Akun ini belum masuk cakupan reviewer." : "Komentar gagal dimuat."} description={(commentsQuery.error as any)?.response?.status === 403 ? "Minta admin menambahkan akun ini melalui Atur Bawahan." : undefined} action={<Button size="small" onClick={() => void commentsQuery.refetch()}>Coba Lagi</Button>} /> : commentsQuery.data?.length ? <div className="grid gap-3">{commentsQuery.data.map((comment) => <article key={comment.id} className="rounded border bg-white p-2"><div className="flex flex-wrap items-baseline gap-2"><Typography.Text strong>{comment.user?.username || "Pengguna"}</Typography.Text><Typography.Text type="secondary" className="text-xs">{wibDateAndTime(comment.created_at).date} {wibDateAndTime(comment.created_at).time} WIB</Typography.Text></div><p className="mt-1 whitespace-pre-wrap">{comment.content}</p></article>)}</div> : <Typography.Text type="secondary">Belum ada komentar.</Typography.Text>}
     <Input.TextArea aria-label="Tulis komentar aktivitas" value={commentDrafts[itemId] || ""} onChange={(event) => setCommentDrafts((drafts) => ({ ...drafts, [itemId]: event.target.value }))} maxLength={3000} autoSize={{ minRows: 2, maxRows: 5 }} placeholder="Tulis komentar atau balasan…" />
     <div className="flex justify-end"><Button type="primary" disabled={!(commentDrafts[itemId] || "").trim()} loading={commentMutation.isPending} onClick={() => commentMutation.mutate({ itemId, content: commentDrafts[itemId] || "" })}>Kirim Komentar</Button></div>
   </section> : null;

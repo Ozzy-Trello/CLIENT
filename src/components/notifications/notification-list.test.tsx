@@ -111,7 +111,7 @@ describe("getNotificationTarget", () => {
       entityType: "daily_activity",
       entityId: "report-1",
       activityId: "item-1",
-    })).toBe("/workspace/ws-1/daily-activity?reportId=report-1&itemId=item-1&notificationGroupId=1");
+    })).toBe("/workspace/ws-1/daily-activity?reportId=report-1&itemId=item-1");
   });
 
   it("routes card notifications using canonical entity ID", () => {
@@ -493,7 +493,7 @@ describe("NotificationList", () => {
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ payload: false }));
   });
 
-  it("waits for Daily Activity comments to load before marking the notification read", () => {
+  it("marks the Daily Activity notification group read on explicit open", () => {
     const commentNotification = {
       ...baseNotification,
       id: "daily-comment-1",
@@ -510,8 +510,8 @@ describe("NotificationList", () => {
     render(<NotificationList category="comment" />);
     fireEvent.click(screen.getByRole("link", { name: /New item/i }));
 
-    expect(markNotificationGroupRead).not.toHaveBeenCalled();
-    expect(startGrace).not.toHaveBeenCalled();
+    expect(markNotificationGroupRead).toHaveBeenCalledWith("report-1");
+    expect(startGrace).toHaveBeenCalledTimes(1);
   });
 
   it("prevents opening mandatory comment notifications in another tab", () => {

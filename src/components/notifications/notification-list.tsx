@@ -64,7 +64,6 @@ export function getNotificationTarget(
     if (!isValidId(n.workspaceId) || !isValidId(n.entityId)) return null;
     const params = new URLSearchParams({ reportId: n.entityId });
     if (isValidId(n.activityId)) params.set("itemId", n.activityId);
-    if (isValidId(n.groupId)) params.set("notificationGroupId", n.groupId);
     return `/workspace/${encodeURIComponent(n.workspaceId)}/daily-activity?${params.toString()}`;
   }
 
@@ -235,9 +234,7 @@ export function NotificationList({ category }: NotificationListProps) {
       event.preventDefault();
       return;
     }
-    if (group.entityType !== "daily_activity") {
-      readCommentGroup(group, !group.isRead || !selected.isRead);
-    }
+    readCommentGroup(group, !group.isRead || !selected.isRead);
     dispatch(setOpen(false));
   };
 

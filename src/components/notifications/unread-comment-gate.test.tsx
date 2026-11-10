@@ -71,6 +71,8 @@ describe("UnreadCommentGate", () => {
     expect(await screen.findByRole("dialog")).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Lihat Comment" }));
     expect(dispatch).toHaveBeenCalledTimes(3);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByText(/Review window/)).not.toBeNull();
   });
 
   it("defers the comment gate while Daily Activity access is locked", async () => {
