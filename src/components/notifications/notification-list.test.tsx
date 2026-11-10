@@ -111,7 +111,7 @@ describe("getNotificationTarget", () => {
       entityType: "daily_activity",
       entityId: "report-1",
       activityId: "item-1",
-    })).toBe("/workspace/ws-1/daily-activity?reportId=report-1&itemId=item-1");
+    })).toBe("/workspace/ws-1/daily-activity?reportId=report-1&itemId=item-1&notificationGroupId=1");
   });
 
   it("routes card notifications using canonical entity ID", () => {
