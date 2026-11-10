@@ -513,6 +513,7 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
             {activeFiltersCount > 0 && (
               <Badge
                 count={activeFiltersCount}
+                overflowCount={Number.MAX_SAFE_INTEGER}
                 style={{ backgroundColor: "#faad14" }}
               />
             )}

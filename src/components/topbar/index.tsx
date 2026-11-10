@@ -452,7 +452,7 @@ const TopBar: React.FC = React.memo(() => {
       label: (
         <div className="flex items-center justify-between gap-3">
           <span>Lihat Request</span>
-          <Badge count={requestCounts.pendingVerification} overflowCount={99} />
+          <Badge count={requestCounts.pendingVerification} overflowCount={Number.MAX_SAFE_INTEGER} />
         </div>
       ),
       onClick: () => setModalListRequestOpen(true),
@@ -464,7 +464,7 @@ const TopBar: React.FC = React.memo(() => {
       label: (
         <div className="flex items-center justify-between gap-3">
           <span>Gudang</span>
-          <Badge count={requestCounts.pendingWarehouseSend} overflowCount={99} />
+          <Badge count={requestCounts.pendingWarehouseSend} overflowCount={Number.MAX_SAFE_INTEGER} />
         </div>
       ),
       onClick: () => setModalRequestSentOpen(true),
@@ -500,7 +500,7 @@ const TopBar: React.FC = React.memo(() => {
       label: (
         <div className="flex items-center justify-between gap-3">
           <span>Status Aksesoris</span>
-          <Badge count={pendingAccessoryCount} overflowCount={99} />
+          <Badge count={pendingAccessoryCount} overflowCount={Number.MAX_SAFE_INTEGER} />
         </div>
       ),
       onClick: () =>
@@ -514,7 +514,7 @@ const TopBar: React.FC = React.memo(() => {
       label: (
         <div className="flex items-center justify-between gap-3">
           <span>Status Notes Produksi</span>
-          <Badge count={pendingNoteCount} overflowCount={99} />
+          <Badge count={pendingNoteCount} overflowCount={Number.MAX_SAFE_INTEGER} />
         </div>
       ),
       onClick: () =>
@@ -626,7 +626,7 @@ const TopBar: React.FC = React.memo(() => {
             <div className="hidden md:block">
               <Badge
                 count={requestCounts.pendingVerification}
-                overflowCount={99}
+                overflowCount={Number.MAX_SAFE_INTEGER}
                 offset={[-4, 6]}
               >
                 <Button onClick={() => setModalListRequestOpen(true)}>
@@ -640,7 +640,7 @@ const TopBar: React.FC = React.memo(() => {
             <div className="hidden lg:block">
               <Badge
                 count={requestCounts.pendingWarehouseSend}
-                overflowCount={99}
+                overflowCount={Number.MAX_SAFE_INTEGER}
                 offset={[-6, 8]}
               >
                 <Button onClick={() => setModalRequestSentOpen(true)}>
@@ -696,7 +696,7 @@ const TopBar: React.FC = React.memo(() => {
 
           {canSeeAccessoryStatus() && (
             <div className="hidden lg:block">
-              <Badge count={pendingAccessoryCount} overflowCount={99} offset={[-6, 8]}>
+              <Badge count={pendingAccessoryCount} overflowCount={Number.MAX_SAFE_INTEGER} offset={[-6, 8]}>
                 <Button
                   onClick={() =>
                     router.push(`/workspace/${workspaceId}/aksesoris/status-aksesoris`)
@@ -710,7 +710,7 @@ const TopBar: React.FC = React.memo(() => {
 
           {canSeeNotesProduksiStatus() && (
             <div className="hidden lg:block">
-              <Badge count={pendingNoteCount} overflowCount={99} offset={[-6, 8]}>
+              <Badge count={pendingNoteCount} overflowCount={Number.MAX_SAFE_INTEGER} offset={[-6, 8]}>
                 <Button
                   onClick={() =>
                     router.push(`/workspace/${workspaceId}/notes-produksi/status-notes-produksi`)

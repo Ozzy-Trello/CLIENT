@@ -959,7 +959,7 @@ const GenericPlannerInputView: React.FC<GenericPlannerInputViewProps> = ({
                             </span>
                         )}
                         {activeFiltersCount > 0 && (
-                            <Badge count={activeFiltersCount} style={{ backgroundColor: "#faad14" }} />
+                            <Badge count={activeFiltersCount} overflowCount={Number.MAX_SAFE_INTEGER} style={{ backgroundColor: "#faad14" }} />
                         )}
                     </Space>
                 }

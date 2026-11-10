@@ -363,7 +363,7 @@ const WebSocketDebugModal: React.FC<WebSocketDebugModalProps> = ({
     {
       key: "messages",
       label: (
-        <Badge count={messages.length} size="small">
+        <Badge count={messages.length} overflowCount={Number.MAX_SAFE_INTEGER} size="small">
           Messages
         </Badge>
       ),
