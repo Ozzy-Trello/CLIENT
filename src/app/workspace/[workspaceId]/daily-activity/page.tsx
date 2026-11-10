@@ -77,6 +77,7 @@ const leaveStatusLabel = (status: string) => status === "approved" ? "Disetujui"
 type PendingReference = { id: string; reference: { type: "link" | "card" | "notulensi"; url?: string; display_text?: string; card_id?: string; notulensi_id?: string; workspace_id?: string } };
 type PendingAttachment = { id: string; file: File };
 type ReviewFilter = "not_reviewed" | "reviewed";
+type SettingsSection = "holidays" | "review" | "duty";
 const referenceCardHref = (reference: any, fallbackWorkspaceId: string) => {
   if (reference.notulensi_id && reference.notulensi?.workspace_id) return `/workspace/${reference.notulensi.workspace_id}/notulensi/${reference.notulensi_id}`;
   const card = reference.card;
@@ -95,6 +96,7 @@ export default function DailyActivityPage() {
   const notificationReportId = searchParams.get("reportId");
   const notificationItemId = searchParams.get("itemId");
   const [tab, setTab] = useState<DailyActivityTab>("mine");
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>("duty");
   const [workDate, setWorkDate] = useState(today());
   const [teamDateRange, setTeamDateRange] = useState<[string, string]>([today(), today()]);
   const [activities, setActivities] = useState<string[]>([""]);
@@ -886,23 +888,39 @@ export default function DailyActivityPage() {
       )}
 
       {tab === "settings" && isAdmin && (
-        <section className="flex flex-col gap-6">
-          <Button className="self-start" onClick={() => setTab("calendar")}>Hari Libur</Button>
-          <div className="ozsettinggrid">
+        <section className="flex flex-col gap-4">
+          <nav className="oztabs" role="tablist" aria-label="Pengaturan Daily Activity">
+            <button type="button" role="tab" aria-selected={settingsSection === "holidays"} onClick={() => setSettingsSection("holidays")}>Hari Libur</button>
+            <button type="button" role="tab" aria-selected={settingsSection === "review"} onClick={() => setSettingsSection("review")}>Atasan Cek</button>
+            <button type="button" role="tab" aria-selected={settingsSection === "duty"} onClick={() => setSettingsSection("duty")}>Wajib Cek</button>
+          </nav>
+          {settingsSection === "duty" && <>
+            <div className="ozsettinggrid">
+              <section className="ozpanel">
+                <Typography.Title level={4}>Siapa yang wajib mengisi?</Typography.Title>
+                <Typography.Text type="secondary">Pilih Role sebagai aturan utama.</Typography.Text>
+                <div className="mt-3">{roleRows.map((role) => <div className="ozcheck" key={role.id}><Checkbox checked={roleRequiredDraft[role.id] || false} onChange={(event) => setRoleRequiredDraft((state) => ({ ...state, [role.id]: event.target.checked }))} />{role.name}</div>)}</div>
+              </section>
+              <section className="ozpanel">
+                <Typography.Title level={4}>Jadwal pengisian</Typography.Title>
+                <div className="ozsettingrows"><label>Batas kirim harian (WIB)<TimePicker format="HH:mm" value={dayjs(`2000-01-01T${deadline}`)} onChange={(value) => value && setDeadline(value.format("HH:mm"))} /></label><label>Perubahan mulai berlaku<DatePicker value={dayjs(effectiveFrom)} minDate={dayjs(today())} onChange={(value) => value && setEffectiveFrom(value.format("YYYY-MM-DD"))} /></label></div>
+                <Typography.Text className="mt-4 block">Hari kerja · Senin–Sabtu</Typography.Text>
+                <div className="ozdays">{["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map((day, index) => <div key={day} className="ozday"><Checkbox checked={index > 0} disabled />{day}</div>)}</div>
+                <Typography.Text type="secondary" className="mt-2 block">Minggu otomatis libur. Hari libur lainnya mengikuti Master Hari Libur.</Typography.Text>
+              </section>
+            </div>
             <section className="ozpanel">
-              <Typography.Title level={4}>Siapa yang wajib mengisi?</Typography.Title>
-              <Typography.Text type="secondary">Pilih Role sebagai aturan utama.</Typography.Text>
-              <div className="mt-3">{roleRows.map((role) => <div className="ozcheck" key={role.id}><Checkbox checked={roleRequiredDraft[role.id] || false} onChange={(event) => setRoleRequiredDraft((state) => ({ ...state, [role.id]: event.target.checked }))} />{role.name}</div>)}</div>
+              <Typography.Title level={4}>Kewajiban per orang</Typography.Title>
+              <Typography.Paragraph type="secondary">Aturan per orang mengalahkan aturan role.</Typography.Paragraph>
+              <Alert className="mb-3" type="info" showIcon message="Kewajiban Daily Activity dikecualikan pada tanggal cuti yang sudah disetujui atasan." />
+              <div className="mb-3 flex flex-wrap gap-2"><Input className="max-w-sm" aria-label="Cari orang" placeholder="Cari nama atau jabatan" value={overrideSearch} onChange={(event) => setOverrideSearch(event.target.value)} /><Select allowClear className="min-w-52" aria-label="Filter role" placeholder="Semua role" value={overrideRoleFilter} onChange={setOverrideRoleFilter} options={roleRows.map((role) => ({ value: role.id, label: role.name }))} /></div>
+              <Table rowKey="id" size="small" loading={configQuery.isLoading} dataSource={filteredOverrideUsers} pagination={{ pageSize: 20 }} columns={[
+                { title: "Nama / jabatan", render: (_value, user) => <><Typography.Text strong>{user.username}</Typography.Text><br/><Typography.Text type="secondary">{user.role_name || "-"}</Typography.Text></> },
+                { title: "Aturan pengisian", render: (_value, user) => <Select className="w-48" value={userOverrideDrafts[user.id] || "follow_role"} onChange={(rule) => setUserOverrideDrafts((state) => ({ ...state, [user.id]: rule }))} options={[{ value: "follow_role", label: "Ikuti Role" }, { value: "required", label: "Wajib" }, { value: "exempt", label: "Tidak Wajib" }]} /> },
+              ]} />
             </section>
-            <section className="ozpanel">
-              <Typography.Title level={4}>Jadwal pengisian</Typography.Title>
-              <div className="ozsettingrows"><label>Batas kirim harian (WIB)<TimePicker format="HH:mm" value={dayjs(`2000-01-01T${deadline}`)} onChange={(value) => value && setDeadline(value.format("HH:mm"))} /></label><label>Perubahan mulai berlaku<DatePicker value={dayjs(effectiveFrom)} minDate={dayjs(today())} onChange={(value) => value && setEffectiveFrom(value.format("YYYY-MM-DD"))} /></label></div>
-              <Typography.Text className="mt-4 block">Hari kerja · Senin–Sabtu</Typography.Text>
-              <div className="ozdays">{["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map((day, index) => <div key={day} className="ozday"><Checkbox checked={index > 0} disabled />{day}</div>)}</div>
-              <Typography.Text type="secondary" className="mt-2 block">Minggu otomatis libur. Hari libur lainnya mengikuti Master Hari Libur.</Typography.Text>
-            </section>
-          </div>
-          <section className="ozpanel">
+          </>}
+          {settingsSection === "review" && <section className="ozpanel">
             <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
               <div><Typography.Title level={4}>Atur kewajiban cek per akun atasan</Typography.Title><Typography.Text type="secondary">Cakupan awal mengikuti Struktur per Role. Atur bawahan per akun, termasuk rekan satu level.</Typography.Text></div>
               <Select
@@ -935,18 +953,19 @@ export default function DailyActivityPage() {
                 </div>;
               })}
             </div> : <Typography.Text type="secondary">Belum ada akun atasan. Tambahkan akun untuk mengatur kewajiban cek.</Typography.Text>}
-          </section>
-          <section className="ozpanel">
-            <Typography.Title level={4}>Kewajiban per orang</Typography.Title>
-            <Typography.Paragraph type="secondary">Aturan per orang mengalahkan aturan role.</Typography.Paragraph>
-            <Alert className="mb-3" type="info" showIcon message="Kewajiban Daily Activity dikecualikan pada tanggal cuti yang sudah disetujui atasan." />
-            <div className="mb-3 flex flex-wrap gap-2"><Input className="max-w-sm" aria-label="Cari orang" placeholder="Cari nama atau jabatan" value={overrideSearch} onChange={(event) => setOverrideSearch(event.target.value)} /><Select allowClear className="min-w-52" aria-label="Filter role" placeholder="Semua role" value={overrideRoleFilter} onChange={setOverrideRoleFilter} options={roleRows.map((role) => ({ value: role.id, label: role.name }))} /></div>
-            <Table rowKey="id" size="small" loading={configQuery.isLoading} dataSource={filteredOverrideUsers} pagination={{ pageSize: 20 }} columns={[
-              { title: "Nama / jabatan", render: (_value, user) => <><Typography.Text strong>{user.username}</Typography.Text><br/><Typography.Text type="secondary">{user.role_name || "-"}</Typography.Text></> },
-              { title: "Aturan pengisian", render: (_value, user) => <Select className="w-48" value={userOverrideDrafts[user.id] || "follow_role"} onChange={(rule) => setUserOverrideDrafts((state) => ({ ...state, [user.id]: rule }))} options={[{ value: "follow_role", label: "Ikuti Role" }, { value: "required", label: "Wajib" }, { value: "exempt", label: "Tidak Wajib" }]} /> },
+          </section>}
+          {settingsSection === "holidays" && <section className="flex flex-col gap-4">
+            <Alert type="info" showIcon message="Hari Minggu otomatis libur. Hari libur lainnya dikelola di sini." />
+            <div className="flex flex-wrap items-end gap-3 rounded-xl border p-4">
+              <label className="flex flex-col gap-1">Tanggal<DatePicker value={dayjs(holidayDate)} onChange={(value) => value && setHolidayDate(value.format("YYYY-MM-DD"))} /></label>
+              <label className="flex flex-col gap-1">Nama hari libur<Input value={holidayName} onChange={(event) => setHolidayName(event.target.value)} maxLength={255} /></label>
+              <Button type="primary" disabled={!holidayName.trim()} loading={holidayMutation.isPending} onClick={() => holidayMutation.mutate()}>Tambah Hari Libur</Button>
+            </div>
+            <Table rowKey="id" loading={configQuery.isLoading} dataSource={holidayRows} pagination={{ pageSize: 20 }} columns={[
+              { title: "Tanggal", dataIndex: "holiday_date" }, { title: "Nama", dataIndex: "name" },
+              { title: "Aksi", render: (_value, holiday: any) => <Button danger size="small" loading={deleteHolidayMutation.isPending} onClick={() => deleteHolidayMutation.mutate(holiday.id)}>Hapus</Button> },
             ]} />
-          </section>
-          <Button type="primary" className="self-start" loading={savePolicyMutation.isPending} onClick={() => savePolicyMutation.mutate()}>Simpan Pengaturan</Button>
+          </section>}
         </section>
       )}
 
@@ -1021,6 +1040,9 @@ export default function DailyActivityPage() {
       </Modal>
     </div>
     </div>
+    {tab === "settings" && isAdmin && settingsSection !== "holidays" && <div className="sticky bottom-0 z-[510] flex justify-end border-t border-slate-200 bg-white/95 p-3 backdrop-blur">
+      <Button type="primary" loading={savePolicyMutation.isPending} onClick={() => savePolicyMutation.mutate()}>Simpan Pengaturan</Button>
+    </div>}
     </>
   );
 }
