@@ -189,7 +189,9 @@ export default function DailyActivityPage() {
       setDivisionFilter(savedDivisions.filter((value: unknown): value is string => typeof value === "string"));
       setTeamUserFilterIds(Array.isArray(stored.teamUserFilterIds) ? stored.teamUserFilterIds.filter((value: unknown): value is string => typeof value === "string") : []);
       setReviewFilter(Array.isArray(stored.reviewFilter) ? stored.reviewFilter.filter((value: unknown): value is ReviewFilter => ["not_reviewed", "reviewed"].includes(String(value))) : []);
-      setTeamDateRange([today(), today()]);
+      setTeamDateRange(Array.isArray(stored.teamDateRange) && stored.teamDateRange.length === 2
+        ? [String(stored.teamDateRange[0]), String(stored.teamDateRange[1])]
+        : [today(), today()]);
       setReportSearch(stored.reportSearch || "");
     } catch {
       setStatusFilter("");
@@ -204,7 +206,7 @@ export default function DailyActivityPage() {
 
   useEffect(() => {
     if (!activityFilterStorageKey || filterStorageReady !== activityFilterStorageKey) return;
-    localStorage.setItem(activityFilterStorageKey, JSON.stringify({ statusFilter, divisionFilter, teamUserFilterIds, reviewFilter, reportSearch }));
+    localStorage.setItem(activityFilterStorageKey, JSON.stringify({ statusFilter, divisionFilter, teamUserFilterIds, reviewFilter, teamDateRange, reportSearch }));
   }, [activityFilterStorageKey, divisionFilter, filterStorageReady, reportSearch, reviewFilter, statusFilter, teamDateRange, teamUserFilterIds]);
 
   useEffect(() => {

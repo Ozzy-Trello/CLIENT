@@ -493,7 +493,7 @@ describe("NotificationList", () => {
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ payload: false }));
   });
 
-  it("marks the Daily Activity notification group read on explicit open", () => {
+  it("waits for Daily Activity comments to load before marking the notification read", () => {
     const commentNotification = {
       ...baseNotification,
       id: "daily-comment-1",
@@ -510,8 +510,8 @@ describe("NotificationList", () => {
     render(<NotificationList category="comment" />);
     fireEvent.click(screen.getByRole("link", { name: /New item/i }));
 
-    expect(markNotificationGroupRead).toHaveBeenCalledWith("report-1");
-    expect(startGrace).toHaveBeenCalledTimes(1);
+    expect(markNotificationGroupRead).not.toHaveBeenCalled();
+    expect(startGrace).not.toHaveBeenCalled();
   });
 
   it("prevents opening mandatory comment notifications in another tab", () => {

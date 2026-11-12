@@ -25,7 +25,7 @@ export function UnreadCommentGate({ disabled = false }: { disabled?: boolean }) 
   const commentUnreadGroupCount = useSelector(selectCommentUnreadGroupCount);
   const commentGateEnabled = useSelector(selectCommentGateEnabled);
   const [isCountKnown, setIsCountKnown] = useState(false);
-  const { clearGrace, isActive, isReady, secondsRemaining, startGrace } = useCommentReviewGrace();
+  const { clearGrace, isActive, isReady, secondsRemaining } = useCommentReviewGrace();
   const {
     canDefer,
     clearDeferral,
@@ -93,7 +93,6 @@ export function UnreadCommentGate({ disabled = false }: { disabled?: boolean }) 
   }, [clearDeferral, clearGrace, commentGateEnabled, commentUnreadCount, deferralCount, isActive, isCountKnown, isDeferred]);
 
   const openCommentNotifications = () => {
-    startGrace();
     dispatch(setActiveTab("comment"));
     dispatch(setOpen(true));
   };

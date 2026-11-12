@@ -215,9 +215,15 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
           cardCustomFields(targetCardId.trim(), workspaceId),
           cardDetails(targetCardId.trim(), boardId),
         ]);
-        customFields = Array.isArray(customFieldRes?.data)
+        const fetchedCustomFields = Array.isArray(customFieldRes?.data)
           ? customFieldRes.data
           : [];
+        customFields =
+          fetchedCustomFields.length > 0
+            ? fetchedCustomFields
+            : Array.isArray(cardRes?.data?.customFields)
+              ? cardRes.data.customFields
+              : [];
         cardListName = normalizeText(cardRes?.data?.listName ?? "");
       } catch (error) {
         console.warn(
@@ -457,7 +463,13 @@ const ModalPackingPOScan: React.FC<ModalPackingPOScanProps> = ({
   };
 
   const handleProcessCard = async () => {
-    await processCardScan(cardId);
+    const trimmed = cardId.trim();
+    if (!trimmed) {
+      message.error("Please enter a valid card ID");
+      return;
+    }
+    const extractedId = await extractCardIdFromScan(trimmed);
+    await processCardScan(extractedId || trimmed);
   };
 
   const handleCancel = () => {

@@ -234,7 +234,9 @@ export function NotificationList({ category }: NotificationListProps) {
       event.preventDefault();
       return;
     }
-    readCommentGroup(group, !group.isRead || !selected.isRead);
+    if (group.entityType !== "daily_activity") {
+      readCommentGroup(group, !group.isRead || !selected.isRead);
+    }
     dispatch(setOpen(false));
   };
 
