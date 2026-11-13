@@ -32,6 +32,7 @@ export const parseNotulensiFilters = (raw: string | null, allowAll: boolean): No
       taskOrigin: strings(value.taskOrigin)?.filter((item): item is typeof taskOrigins[number] => taskOrigins.includes(item as typeof taskOrigins[number])),
       assigneeIds: ids(value.assigneeIds),
       roleIds: ids(value.roleIds),
+      divisionIds: ids(value.divisionIds),
       dueFrom: date(value.dueFrom),
       dueTo: date(value.dueTo),
       scope: selectedScopes.length ? selectedScopes : ["related"],

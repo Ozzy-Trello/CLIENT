@@ -6,7 +6,7 @@ import {
   NotulensiStatusLabel,
 } from "@components/notulensi/notulensi-status";
 import { NotulensiListFilters, NotulensiPriority, NotulensiScope, NotulensiStatus } from "@myTypes/notulensi";
-import { useNotulensiEligibleAssignees } from "@hooks/notulensi";
+import { useNotulensiDivisions, useNotulensiEligibleAssignees } from "@hooks/notulensi";
 import { useDebouncedCallback } from "@hooks/useDebouncedCallback";
 import { Button, DatePicker, Grid, Input, Select } from "antd";
 import dayjs, { Dayjs } from "dayjs";
@@ -40,12 +40,23 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
   const screens = Grid.useBreakpoint();
   const [searchText, setSearchText] = useState(value.search || "");
   const eligibleAssignees = useNotulensiEligibleAssignees(workspaceId);
+  const divisionsQuery = useNotulensiDivisions(workspaceId);
   const users = eligibleAssignees.data?.data || [];
+  const divisions = divisionsQuery.data?.data || [];
   const roleOptions = Array.from(
     new Map(users.flatMap((user) => user.role ? [[user.role.id, user.role.name] as const] : [])).entries()
   ).map(([value, label]) => ({ value, label }));
 
   useEffect(() => setSearchText(value.search || ""), [value.search]);
+
+  useEffect(() => {
+    if (!divisionsQuery.isSuccess || !value.divisionIds?.length) return;
+    const available = new Set(divisions.map((division) => division.id));
+    const divisionIds = value.divisionIds.filter((id) => available.has(id));
+    if (divisionIds.length !== value.divisionIds.length) {
+      onChange({ ...value, divisionIds: divisionIds.length ? divisionIds : undefined, page: 1 });
+    }
+  }, [divisions, divisionsQuery.isSuccess, onChange, value]);
 
   const rangeValue = useMemo(() => {
     return value.dueFrom && value.dueTo
@@ -150,6 +161,7 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
             maxTagCount="responsive"
             className={screens.lg ? "w-56" : "w-full"}
             options={["General", "Weekly Meeting", "Monthly Eval", "Annual Meeting"].map((origin) => ({ value: origin, label: origin }))}
+            aria-label="Filter asal task"
           />
           <Select<string[]>
             mode="multiple"
@@ -183,6 +195,7 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
             optionFilterProp="label"
             className={screens.lg ? "w-56" : "w-full"}
             options={roleOptions}
+            aria-label="Filter jabatan"
           />
         </div>
         <div className="flex flex-col gap-3 lg:flex-row">
@@ -193,6 +206,20 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
             className={screens.lg ? "w-56" : "w-full"}
             maxTagCount="responsive"
             options={scopeOptions.filter((option) => allowAll || option.value !== "all")}
+          />
+          <Select<string[]>
+            mode="multiple"
+            value={value.divisionIds}
+            onChange={(divisionIds) => applyPatch({ divisionIds: divisionIds.length ? divisionIds : undefined })}
+            placeholder="Divisi"
+            loading={divisionsQuery.isLoading}
+            allowClear
+            maxTagCount="responsive"
+            showSearch
+            optionFilterProp="label"
+            className={screens.lg ? "w-56" : "w-full"}
+            options={divisions.map((division) => ({ value: division.id, label: division.name }))}
+            aria-label="Filter divisi"
           />
           <DatePicker.RangePicker
             value={rangeValue as [Dayjs, Dayjs] | null}
