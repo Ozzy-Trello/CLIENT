@@ -108,6 +108,7 @@ function normalizeLeaveRequest(value: any): DailyActivityLeaveRequest {
     approver_role_name: field(value, "approver_role_name", "approverRoleName") ?? null,
     start_date: field(value, "start_date", "startDate"),
     end_date: field(value, "end_date", "endDate"),
+    total_days: Number(field(value, "total_days", "totalDays") || 0),
     decision_note: field(value, "decision_note", "decisionNote") ?? null,
     decided_by: field(value, "decided_by", "decidedBy") ?? null,
     decided_by_name: field(value, "decided_by_name", "decidedByName") ?? null,
@@ -169,6 +170,11 @@ export async function getPendingDailyActivityLeaveRequests(): Promise<DailyActiv
   return asArray<any>(payloadOf(data)).map(normalizeLeaveRequest);
 }
 
+export async function getAllDailyActivityLeaveRequests(): Promise<DailyActivityLeaveRequest[]> {
+  const { data } = await api.get("/daily-activity/leave-requests/admin");
+  return asArray<any>(payloadOf(data)).map(normalizeLeaveRequest);
+}
+
 export async function createDailyActivityLeaveRequest(payload: { start_date: string; end_date: string; note?: string }) {
   const { data } = await api.post("/daily-activity/leave-requests", payload);
   return normalizeLeaveRequest(payloadOf(data));
@@ -186,6 +192,11 @@ export async function decideDailyActivityLeaveRequest(requestId: string, decisio
 
 export async function cancelDailyActivityLeaveRequest(requestId: string) {
   const { data } = await api.delete(`/daily-activity/leave-requests/${requestId}`);
+  return data.data;
+}
+
+export async function deleteDailyActivityLeaveRequest(requestId: string) {
+  const { data } = await api.delete(`/daily-activity/leave-requests/admin/${requestId}`);
   return data.data;
 }
 

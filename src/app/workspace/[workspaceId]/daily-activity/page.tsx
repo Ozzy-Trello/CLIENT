@@ -4,6 +4,7 @@ import {
   addDailyActivityReference,
   addDailyActivityHoliday,
   createDailyActivityLeaveRequest,
+  deleteDailyActivityLeaveRequest,
   decideDailyActivityLeaveRequest,
   cancelDailyActivityLeaveRequest,
   getDailyActivityAccessStatus,
@@ -13,6 +14,7 @@ import {
   getDailyActivityReport,
   getDailyActivityReports,
   getDailyActivityStructure,
+  getAllDailyActivityLeaveRequests,
   getMyDailyActivityLeaveRequests,
   getPendingDailyActivityLeaveRequests,
   previewDailyActivityScope,
@@ -34,12 +36,12 @@ import {
 import { searchCards } from "@api/card";
 import { getNotulensiList } from "@api/notulensi";
 import { getUnreadCount } from "@api/notifications";
-import { DailyActivityDay, DailyActivityTab, DailyActivityUser, DailyActivityStructureRole, DailyActivityReference } from "@myTypes/daily-activity";
+import { DailyActivityDay, DailyActivityLeaveRequest, DailyActivityTab, DailyActivityUser, DailyActivityStructureRole, DailyActivityReference } from "@myTypes/daily-activity";
 import { Card } from "@myTypes/card";
 import { NotulensiSummary } from "@myTypes/notulensi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CloseOutlined, PaperClipOutlined } from "@ant-design/icons";
-import { Alert, Button, Checkbox, DatePicker, Image, Input, Modal, Select, Spin, Table, Tag, TimePicker, Typography, message } from "antd";
+import { Alert, Button, Checkbox, DatePicker, Image, Input, Modal, Popconfirm, Select, Spin, Table, Tag, TimePicker, Typography, message } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -155,6 +157,7 @@ export default function DailyActivityPage() {
   const reportQuery = useQuery({ queryKey: ["daily-activity-my-report", workDate], queryFn: () => getMyDailyActivity(workDate), enabled: tab === "mine" });
   const myLeaveRequestsQuery = useQuery({ queryKey: ["daily-activity-leave-requests", "mine"], queryFn: getMyDailyActivityLeaveRequests, enabled: tab === "mine", refetchInterval: 30_000 });
   const pendingLeaveRequestsQuery = useQuery({ queryKey: ["daily-activity-leave-requests", "inbox"], queryFn: getPendingDailyActivityLeaveRequests, refetchInterval: 30_000 });
+  const allLeaveRequestsQuery = useQuery({ queryKey: ["daily-activity-leave-requests", "admin"], queryFn: getAllDailyActivityLeaveRequests, enabled: isAdmin && tab === "leave", refetchInterval: 30_000 });
   const teamQuery = useQuery({ queryKey: ["daily-activity-reports", teamDateRange], queryFn: () => getDailyActivityReports(teamDateRange[0], teamDateRange[1]), enabled: tab === "team" });
   const detailQuery = useQuery({ queryKey: ["daily-activity-report", selectedReportId], queryFn: () => getDailyActivityReport(selectedReportId!), enabled: !!selectedReportId });
   const commentsQuery = useQuery({ queryKey: ["daily-activity-item-comments", commentItemId], queryFn: () => getDailyActivityItemComments(commentItemId!), enabled: !!commentItemId });
@@ -418,8 +421,13 @@ export default function DailyActivityPage() {
   });
   const updateLeaveMutation = useMutation({
     mutationFn: (requestId: string) => updateDailyActivityLeaveRequest(requestId, { start_date: leaveStart!.format("YYYY-MM-DD"), end_date: leaveEnd!.format("YYYY-MM-DD"), note: leaveNote }),
-    onSuccess: () => { setLeaveModalOpen(false); setEditingLeave(null); message.success("Pengajuan cuti diperbarui"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-leave-requests"] }); },
+    onSuccess: () => { setLeaveModalOpen(false); setEditingLeave(null); message.success("Pengajuan cuti diperbarui"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-leave-requests"] }); void queryClient.invalidateQueries({ queryKey: ["daily-activity-reports"] }); void queryClient.invalidateQueries({ queryKey: ["daily-activity-access-status"] }); },
     onError: (error: any) => message.error(error?.response?.data?.message || "Gagal mengubah pengajuan cuti"),
+  });
+  const deleteAdminLeaveMutation = useMutation({
+    mutationFn: deleteDailyActivityLeaveRequest,
+    onSuccess: () => { message.success("Pengajuan cuti dihapus"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-leave-requests"] }); void queryClient.invalidateQueries({ queryKey: ["daily-activity-reports"] }); void queryClient.invalidateQueries({ queryKey: ["daily-activity-access-status"] }); },
+    onError: (error: any) => message.error(error?.response?.data?.message || "Gagal menghapus pengajuan cuti"),
   });
   const removeReferenceMutation = useMutation({ mutationFn: ({ itemId, referenceId }: { itemId: string; referenceId: string }) => removeDailyActivityReference(itemId, referenceId), onSuccess: () => { message.success("Lampiran dihapus"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-my-report", workDate] }); if (selectedReportId) void queryClient.invalidateQueries({ queryKey: ["daily-activity-report", selectedReportId] }); } });
   const renameReferenceMutation = useMutation({
@@ -465,6 +473,7 @@ export default function DailyActivityPage() {
   const activityRows = teamRows.filter((row) => row.status !== "not_required");
   const myLeaveRequests = myLeaveRequestsQuery.data || [];
   const pendingLeaveRequests = pendingLeaveRequestsQuery.data || [];
+  const allLeaveRequests = allLeaveRequestsQuery.data || [];
   const activeLeave = myLeaveRequests.find((request) => request.start_date <= workDate && request.end_date >= workDate && ["pending", "approved", "rejected"].includes(request.status));
   const divisions = Array.from(new Set(activityRows.map((row) => row.role_name).filter(Boolean))) as string[];
   const teamUserOptions = Array.from(new Map(
@@ -770,6 +779,7 @@ export default function DailyActivityPage() {
           {!blockTabsForMissed && <nav className="oztabs" role="tablist" aria-label="Daily Activity">
             <button role="tab" aria-selected={tab === "mine"} onClick={() => setTab("mine")}>Saya</button>
             <button role="tab" aria-selected={tab === "team"} onClick={() => setTab("team")}>Tim{pendingLeaveRequests.length > 0 ? ` · ${pendingLeaveRequests.length}` : ""}</button>
+            {isAdmin && <button role="tab" aria-selected={tab === "leave"} onClick={() => setTab("leave")}>Cuti</button>}
             <button role="tab" aria-selected={tab === "structure"} onClick={() => setTab("structure")}>Struktur</button>
             {isAdmin && <button role="tab" aria-selected={tab === "settings" || tab === "calendar"} onClick={() => setTab("settings")}>Pengaturan</button>}
             {isHr && !isAdmin && <button role="tab" aria-selected={tab === "calendar"} onClick={() => setTab("calendar")}>Hari Libur</button>}
@@ -867,6 +877,34 @@ export default function DailyActivityPage() {
              ]} /></div>
              <div className="ozfooter"><span>{filteredActivityRows.length} laporan / status ditemukan</span><span>Batas kirim harian: {teamDeadline} WIB</span></div>
           </>}
+        </section>
+      )}
+
+      {tab === "leave" && isAdmin && (
+        <section className="flex min-w-0 flex-col gap-3">
+          <div>
+            <Typography.Title level={4} className="!mb-1">Daftar cuti</Typography.Title>
+            <Typography.Text type="secondary">Pengajuan cuti seluruh pegawai, termasuk yang sudah diputuskan.</Typography.Text>
+          </div>
+          {allLeaveRequestsQuery.isError && <Alert type="error" showIcon message="Daftar cuti gagal dimuat." action={<Button size="small" onClick={() => void allLeaveRequestsQuery.refetch()}>Muat ulang</Button>} />}
+          <div className="w-full min-w-0 overflow-x-auto" style={{ WebkitOverflowScrolling: "touch" }}>
+            <Table<DailyActivityLeaveRequest>
+              rowKey="id"
+              loading={allLeaveRequestsQuery.isLoading}
+              dataSource={allLeaveRequests}
+              pagination={{ pageSize: 20 }}
+              scroll={{ x: 850 }}
+              locale={{ emptyText: "Belum ada pengajuan cuti untuk ditampilkan." }}
+              columns={[
+                { title: "Nama", dataIndex: "employee_name", render: (name, row) => <div><Typography.Text strong>{name}</Typography.Text><div><Typography.Text type="secondary">{row.employee_role_name || "-"}</Typography.Text></div></div> },
+                { title: "Dari tanggal", dataIndex: "start_date", render: (value: string) => dayjs(value).format("D MMM YYYY") },
+                { title: "Sampai tanggal", dataIndex: "end_date", render: (value: string) => dayjs(value).format("D MMM YYYY") },
+                { title: "Total hari", dataIndex: "total_days", width: 100 },
+                { title: "Status", dataIndex: "status", width: 190, render: (status: string) => <Tag color={status === "approved" ? "green" : status === "pending" ? "gold" : "red"}>{leaveStatusLabel(status)}</Tag> },
+                { title: "Aksi", key: "actions", width: 150, render: (_value, request) => <div className="flex flex-wrap gap-2"><Button className="min-h-11" disabled={updateLeaveMutation.isPending || deleteAdminLeaveMutation.isPending} onClick={() => { setEditingLeave(request.id); setLeaveStart(dayjs(request.start_date)); setLeaveEnd(dayjs(request.end_date)); setLeaveNote(request.note || ""); setLeaveModalOpen(true); }}>Ubah</Button><Popconfirm title="Hapus pengajuan cuti ini?" description={request.status === "approved" ? "Pegawai dapat kembali diwajibkan mengisi Daily Activity pada tanggal tersebut." : undefined} okText="Hapus" cancelText="Batal" okButtonProps={{ danger: true }} onConfirm={() => deleteAdminLeaveMutation.mutate(request.id)}><Button className="min-h-11" danger loading={deleteAdminLeaveMutation.isPending}>Hapus</Button></Popconfirm></div> },
+              ]}
+            />
+          </div>
         </section>
       )}
 
