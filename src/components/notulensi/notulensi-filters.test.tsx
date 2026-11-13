@@ -3,6 +3,7 @@ import NotulensiFilters from "./notulensi-filters";
 
 jest.mock("@hooks/notulensi", () => ({
   useNotulensiEligibleAssignees: () => ({ data: { data: [] }, isLoading: false }),
+  useNotulensiDivisions: () => ({ data: { data: [] }, isLoading: false, isSuccess: true }),
 }));
 
 jest.mock("@hooks/useDebouncedCallback", () => ({
@@ -23,8 +24,8 @@ describe("Notulensi scope filter", () => {
     render(<NotulensiFilters value={{ scope: "related", page: 2, limit: 20 }} onChange={onChange} workspaceId="workspace-1" />);
 
     const selects = screen.getAllByTestId("select");
-    expect(selects[selects.length - 1].getAttribute("data-mode")).toBe("single");
-    expect(selects[selects.length - 1].getAttribute("data-value")).toBe('"related"');
+    const scopeSelect = selects.find((select) => select.getAttribute("data-value") === '"related"');
+    expect(scopeSelect?.getAttribute("data-mode")).toBe("single");
 
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(onChange).toHaveBeenCalledWith({ scope: "related", page: 1, limit: 20 });
