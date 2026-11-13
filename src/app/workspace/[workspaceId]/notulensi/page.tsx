@@ -92,11 +92,6 @@ export default function NotulensiPage() {
           <Link href={`/workspace/${workspaceId}/notulensi/new`} className="min-w-0">
             <Button type="primary" block className="min-w-0 !px-2 sm:!px-4">New Task</Button>
           </Link>
-          {allowAll && (
-            <Link href={`/workspace/${workspaceId}/notulensi/settings/divisions`} className="min-w-0">
-              <Button block className="min-w-0 !px-2 sm:!px-4">Master Divisi</Button>
-            </Link>
-          )}
         </div>
       </div>
 
