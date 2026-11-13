@@ -27,6 +27,7 @@ import {
   setDailyActivityUserOverride,
   setDailyActivityReviewerConfiguration,
   submitDailyActivity,
+  updateDailyActivityLeaveRequest,
   uploadDailyActivityAttachment,
   updateDailyActivityRoleManager,
 } from "@api/daily-activity";
@@ -127,6 +128,7 @@ export default function DailyActivityPage() {
   const [leaveNote, setLeaveNote] = useState("");
   const [leaveDecision, setLeaveDecision] = useState<{ requestId: string; decision: "approved" | "rejected" } | null>(null);
   const [leaveDecisionNote, setLeaveDecisionNote] = useState("");
+  const [editingLeave, setEditingLeave] = useState<string | null>(null);
   const [renameTarget, setRenameTarget] = useState<{ itemId: string; referenceId: string; name: string } | null>(null);
   const [holidayName, setHolidayName] = useState("");
   const [holidayDate, setHolidayDate] = useState(today());
@@ -420,6 +422,11 @@ export default function DailyActivityPage() {
     mutationFn: cancelDailyActivityLeaveRequest,
     onSuccess: () => { message.success("Pengajuan cuti dibatalkan"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-leave-requests"] }); },
     onError: (error: any) => message.error(error?.response?.data?.message || "Gagal membatalkan pengajuan cuti"),
+  });
+  const updateLeaveMutation = useMutation({
+    mutationFn: (requestId: string) => updateDailyActivityLeaveRequest(requestId, { start_date: leaveStart!.format("YYYY-MM-DD"), end_date: leaveEnd!.format("YYYY-MM-DD"), note: leaveNote }),
+    onSuccess: () => { setLeaveModalOpen(false); setEditingLeave(null); message.success("Pengajuan cuti diperbarui"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-leave-requests"] }); },
+    onError: (error: any) => message.error(error?.response?.data?.message || "Gagal mengubah pengajuan cuti"),
   });
   const removeReferenceMutation = useMutation({ mutationFn: ({ itemId, referenceId }: { itemId: string; referenceId: string }) => removeDailyActivityReference(itemId, referenceId), onSuccess: () => { message.success("Lampiran dihapus"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-my-report", workDate] }); if (selectedReportId) void queryClient.invalidateQueries({ queryKey: ["daily-activity-report", selectedReportId] }); } });
   const renameReferenceMutation = useMutation({
@@ -821,7 +828,7 @@ export default function DailyActivityPage() {
             </> : <>
                <div className="mb-1 flex items-center justify-between"><div><Typography.Title level={4} className="!mb-0">Aktivitas saya</Typography.Title><Typography.Text type="secondary">{dayjs(workDate).format("dddd, D MMMM YYYY")}</Typography.Text></div><div className="flex items-center gap-2">{reportQuery.data?.report && <Tag color={reportQuery.data.report.status === "submitted" ? "green" : "gold"}>{reportQuery.data.report.status === "submitted" ? "Sudah Kirim" : "Draft"}</Tag>}{canActOnSelectedDate && Boolean(reportQuery.data?.report?.activities.length) && activeLeave?.status !== "approved" ? <Button size="small" onClick={openActivityEditor}>Edit Aktivitas</Button> : null}</div></div>
                 {reportQuery.data?.report?.activities.length ? <div className="grid gap-3">{reportQuery.data.report.activities.map((activity, index) => <article key={activity.id} className="rounded-lg border bg-white p-4"><div className="mb-2 flex items-start justify-between gap-3"><div className="flex min-w-0 flex-1 gap-3"><span className="shrink-0 text-sm text-slate-500">{index + 1}.</span><p className="min-w-0 whitespace-pre-wrap">{activity.content}</p></div>{reportQuery.data?.report?.status === "submitted" && <Button className="shrink-0" size="small" type={commentItemId === activity.id ? "primary" : "default"} onClick={() => setCommentItemId((current) => current === activity.id ? null : activity.id)} aria-expanded={commentItemId === activity.id}>Komentar{activity.comments_count ? ` · ${activity.comments_count}` : ""}{accessQuery.data?.oldest_unread_comment?.item_id === activity.id ? " · Belum Dibaca" : ""}</Button>}</div>{activity.references?.length ? renderActivityReferences(activity.references, activity.id, canActOnSelectedDate) : null}{renderCommentPanel(activity.id)}</article>)}</div> : activeLeave?.status === "approved" ? <div className="quiet">Cuti disetujui. Tidak perlu mencatat aktivitas.</div> : <div className="grid justify-items-center gap-3 rounded-lg border border-dashed p-8 text-center"><h3>Belum ada aktivitas yang dicatat</h3><p className="text-slate-500">Pilih tanggal dan catat aktivitas yang dikerjakan.</p>{canActOnSelectedDate && <Button type="primary" onClick={openActivityEditor}>+ Catat Aktivitas</Button>}</div>}
-              {myLeaveRequests.length > 0 && <section className="rounded-lg border p-4"><Typography.Text strong>Pengajuan cuti saya</Typography.Text><div className="mt-2 grid gap-2">{myLeaveRequests.map((request) => <div key={request.id} className="flex flex-wrap items-center justify-between gap-2 border-t pt-2"><div><span>{leavePeriod(request.start_date, request.end_date)}</span><Tag className="ml-2" color={request.status === "approved" ? "green" : request.status === "pending" ? "gold" : request.status === "rejected" ? "red" : "default"}>{leaveStatusLabel(request.status)}</Tag><Typography.Text className="ml-2" type="secondary">{request.approver_role_name ? `Atasan: ${request.approver_role_name}` : "Atasan: Super Admin"}</Typography.Text>{request.note && <div className="mt-1 text-sm">{request.note}</div>}{request.decision_note && <div className="mt-1 text-sm text-slate-500">Catatan: {request.decision_note}</div>}</div>{request.status === "pending" && <Button danger size="small" loading={cancelLeaveMutation.isPending} onClick={() => cancelLeaveMutation.mutate(request.id)}>Batalkan</Button>}</div>)}</div></section>}
+                {myLeaveRequests.length > 0 && <section className="rounded-lg border p-4"><Typography.Text strong>Pengajuan cuti saya</Typography.Text><div className="mt-2 grid gap-2">{myLeaveRequests.map((request) => <div key={request.id} className="flex flex-wrap items-center justify-between gap-2 border-t pt-2"><div><div><Typography.Text strong>{request.employee_name}</Typography.Text><Typography.Text className="ml-2" type="secondary">{request.employee_role_name || "-"}</Typography.Text></div><span>{leavePeriod(request.start_date, request.end_date)}</span><Tag className="ml-2" color={request.status === "approved" ? "green" : request.status === "pending" ? "gold" : request.status === "rejected" ? "red" : "default"}>{leaveStatusLabel(request.status)}</Tag><Typography.Text className="ml-2" type="secondary">{request.approver_role_name ? `Atasan: ${request.approver_role_name}` : "Atasan: Super Admin"}</Typography.Text>{request.note && <div className="mt-1 text-sm">{request.note}</div>}{request.decision_note && <div className="mt-1 text-sm text-slate-500">Catatan: {request.decision_note}</div>}</div>{request.status === "pending" && <div className="flex gap-2"><Button size="small" disabled={cancelLeaveMutation.isPending || updateLeaveMutation.isPending} onClick={() => { setEditingLeave(request.id); setLeaveStart(dayjs(request.start_date)); setLeaveEnd(dayjs(request.end_date)); setLeaveNote(request.note || ""); setLeaveModalOpen(true); }}>Ubah</Button><Button danger size="small" loading={cancelLeaveMutation.isPending} onClick={() => cancelLeaveMutation.mutate(request.id)}>Hapus</Button></div>}</div>)}</div></section>}
             </>}
           </>}
         </section>
@@ -987,14 +994,14 @@ export default function DailyActivityPage() {
         </section>
       )}
       <Modal
-        title="Ajukan Cuti"
+         title={editingLeave ? "Ubah Pengajuan Cuti" : "Ajukan Cuti"}
         open={leaveModalOpen}
-        okText="Kirim Pengajuan"
+         okText={editingLeave ? "Simpan Perubahan" : "Kirim Pengajuan"}
         cancelText="Batal"
-        confirmLoading={createLeaveMutation.isPending}
+         confirmLoading={createLeaveMutation.isPending || updateLeaveMutation.isPending}
         okButtonProps={{ disabled: !leaveStart || !leaveEnd }}
-        onCancel={() => setLeaveModalOpen(false)}
-        onOk={() => createLeaveMutation.mutate()}
+         onCancel={() => { setLeaveModalOpen(false); setEditingLeave(null); }}
+         onOk={() => editingLeave ? updateLeaveMutation.mutate(editingLeave) : createLeaveMutation.mutate()}
       >
         <div className="grid gap-3 py-2">
           <label className="flex flex-col gap-1 text-sm">Rentang tanggal<DatePicker.RangePicker className="w-full" value={[leaveStart, leaveEnd]} onChange={(value) => { setLeaveStart(value?.[0] || null); setLeaveEnd(value?.[1] || null); }} /></label>
