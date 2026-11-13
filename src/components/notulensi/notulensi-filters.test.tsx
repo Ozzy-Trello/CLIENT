@@ -50,4 +50,21 @@ describe("NotulensiFilters", () => {
       )
     );
   });
+
+  it("keeps the scope filter single-select and clears back to All Related", () => {
+    const onChange = jest.fn();
+    render(
+      <NotulensiFilters
+        value={{ scope: "assigned", page: 2, limit: 20 }}
+        onChange={onChange}
+        workspaceId="workspace-1"
+      />
+    );
+
+    const scopeFilter = screen.getByRole("combobox", { name: "Filter cakupan" });
+    expect(scopeFilter.closest(".ant-select")?.classList.contains("ant-select-single")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+
+    expect(onChange).toHaveBeenCalledWith({ scope: "related", page: 1, limit: 20 });
+  });
 });

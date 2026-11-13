@@ -74,7 +74,7 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
 
   const clearFilters = () => {
     setSearchText("");
-    onChange({ scope: ["related"], page: 1, limit: value.limit });
+    onChange({ scope: "related", page: 1, limit: value.limit });
   };
 
   const toggleStatus = (status: NotulensiStatus) => {
@@ -199,13 +199,12 @@ export default function NotulensiFilters({ value, onChange, allowAll = false, st
           />
         </div>
         <div className="flex flex-col gap-3 lg:flex-row">
-          <Select<NotulensiScope[]>
-            mode="multiple"
-            value={Array.isArray(value.scope) ? value.scope : value.scope ? [value.scope] : ["related"]}
-            onChange={(scope) => applyPatch({ scope: scope.length ? scope : undefined })}
+          <Select<NotulensiScope>
+            value={(Array.isArray(value.scope) ? value.scope[0] : value.scope) || "related"}
+            onChange={(scope) => applyPatch({ scope })}
             className={screens.lg ? "w-56" : "w-full"}
-            maxTagCount="responsive"
             options={scopeOptions.filter((option) => allowAll || option.value !== "all")}
+            aria-label="Filter cakupan"
           />
           <Select<string[]>
             mode="multiple"

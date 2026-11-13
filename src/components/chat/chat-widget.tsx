@@ -4007,7 +4007,7 @@ const ChatWidget = () => {
                     <Badge
                       count={headerBadgeCount}
                       className={styles.headerBadge}
-                      overflowCount={9}
+                      overflowCount={Number.MAX_SAFE_INTEGER}
                     />
                   ) : null}
                 </div>
@@ -4736,7 +4736,7 @@ const ChatWidget = () => {
                   >
                     <List.Item.Meta
                       avatar={
-                        <Badge count={mentionBadge} size="small" offset={[-2, 24]}>
+                        <Badge count={mentionBadge} overflowCount={Number.MAX_SAFE_INTEGER} size="small" offset={[-2, 24]}>
                           {renderPresenceAvatar(
                             peerUser,
                             getPeerPresenceStatus(window.peerUserId),
@@ -4780,7 +4780,7 @@ const ChatWidget = () => {
             <Badge
               key={window.peerUserId}
               count={mentionBadge}
-              overflowCount={9}
+              overflowCount={Number.MAX_SAFE_INTEGER}
               offset={[-2, 8]}
             >
               <Button
@@ -4852,7 +4852,7 @@ const ChatWidget = () => {
                               avatar={
                                 <Badge
                                   count={mentionBadge}
-                                  overflowCount={9}
+                                  overflowCount={Number.MAX_SAFE_INTEGER}
                                   size="small"
                                   offset={[-2, 24]}
                                 >
@@ -4908,7 +4908,7 @@ const ChatWidget = () => {
                                   avatar={
                                     <Badge
                                       count={entry.unreadCount}
-                                      overflowCount={9}
+                                      overflowCount={Number.MAX_SAFE_INTEGER}
                                       size="small"
                                       offset={[-2, 24]}
                                     >
@@ -4979,7 +4979,7 @@ const ChatWidget = () => {
                                   avatar={
                                     <Badge
                                       count={entry.unreadCount}
-                                      overflowCount={9}
+                                      overflowCount={Number.MAX_SAFE_INTEGER}
                                       size="small"
                                       offset={[-2, 24]}
                                     >
@@ -5026,7 +5026,7 @@ const ChatWidget = () => {
           </div>
         ) : null}
 
-        <Badge count={hasRoomMention ? "@" : unreadTotal} overflowCount={9}>
+        <Badge count={hasRoomMention ? "@" : unreadTotal} overflowCount={Number.MAX_SAFE_INTEGER}>
           <Button
             type="primary"
             shape="circle"

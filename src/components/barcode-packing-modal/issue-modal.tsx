@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, InputNumber, message, Modal, Popconfirm, Table } from "antd";
 import {
   BarcodePacking,
@@ -42,6 +42,7 @@ const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
   jmlPesanan,
 }) => {
   const [quantities, setQuantities] = useState<Array<number | null>>([]);
+  const packInputRefs = useRef<Array<{ focus: () => void } | null>>([]);
   const [packCount, setPackCount] = useState(1);
   const [existing, setExisting] = useState<BarcodePacking[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -381,6 +382,12 @@ const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
             min={1}
             value={packCount}
             onChange={setPackTotal}
+            aria-label="Jumlah pack"
+            onKeyDown={(event) => {
+              if (event.key !== "Tab" || event.shiftKey || quantities.length === 0) return;
+              event.preventDefault();
+              packInputRefs.current[0]?.focus();
+            }}
             disabled={submitting}
             className="w-full"
           />
@@ -394,6 +401,15 @@ const IssueBarcodePackingModal: React.FC<IssueBarcodePackingModalProps> = ({
                 min={1}
                 value={qty}
                 onChange={(value) => setQty(index, value)}
+                ref={(input) => {
+                  packInputRefs.current[index] = input ? { focus: () => input.focus() } : null;
+                }}
+                aria-label={`Jumlah PCS pack ${index + 1}`}
+                onKeyDown={(event) => {
+                  if (event.key !== "Tab" || event.shiftKey || index >= quantities.length - 1) return;
+                  event.preventDefault();
+                  packInputRefs.current[index + 1]?.focus();
+                }}
                 disabled={submitting}
                 className="flex-1"
               />
