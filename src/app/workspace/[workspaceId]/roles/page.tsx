@@ -25,6 +25,7 @@ import {
 } from "antd";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { Settings, Trash, Shield, Eye, Edit } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../../../api";
@@ -730,22 +731,29 @@ const RolesPage = () => {
             Manage user roles and permissions for this workspace
           </Typography.Text>
         </div>
-        <Tooltip
-          title={
-            !canManageRoles()
-              ? "Insufficient permissions to create roles (requires super admin)"
-              : "Create a new role"
-          }
-        >
-          <Button
-            type="primary"
-            icon={<Shield size={16} />}
-            onClick={handleCreate}
-            disabled={!canManageRoles()}
+        <Space wrap>
+          {isSuperAdmin() && (
+            <Link href={`/workspace/${workspaceId}/notulensi/settings/divisions`}>
+              <Button>Master Divisi</Button>
+            </Link>
+          )}
+          <Tooltip
+            title={
+              !canManageRoles()
+                ? "Insufficient permissions to create roles (requires super admin)"
+                : "Create a new role"
+            }
           >
-            Add New Role
-          </Button>
-        </Tooltip>
+            <Button
+              type="primary"
+              icon={<Shield size={16} />}
+              onClick={handleCreate}
+              disabled={!canManageRoles()}
+            >
+              Add New Role
+            </Button>
+          </Tooltip>
+        </Space>
       </div>
 
       {isLoading ? (
