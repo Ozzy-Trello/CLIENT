@@ -218,6 +218,7 @@ export interface NotulensiListFilters {
   assigneeId?: string;
   assigneeIds?: string[];
   roleIds?: string[];
+  divisionIds?: string[];
   taskOrigin?: NotulensiTaskOrigin[];
   creatorId?: string;
   dueFrom?: string;
@@ -227,6 +228,17 @@ export interface NotulensiListFilters {
   sortOrder?: NotulensiSortOrder;
   page?: number;
   limit?: number;
+}
+
+export interface NotulensiDivision {
+  id: string;
+  name: string;
+  roles: Array<{ id: string; name: string }>;
+}
+
+export interface NotulensiDivisionPayload {
+  name: string;
+  roleIds: string[];
 }
 
 export interface NotulensiListResponse {
@@ -258,6 +270,9 @@ export interface NotulensiCalendarTask {
 export interface NotulensiCalendarFilters {
   scope?: NotulensiScope;
   assigneeIds?: string[];
+  taskOrigin?: NotulensiTaskOrigin[];
+  roleIds?: string[];
+  divisionIds?: string[];
 }
 
 export interface NotulensiCalendarResponse {

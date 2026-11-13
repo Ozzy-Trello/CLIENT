@@ -12,14 +12,15 @@ import {
   todayKey,
 } from "@components/notulensi/notulensi-calendar-utils";
 import { useCurrentAccount } from "@hooks/account";
-import { useNotulensiCalendar, useNotulensiEligibleAssignees } from "@hooks/notulensi";
-import { NotulensiCalendarTask, NotulensiScope } from "@myTypes/notulensi";
+import { useNotulensiCalendar, useNotulensiDivisions, useNotulensiEligibleAssignees } from "@hooks/notulensi";
+import { NotulensiCalendarTask, NotulensiScope, NotulensiTaskOrigin } from "@myTypes/notulensi";
 import { Alert, Button, Select, Spin } from "antd";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const WEEKDAYS = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
+const taskOriginOptions: NotulensiTaskOrigin[] = ["General", "Weekly Meeting", "Monthly Eval", "Annual Meeting"];
 
 const MONTH_FORMAT = new Intl.DateTimeFormat("id-ID", {
   month: "long",
@@ -95,6 +96,9 @@ export default function NotulensiCalendar({ workspaceId }: { workspaceId: string
   // inspect another PIC's workload.
   const [scope, setScope] = useState<NotulensiScope>("related");
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [taskOrigins, setTaskOrigins] = useState<NotulensiTaskOrigin[]>([]);
+  const [roleIds, setRoleIds] = useState<string[]>([]);
+  const [divisionIds, setDivisionIds] = useState<string[]>([]);
 
   const { data: accountData } = useCurrentAccount();
   const allowAll = accountData?.data?.role?.name === "Super Admin";
@@ -102,8 +106,12 @@ export default function NotulensiCalendar({ workspaceId }: { workspaceId: string
   const calendarQuery = useNotulensiCalendar(workspaceId, true, {
     scope: assigneeIds.length ? undefined : scope,
     assigneeIds,
+    taskOrigin: taskOrigins,
+    roleIds,
+    divisionIds,
   });
   const assigneesQuery = useNotulensiEligibleAssignees(workspaceId);
+  const divisionsQuery = useNotulensiDivisions(workspaceId);
 
   const tasks = useMemo(
     () => calendarQuery.data?.data ?? [],
@@ -124,6 +132,28 @@ export default function NotulensiCalendar({ workspaceId }: { workspaceId: string
       })),
     [assigneesQuery.data]
   );
+  const roleOptions = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          (assigneesQuery.data?.data ?? []).flatMap((user) =>
+            user.role ? [[user.role.id, user.role.name] as const] : []
+          )
+        ).entries()
+      ).map(([value, label]) => ({ value, label })),
+    [assigneesQuery.data]
+  );
+  const divisionOptions = useMemo(
+    () => (divisionsQuery.data?.data ?? []).map((division) => ({ value: division.id, label: division.name })),
+    [divisionsQuery.data]
+  );
+
+  useEffect(() => {
+    if (!divisionsQuery.isSuccess || !divisionIds.length) return;
+    const available = new Set(divisionOptions.map((option) => option.value));
+    const next = divisionIds.filter((id) => available.has(id));
+    if (next.length !== divisionIds.length) setDivisionIds(next);
+  }, [divisionIds, divisionOptions, divisionsQuery.isSuccess]);
 
   if (calendarQuery.isError) {
     return (
@@ -189,7 +219,7 @@ export default function NotulensiCalendar({ workspaceId }: { workspaceId: string
           )}
           onChange={setScope}
           disabled={assigneeIds.length > 0}
-          className="min-w-[160px]"
+          className="w-full sm:w-40"
           aria-label="Scope"
         />
         <Select
@@ -199,17 +229,59 @@ export default function NotulensiCalendar({ workspaceId }: { workspaceId: string
           onChange={setAssigneeIds}
           loading={assigneesQuery.isLoading}
           placeholder="Assignees"
-          className="min-w-[220px]"
+          className="w-full sm:w-56"
           showSearch
           optionFilterProp="label"
           allowClear
           aria-label="Filter assignees"
+        />
+        <Select<NotulensiTaskOrigin[]>
+          mode="multiple"
+          value={taskOrigins}
+          options={taskOriginOptions.map((origin) => ({ value: origin, label: origin }))}
+          onChange={setTaskOrigins}
+          placeholder="Asal Task"
+          className="w-full sm:w-56"
+          maxTagCount="responsive"
+          allowClear
+          aria-label="Filter asal task"
+        />
+        <Select<string[]>
+          mode="multiple"
+          value={roleIds}
+          options={roleOptions}
+          onChange={setRoleIds}
+          loading={assigneesQuery.isLoading}
+          placeholder="Jabatan"
+          className="w-full sm:w-56"
+          showSearch
+          optionFilterProp="label"
+          maxTagCount="responsive"
+          allowClear
+          aria-label="Filter jabatan"
+        />
+        <Select<string[]>
+          mode="multiple"
+          value={divisionIds}
+          options={divisionOptions}
+          onChange={setDivisionIds}
+          loading={divisionsQuery.isLoading}
+          placeholder="Divisi"
+          className="w-full sm:w-56"
+          showSearch
+          optionFilterProp="label"
+          maxTagCount="responsive"
+          allowClear
+          aria-label="Filter divisi"
         />
         <span className="text-xs text-gray-500">
           Memilih assignees menampilkan seluruh task PIC tersebut.
         </span>
         {calendarQuery.isFetching && <Spin size="small" />}
       </div>
+      {divisionsQuery.isError && (
+        <Alert type="error" showIcon message="Gagal memuat opsi Divisi" />
+      )}
 
 
 
@@ -323,6 +395,8 @@ export default function NotulensiCalendar({ workspaceId }: { workspaceId: string
                   .filter(Boolean)
                   .join(", ")
               : scopeOptions.find((option) => option.value === scope)?.label}
+            {(taskOrigins.length || roleIds.length || divisionIds.length) > 0 &&
+              ` · ${[taskOrigins.length, roleIds.length, divisionIds.length].filter(Boolean).length} filter`}
           </div>
           {calendarQuery.isLoading ? (
             <Spin />

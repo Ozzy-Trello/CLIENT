@@ -1,15 +1,18 @@
 import {
   createNotulensi,
+  createNotulensiDivision,
   createNotulensiComment,
   createNotulensiLink,
   createNotulensiCardAttachment,
   deleteNotulensi,
+  deleteNotulensiDivision,
   deleteNotulensiAttachment,
   deleteNotulensiComment,
   deleteNotulensiPrivateNote,
   getNotulensiCalendar,
   getNotulensiEligibleAssignees,
   getNotulensiDetail,
+  getNotulensiDivisions,
   getNotulensiList,
   getNotulensiMentionUsers,
   getNotulensiPrivateNote,
@@ -17,6 +20,7 @@ import {
   renameNotulensiAttachment,
   runNotulensiAction,
   updateNotulensi,
+  updateNotulensiDivision,
   updateNotulensiComment,
   updateNotulensiPrivateNote,
   updateNotulensiProgress,
@@ -29,6 +33,7 @@ import {
   CreateNotulensiCardPayload,
   NotulensiCalendarFilters,
   NotulensiCommentPayload,
+  NotulensiDivisionPayload,
   NotulensiListFilters,
   NotulensiPrivateNotePayload,
   NotulensiProgress,
@@ -59,6 +64,17 @@ const invalidateWorkspaceNotulensi = async (
       }),
     ]);
   }
+};
+
+const invalidateNotulensiDivisionFilters = async (
+  queryClient: ReturnType<typeof useQueryClient>
+) => {
+  await queryClient.invalidateQueries({
+    queryKey: queryKeys.notulensi.all,
+    predicate: (query) =>
+      query.queryKey.some((part) => part === "list" || part === "calendar" || part === "divisions"),
+    refetchType: "all",
+  });
 };
 
 export function useNotulensiList(
@@ -253,6 +269,54 @@ export function useNotulensiEligibleAssignees(workspaceId: string) {
     queryKey: [...queryKeys.notulensi.workspace(workspaceId), "eligible-assignees"] as const,
     queryFn: () => getNotulensiEligibleAssignees(workspaceId),
     enabled: Boolean(workspaceId),
+  });
+}
+
+export function useNotulensiDivisions(workspaceId: string) {
+  return useQuery({
+    queryKey: [...queryKeys.notulensi.workspace(workspaceId), "divisions"] as const,
+    queryFn: () => getNotulensiDivisions(workspaceId),
+    enabled: Boolean(workspaceId),
+  });
+}
+
+export function useCreateNotulensiDivision() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ workspaceId, payload }: { workspaceId: string; payload: NotulensiDivisionPayload }) =>
+      createNotulensiDivision(workspaceId, payload),
+    onSuccess: async () => {
+      await invalidateNotulensiDivisionFilters(queryClient);
+    },
+  });
+}
+
+export function useUpdateNotulensiDivision() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      workspaceId,
+      divisionId,
+      payload,
+    }: {
+      workspaceId: string;
+      divisionId: string;
+      payload: NotulensiDivisionPayload;
+    }) => updateNotulensiDivision(workspaceId, divisionId, payload),
+    onSuccess: async () => {
+      await invalidateNotulensiDivisionFilters(queryClient);
+    },
+  });
+}
+
+export function useDeleteNotulensiDivision() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ workspaceId, divisionId }: { workspaceId: string; divisionId: string }) =>
+      deleteNotulensiDivision(workspaceId, divisionId),
+    onSuccess: async () => {
+      await invalidateNotulensiDivisionFilters(queryClient);
+    },
   });
 }
 

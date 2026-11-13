@@ -6,6 +6,8 @@ import {
   DeleteNotulensiResponse,
   NotulensiComment,
   NotulensiCommentPayload,
+  NotulensiDivision,
+  NotulensiDivisionPayload,
   NotulensiAttachmentResponse,
   NotulensiDetailResponse,
   NotulensiExportResponse,
@@ -34,6 +36,7 @@ const omitEmpty = (filters: NotulensiListFilters) => {
     assignee_id: filters.assigneeId || undefined,
     assignee_ids: filters.assigneeIds?.length ? filters.assigneeIds.join(",") : undefined,
     role_ids: filters.roleIds?.length ? filters.roleIds.join(",") : undefined,
+    division_ids: filters.divisionIds?.length ? filters.divisionIds.join(",") : undefined,
     creator_id: filters.creatorId || undefined,
     due_from: filters.dueFrom || undefined,
     due_to: filters.dueTo || undefined,
@@ -219,6 +222,44 @@ export const getNotulensiEligibleAssignees = async (
   return response.data;
 };
 
+export const getNotulensiDivisions = async (
+  workspaceId: string
+): Promise<{ data: NotulensiDivision[] }> => {
+  const response = await api.get(`${notulensiBasePath(workspaceId)}/divisions`);
+  return response.data;
+};
+
+export const createNotulensiDivision = async (
+  workspaceId: string,
+  payload: NotulensiDivisionPayload
+): Promise<{ data: NotulensiDivision }> => {
+  const response = await api.post(`${notulensiBasePath(workspaceId)}/divisions`, {
+    name: payload.name,
+    role_ids: payload.roleIds,
+  });
+  return response.data;
+};
+
+export const updateNotulensiDivision = async (
+  workspaceId: string,
+  divisionId: string,
+  payload: NotulensiDivisionPayload
+): Promise<{ data: NotulensiDivision }> => {
+  const response = await api.put(
+    `${notulensiBasePath(workspaceId)}/divisions/${divisionId}`,
+    { name: payload.name, role_ids: payload.roleIds }
+  );
+  return response.data;
+};
+
+export const deleteNotulensiDivision = async (
+  workspaceId: string,
+  divisionId: string
+): Promise<{ success: boolean }> => {
+  const response = await api.delete(`${notulensiBasePath(workspaceId)}/divisions/${divisionId}`);
+  return response.data;
+};
+
 export const getNotulensiCalendar = async (
   workspaceId: string,
   filters: NotulensiCalendarFilters = {}
@@ -229,6 +270,9 @@ export const getNotulensiCalendar = async (
       assignee_ids: filters.assigneeIds?.length
         ? filters.assigneeIds.join(",")
         : undefined,
+      task_origin: filters.taskOrigin?.length ? filters.taskOrigin.join(",") : undefined,
+      role_ids: filters.roleIds?.length ? filters.roleIds.join(",") : undefined,
+      division_ids: filters.divisionIds?.length ? filters.divisionIds.join(",") : undefined,
     },
   });
   return response.data;

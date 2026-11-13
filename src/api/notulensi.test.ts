@@ -1,12 +1,16 @@
 import {
   createNotulensi,
+  createNotulensiDivision,
   createNotulensiComment,
   createNotulensiLink,
   deleteNotulensiAttachment,
   deleteNotulensi,
+  deleteNotulensiDivision,
   deleteNotulensiComment,
   deleteNotulensiPrivateNote,
   getNotulensiEligibleAssignees,
+  getNotulensiCalendar,
+  getNotulensiDivisions,
   getNotulensiMentionUsers,
   exportNotulensi,
   getNotulensiList,
@@ -15,6 +19,7 @@ import {
   renameNotulensiAttachment,
   runNotulensiAction,
   updateNotulensi,
+  updateNotulensiDivision,
   updateNotulensiComment,
   updateNotulensiPrivateNote,
   updateNotulensiProgress,
@@ -49,6 +54,7 @@ describe("notulensi api", () => {
       taskOrigin: ["General", "Annual Meeting"],
       assigneeIds: ["user-1", "user-3"],
       roleIds: ["role-1", "role-2"],
+      divisionIds: ["division-1", "division-2"],
       creatorId: "user-2",
       dueFrom: "2026-07-01T00:00:00.000Z",
       dueTo: "2026-07-31T23:59:59.999Z",
@@ -67,6 +73,7 @@ describe("notulensi api", () => {
         task_origin: "General,Annual Meeting",
         assignee_ids: "user-1,user-3",
         role_ids: "role-1,role-2",
+        division_ids: "division-1,division-2",
         creator_id: "user-2",
         due_from: "2026-07-01T00:00:00.000Z",
         due_to: "2026-07-31T23:59:59.999Z",
@@ -77,6 +84,51 @@ describe("notulensi api", () => {
         limit: 20,
       },
     });
+  });
+
+  it("sends calendar task, role, and division filters", async () => {
+    mockApi.get.mockResolvedValue({ data: { data: [] } });
+
+    await getNotulensiCalendar("ws-1", {
+      scope: "related",
+      assigneeIds: ["user-1"],
+      taskOrigin: ["General", "Weekly Meeting"],
+      roleIds: ["role-1"],
+      divisionIds: ["division-1"],
+    });
+
+    expect(mockApi.get).toHaveBeenCalledWith("/workspace/ws-1/notulensi/calendar", {
+      params: {
+        scope: "related",
+        assignee_ids: "user-1",
+        task_origin: "General,Weekly Meeting",
+        role_ids: "role-1",
+        division_ids: "division-1",
+      },
+    });
+  });
+
+  it("loads and manages master divisions using snake-case role ids", async () => {
+    mockApi.get.mockResolvedValue({ data: { data: [] } });
+    mockApi.post.mockResolvedValue({ data: { data: { id: "division-1" } } });
+    mockApi.put.mockResolvedValue({ data: { data: { id: "division-1" } } });
+    mockApi.delete.mockResolvedValue({ data: { success: true } });
+
+    await getNotulensiDivisions("ws-1");
+    await createNotulensiDivision("ws-1", { name: "Outlet", roleIds: ["role-1"] });
+    await updateNotulensiDivision("ws-1", "division-1", { name: "Outlet", roleIds: ["role-2"] });
+    await deleteNotulensiDivision("ws-1", "division-1");
+
+    expect(mockApi.get).toHaveBeenCalledWith("/workspace/ws-1/notulensi/divisions");
+    expect(mockApi.post).toHaveBeenCalledWith("/workspace/ws-1/notulensi/divisions", {
+      name: "Outlet",
+      role_ids: ["role-1"],
+    });
+    expect(mockApi.put).toHaveBeenCalledWith("/workspace/ws-1/notulensi/divisions/division-1", {
+      name: "Outlet",
+      role_ids: ["role-2"],
+    });
+    expect(mockApi.delete).toHaveBeenCalledWith("/workspace/ws-1/notulensi/divisions/division-1");
   });
 
   it("normalizes camel-cased status count keys", async () => {
