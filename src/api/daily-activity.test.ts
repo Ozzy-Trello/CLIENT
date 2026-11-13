@@ -91,4 +91,15 @@ describe("daily activity configuration api", () => {
     });
     expect(mockedApi.post).toHaveBeenCalledWith("/daily-activity/leave-requests", { start_date: "2026-11-10", end_date: "2026-11-11", note: "Cuti" });
   });
+
+  it("loads the Super Admin leave list with working-day totals and deletes a request", async () => {
+    mockedApi.get.mockResolvedValue({ data: { data: [{ id: "leave-1", user_id: "user-1", employee_name: "Rina", employee_role_name: "HR", start_date: "2026-11-10", end_date: "2026-11-11", total_days: 2, status: "approved" }] } } as any);
+    mockedApi.delete.mockResolvedValue({ data: { data: { success: true } } } as any);
+    const { deleteDailyActivityLeaveRequest, getAllDailyActivityLeaveRequests } = await import("./daily-activity");
+
+    await expect(getAllDailyActivityLeaveRequests()).resolves.toMatchObject([{ id: "leave-1", total_days: 2, status: "approved" }]);
+    await expect(deleteDailyActivityLeaveRequest("leave-1")).resolves.toEqual({ success: true });
+    expect(mockedApi.get).toHaveBeenCalledWith("/daily-activity/leave-requests/admin");
+    expect(mockedApi.delete).toHaveBeenCalledWith("/daily-activity/leave-requests/admin/leave-1");
+  });
 });

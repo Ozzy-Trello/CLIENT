@@ -1,5 +1,5 @@
 export type DailyActivityStatus = "draft" | "submitted" | "missing" | "not_required" | "on_leave";
-export type DailyActivityTab = "mine" | "team" | "settings" | "structure" | "calendar";
+export type DailyActivityTab = "mine" | "team" | "leave" | "settings" | "structure" | "calendar";
 
 export interface DailyActivityReference {
   id: string;
@@ -73,6 +73,7 @@ export interface DailyActivityLeaveRequest {
   approver_role_name: string | null;
   start_date: string;
   end_date: string;
+  total_days?: number;
   note: string | null;
   status: DailyActivityLeaveStatus;
   decision_note: string | null;
