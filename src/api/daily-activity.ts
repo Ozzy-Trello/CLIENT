@@ -174,6 +174,11 @@ export async function createDailyActivityLeaveRequest(payload: { start_date: str
   return normalizeLeaveRequest(payloadOf(data));
 }
 
+export async function updateDailyActivityLeaveRequest(requestId: string, payload: { start_date: string; end_date: string; note?: string }) {
+  const { data } = await api.put(`/daily-activity/leave-requests/${requestId}`, payload);
+  return normalizeLeaveRequest(payloadOf(data));
+}
+
 export async function decideDailyActivityLeaveRequest(requestId: string, decision: "approved" | "rejected", decisionNote?: string) {
   const { data } = await api.put(`/daily-activity/leave-requests/${requestId}/decision`, { decision, decision_note: decisionNote });
   return normalizeLeaveRequest(payloadOf(data));
