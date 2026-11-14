@@ -41,7 +41,7 @@ export interface DailyActivityReport {
   can_review?: boolean;
   review_required?: boolean;
   activities: DailyActivityItem[];
-  history?: Array<{ action: string; snapshot: unknown; created_at: string }>;
+  history?: Array<{ action: string; snapshot: unknown; created_at: string; actor_id: string; actor_name?: string | null }>;
 }
 
 export interface DailyActivityDay {
