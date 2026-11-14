@@ -860,7 +860,20 @@ export default function DailyActivityPage() {
               {selectedReportId && detailQuery.isLoading ? <Spin /> : selectedReportId && detailQuery.data ? <>
                 <Typography.Title level={4}>{selectedTeamDay.username} · {wibDateLabel(selectedTeamDay.work_date)}</Typography.Title>
                 {detailQuery.data.activities.map((activity, index) => <article key={activity.id} className="mb-3 rounded-lg border p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0 flex-1"><Typography.Text type="secondary">Aktivitas {index + 1}</Typography.Text><p className="whitespace-pre-wrap">{activity.content}</p></div>{detailQuery.data.status === "submitted" && (detailQuery.data.can_review || detailQuery.data.user_id === currentUserId) && <Button className="shrink-0" size="small" type={commentItemId === activity.id ? "primary" : "default"} onClick={() => setCommentItemId((current) => current === activity.id ? null : activity.id)} aria-expanded={commentItemId === activity.id}>Komentar{activity.comments_count ? ` · ${activity.comments_count}` : ""}{accessQuery.data?.oldest_unread_comment?.item_id === activity.id ? " · Belum Dibaca" : ""}</Button>}</div>{activity.references?.length ? <div className="mt-2">{renderActivityReferences(activity.references, activity.id, false)}</div> : null}{renderCommentPanel(activity.id)}</article>)}
-                {detailQuery.data.history?.length ? <details className="mt-4"><summary>Riwayat laporan</summary><ul>{detailQuery.data.history.map((entry, index) => <li key={`${entry.created_at}:${index}`}>{dayjs(entry.created_at).format("DD MMM YYYY HH:mm")} · {entry.action.replaceAll("_", " ")}</li>)}</ul></details> : null}
+                {detailQuery.data.history?.length ? <details className="mt-4"><summary>Riwayat laporan</summary><ul>{detailQuery.data.history.map((entry, index) => {
+                  const actorName = entry.actor_name?.trim();
+                  const displayActorName = actorName
+                    ? actorName.charAt(0).toLocaleUpperCase("id-ID") + actorName.slice(1)
+                    : null;
+                  const actionLabels: Record<string, string> = {
+                    reviewed: `Reviewed by ${displayActorName || "user"}`,
+                    submitted: "Laporan dikirim",
+                    edited_after_submit: "Laporan diperbarui setelah dikirim",
+                    draft_saved: "Draf disimpan",
+                  };
+                  const actionLabel = actionLabels[entry.action] || entry.action.replaceAll("_", " ");
+                  return <li key={`${entry.created_at}:${index}`}>{dayjs(entry.created_at).format("DD MMM YYYY HH:mm")} · {actionLabel}</li>;
+                })}</ul></details> : null}
                 {detailQuery.data.can_review && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 p-3">{detailQuery.data.reviewed_at ? <Typography.Text type="success">✓ Sudah dicek {wibDateAndTime(detailQuery.data.reviewed_at).date} {wibDateAndTime(detailQuery.data.reviewed_at).time} WIB</Typography.Text> : <Typography.Text type="warning">Belum ditandai sudah dicek</Typography.Text>}<Button type="primary" disabled={!!detailQuery.data.reviewed_at} loading={reviewMutation.isPending} onClick={() => selectedReportId && reviewMutation.mutate(selectedReportId)}>Tandai Sudah Dicek</Button></div>}
                 {detailQuery.data.user_id === currentUserId && <Button type="primary" className="mt-3" onClick={() => { setWorkDate(detailQuery.data!.work_date); setTab("mine"); }}>Edit Daily Saya</Button>}
               </> : !selectedTeamDay.report_id ? <><Typography.Title level={4}>{selectedTeamDay.username} · {dayjs(selectedTeamDay.work_date).format("DD MMMM YYYY")}</Typography.Title><Tag color={selectedTeamDay.status === "on_leave" ? "blue" : "red"}>{selectedTeamDay.status === "on_leave" ? "Cuti" : "Belum Isi"}</Tag><Typography.Paragraph className="mt-3">{selectedTeamDay.status === "on_leave" ? "Cuti disetujui. Daily Activity tidak wajib pada tanggal ini." : "Laporan belum diisi."}</Typography.Paragraph></> : null}
