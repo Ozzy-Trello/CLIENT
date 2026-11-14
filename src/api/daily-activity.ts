@@ -71,6 +71,8 @@ function normalizeReport(value: any): DailyActivityReport {
     activities: asArray<any>(value?.activities).map(normalizeActivity),
     history: asArray<any>(value?.history).map((entry) => ({
       ...entry,
+      actor_id: field(entry, "actor_id", "actorId"),
+      actor_name: field(entry, "actor_name", "actorName") ?? null,
       created_at: field(entry, "created_at", "createdAt"),
     })),
   };
