@@ -24,6 +24,7 @@ import {
   Card,
   Space,
   Tooltip,
+  Typography,
   Modal as AntdModal,
 } from "antd";
 import type { InputRef } from "antd";
@@ -521,14 +522,20 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     },
   });
 
-  const { mutate: updateBeliStatus } = useMutation({
+  const {
+    mutate: updateBeliStatus,
+    isPending: isUpdatingBeli,
+    variables: updatingBeli,
+  } = useMutation({
     mutationFn: ({ id, beli }: { id: string; beli: BeliStatus }) =>
       updateRequest(id, { beli }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["requests"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["requests"] });
     },
-    onError: () => {
-      message.error("Failed to update beli status");
+    onError: (error, { id }) => {
+      const savedBeli = data?.data.find((record) => record.id === id)?.beli;
+      setBeliValues((prev) => ({ ...prev, [id]: savedBeli || "-" }));
+      message.error(extractApiErrorReason(error) || "Gagal menyimpan pilihan Beli.");
     },
   });
 
@@ -1323,7 +1330,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     const cabangFilled = Boolean(getCabangValue(record));
     const isPersediaanProduct =
       (record?.type || "").toLowerCase() === "persediaan";
-    const beliSelection = record.usesMiniWarehouse ? "Tidak" : isPersediaanProduct
+    const beliSelection = !record.usesMiniWarehouse && isPersediaanProduct
       ? DEFAULT_BELI_STATUS
       : getBeliSelection(record);
     const beliSelected = Boolean(beliSelection && beliSelection !== "-");
@@ -1666,7 +1673,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     setMarkingDone(record.id);
     try {
       await markRequestDone(record.id, record.usesMiniWarehouse ? getResolvedRequestLeft(record) : undefined);
-      message.success(record.usesMiniWarehouse ? "Request selesai. Pemakaian stok Mini Warehouse tercatat." : "Request marked as done!");
+      message.success(record.usesMiniWarehouse ? "Request selesai. Saldo Mini Warehouse sudah diperbarui." : "Request marked as done!");
       setReopenedIds((prev) => {
         if (!prev.has(record.id)) return prev;
         const next = new Set(prev);
@@ -1817,6 +1824,26 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       },
     },
     {
+      title: (
+        <Tooltip title="Stok Mini Warehouse yang bisa dipakai untuk request ini, termasuk stok yang sudah direservasi untuknya.">
+          Sisa Stok
+        </Tooltip>
+      ),
+      key: "miniWarehouseAvailableStock",
+      width: 140,
+      render: (_: unknown, record: RequestItem) => {
+        const available = record.miniWarehouseAvailableStock;
+        if (available == null) return "–";
+        const isShort = isRowUnlocked(record) && available < Number(record.requestAmount);
+        return (
+          <Typography.Text type={isShort ? "danger" : undefined}>
+            {formatRequestQuantity(available)} {record.satuan}
+            {isShort && <span className="block text-xs">Stok kurang</span>}
+          </Typography.Text>
+        );
+      },
+    },
+    {
       title: "Beli",
       key: "beli",
       ellipsis: true,
@@ -1825,17 +1852,22 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         const workflow = getWorkflowState(record);
         const isPersediaanProduct =
           (record?.type || "").toLowerCase() === "persediaan";
-        if (record.usesMiniWarehouse) return <Tag>Mini Warehouse</Tag>;
-        const disabled = !isRowUnlocked(record) || !workflow.cabangFilled;
+        const isSaving = isUpdatingBeli && updatingBeli?.id === record.id;
+        const disabled =
+          !isRowUnlocked(record) ||
+          !workflow.cabangFilled ||
+          isUpdatingBeli ||
+          markingDone === record.id ||
+          (record.usesMiniWarehouse && (!record.isVerified || record.isRejected));
         return (
           <Select
             value={
-              isPersediaanProduct
+              !record.usesMiniWarehouse && isPersediaanProduct
                 ? DEFAULT_BELI_STATUS
                 : (workflow.beliSelection as BeliSelection)
             }
             options={[
-              { value: "-", label: "-" },
+              { value: "-", label: "-", disabled: record.usesMiniWarehouse },
               { value: "Ya", label: "Ya" },
               { value: "Tidak", label: "Tidak" },
             ]}
@@ -1843,6 +1875,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               handleBeliChange(record.id, value as BeliSelection)
             }
             disabled={disabled}
+            loading={isSaving}
             style={{ width: "100%" }}
           />
         );
@@ -2207,7 +2240,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         const disabled =
           record.warehouseReturned == null ||
           record.isDone === true ||
-          record.barcodePrinted !== true;
+          record.barcodePrinted !== true ||
+          (isUpdatingBeli && updatingBeli?.id === record.id);
         return (
           <Button
             type="primary"

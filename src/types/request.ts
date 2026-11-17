@@ -50,6 +50,7 @@ export interface RequestItem {
   is_rejected?: boolean;
   isRejected?: boolean;
   usesMiniWarehouse?: boolean;
+  miniWarehouseAvailableStock?: number | null;
   is_done?: boolean;
   isDone?: boolean;
   satuan?: string;
