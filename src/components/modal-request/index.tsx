@@ -19,7 +19,7 @@ import { useParams } from "next/navigation";
 import { useAccountListForModal } from "@hooks/account";
 import { getCombinedOzzyProducts } from "@api/ozzy-warehouse";
 import { getPOProductsByCardId } from "@api/po-product";
-import type { OzzyProductWithSource } from "@api/ozzy-warehouse";
+import { mergeRequestProducts } from "./mergeRequestProducts";
 import { resolveMpiAdjustmentAccount } from "@utils/mpi-adjustment-account";
 interface ModalRequestProps {
   open: boolean;
@@ -139,8 +139,6 @@ const getCogsGlAccountIdFromItem = (item?: any): number | null => {
 const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   const { workspaceId, boardId } = useParams();
   const [cards, setCards] = React.useState<any>([]);
-  const [items, setItems] = React.useState<OzzyProductWithSource[]>([]);
-  const [glaccounts, setGlaccounts] = React.useState<any>([]);
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(
     null,
   );
@@ -148,16 +146,12 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     React.useState<string>("");
   const [isAkunPenyesuaianDisabled, setIsAkunPenyesuaianDisabled] =
     React.useState<boolean>(false);
-  const [barangSearchValue, setBarangSearchValue] = React.useState<string>("");
   const [cardSearchValue, setCardSearchValue] = React.useState<string>("");
-  const [stockSource, setStockSource] = React.useState<"accurate" | "mini_warehouse">("accurate");
-  const isMiniWarehouse = stockSource === "mini_warehouse";
   const miniProductsQuery = useQuery({
     queryKey: ["mini-warehouse-request-products"],
     queryFn: getMiniWarehouseRequestProducts,
-    enabled: open && isMiniWarehouse,
+    enabled: open,
   });
-  const miniProducts = miniProductsQuery.data ?? [];
   const [selectedItemUnit, setSelectedItemUnit] = React.useState<string>("");
   const [availableUnits, setAvailableUnits] = React.useState<
     { label: string; value: string }[]
@@ -194,17 +188,18 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       {
         queryKey: ["items", "ozzy-products"],
         queryFn: () => getCombinedOzzyProducts(),
-        enabled: open && !isMiniWarehouse,
+        enabled: open,
       },
       {
         queryKey: ["glaccounts", selectedItemSource],
         queryFn: () => getAllAdjustmentItems(selectedItemSource),
-        enabled: open && !isMiniWarehouse && !!selectedItemSource, // Only run when modal is open and source is selected
+        enabled: open && !!selectedItemSource, // Only run when modal is open and source is selected
       },
     ],
   });
 
   const [cardsQuery, productsQuery, glaccountQuery] = queries;
+  const glaccounts = glaccountQuery.data?.data;
 
   const normalizedActionType = (selectedActionType || "").toUpperCase();
   const shouldRestrictToHikmat =
@@ -277,13 +272,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       setCards(filteredCards);
     }
 
-    const productItems = productsQuery.data || [];
-    setItems(productItems);
-
-    if (glaccountQuery.data?.data) {
-      setGlaccounts(glaccountQuery.data.data);
-    }
-  }, [cardsQuery.data, productsQuery.data, glaccountQuery.data]);
+  }, [cardsQuery.data]);
 
   const formatJumlahProduksi = (rawVal: any): string => {
     if (rawVal === null || rawVal === undefined || rawVal === "") return "-";
@@ -340,57 +329,31 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
   ];
 
   const barangList = useMemo(() => {
-    if (!Array.isArray(items)) return [];
+    return mergeRequestProducts(productsQuery.data ?? [], miniProductsQuery.data ?? [])
+      .filter((entry) => {
+        if (entry.source === "mini_warehouse" || !shouldRestrictToHikmat) return true;
 
-    const searchTerm = barangSearchValue.toLowerCase();
-    const filteredItems = searchTerm
-      ? items.filter((item) => {
-          const matches = [item.name, item.sku, item.barcode, item.source].some(
-            (value) => value?.toString().toLowerCase().includes(searchTerm),
-          );
-          return matches;
-        })
-      : items;
+        const item = entry.product;
+        if (!isPOSelected || !item.source.toLowerCase().includes("hikmat")) return false;
 
-    const actionFilteredItems = filteredItems.filter((item) => {
-      if (item.itemTypeName?.trim().toLowerCase() === "non persediaan") return false;
-      if (!shouldRestrictToHikmat) {
-        return true;
-      }
-
-      const source = (item.source || "").toString().toLowerCase();
-      const isHikmatItem = source === "hikmat" || source.includes("hikmat");
-
-      if (!isHikmatItem) {
-        return false;
-      }
-
-      if (!isPOSelected || allowedHikmatProductIds.size === 0) {
-        return false;
-      }
-
-      const candidateIds = [item.accurateId, item.id, item.sku, item.barcode]
-        .filter((value) => value !== undefined && value !== null)
-        .map((value) => String(value));
-
-      return candidateIds.some((candidate) =>
-        allowedHikmatProductIds.has(candidate),
-      );
-    });
-
-    return actionFilteredItems.map((item) => ({
-      value: item.sku || `${item.id}`,
-      label: `${item.name} (${item.source === "Hikmat" ? "HKI" : item.source || "Unknown"})`,
-      item,
-    }));
-  }, [
-    items,
-    barangSearchValue,
-    normalizedActionType,
-    shouldRestrictToHikmat,
-    allowedHikmatProductIds,
-    isPOSelected,
-  ]);
+        return [item.accurateId, item.id, item.sku, item.barcode].some(
+          (id) => id != null && allowedHikmatProductIds.has(String(id)),
+        );
+      })
+      .map((entry) => {
+        const product = entry.product;
+        const sourceLabel = product.source === "Hikmat" ? "HKI" : product.source;
+        const label = entry.source === "mini_warehouse"
+          ? `${entry.product.itemName} · ${entry.product.itemCode} (${sourceLabel}, Mini Warehouse)`
+          : `${entry.product.name} · ${entry.product.sku} (${sourceLabel})`;
+        return {
+          value: entry.key,
+          label,
+          searchText: entry.source === "accurate" ? `${label} ${entry.product.barcode ?? ""}` : label,
+          entry,
+        };
+      });
+  }, [productsQuery.data, miniProductsQuery.data, shouldRestrictToHikmat, allowedHikmatProductIds, isPOSelected]);
 
   // Create user options for Request By dropdown
   const userOptions = useMemo(() => {
@@ -418,15 +381,18 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
   // Monitor form values to determine if the form is valid
   const formValues = Form.useWatch([], form);
-  const miniProductId = Form.useWatch("miniWarehouseProduct", form);
-  const miniProduct = miniProducts.find((product) => product.id === miniProductId);
+  const productKey = Form.useWatch("barang", form);
+  const selectedEntry = barangList.find((item) => item.value === productKey)?.entry;
+  const miniProduct = selectedEntry?.source === "mini_warehouse" ? selectedEntry.product : undefined;
+  const selectedAccurateProduct = selectedEntry?.source === "accurate" ? selectedEntry.product : undefined;
+  const isMiniWarehouse = Boolean(miniProduct);
 
   React.useEffect(() => {
     form
       .validateFields({ validateOnly: true })
       .then(() => setFormValid(true))
       .catch(() => setFormValid(false));
-  }, [form, formValues, stockSource]);
+  }, [form, formValues]);
 
   // Set akun penyesuaian when GL accounts are loaded and we have a selected item
   React.useEffect(() => {
@@ -452,156 +418,144 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       return false;
     };
 
-    const selectedBarangValue = form.getFieldValue("barang");
-    if (selectedBarangValue) {
-      const selectedItem = items.find(
-        (item: any) =>
-          `${item.name} (${item.source || "Unknown"})` === selectedBarangValue,
+    if (selectedAccurateProduct) {
+      const selectedItem = selectedAccurateProduct;
+      const itemSource = selectedItem.source;
+      const normalizedSource = (
+        itemSource ||
+        selectedItemSource ||
+        ""
+      ).toLowerCase();
+
+      const isMpiSource =
+        normalizedSource === "mpi" || normalizedSource.includes("mpi");
+      const isKuiSource =
+        normalizedSource === "kui" || normalizedSource.includes("kui");
+
+      const mpiCategoryAccount = resolveMpiAdjustmentAccount(
+        selectedItem,
+        normalizedSource,
+        glaccounts.d,
       );
-
-      if (selectedItem) {
-        const itemSource = selectedItem.source;
-        const normalizedSource = (
-          itemSource ||
-          selectedItemSource ||
-          ""
-        ).toLowerCase();
-
-        const isMpiSource =
-          normalizedSource === "mpi" || normalizedSource.includes("mpi");
-        const isKuiSource =
-          normalizedSource === "kui" || normalizedSource.includes("kui");
-
-        const mpiCategoryAccount = resolveMpiAdjustmentAccount(
-          selectedItem,
-          normalizedSource,
-          glaccounts.d,
-        );
-        if (mpiCategoryAccount) {
-          setAccountField(mpiCategoryAccount);
-          return;
-        }
-
-        if (isMpiSource || isKuiSource) {
-          const normalizedName = selectedItem.name?.toLowerCase() || "";
-          const mpiMapping = findBestMappingByKeywords(normalizedName);
-
-          if (mpiMapping) {
-            const matchingAccount = findAccountByName(
-              glaccounts.d,
-              mpiMapping.accountName,
-            );
-
-            if (matchingAccount) {
-              setAccountField(matchingAccount);
-              return;
-            }
-          }
-        }
-
-        if (trySetAccountById()) {
-          return;
-        }
-
-        if (selectedItem.itemCategory) {
-          const cogsGlAccountId =
-            selectedItem.itemCategory.parent?.cogsGlAccountId;
-
-          if (cogsGlAccountId) {
-            const matchingGlAccount = glaccounts.d.find(
-              (acc: any) => acc.id === cogsGlAccountId,
-            );
-
-            if (matchingGlAccount) {
-              setAccountField(matchingGlAccount);
-              return;
-            }
-          } else {
-            const itemCategoryName =
-              selectedItem.itemCategory.name?.toLowerCase();
-
-            let suitableAccount = null;
-
-            if (itemCategoryName) {
-              suitableAccount = glaccounts.d.find((acc: any) => {
-                const accountName = acc.name.toLowerCase();
-                const cleanAccountName = accountName
-                  .replace("hpp ", "")
-                  .replace("beban ", "");
-
-                const directMatch = accountName.includes(itemCategoryName);
-                const reverseMatch =
-                  itemCategoryName.includes(cleanAccountName);
-
-                return directMatch || reverseMatch;
-              });
-
-              if (!suitableAccount && itemSource === "Hikmat") {
-                const hikmatCategoryKeywords = [
-                  "krah",
-                  "manset",
-                  "rib",
-                  "bahan",
-                  "kain",
-                ];
-
-                const matchingKeyword = hikmatCategoryKeywords.find((keyword) =>
-                  itemCategoryName.includes(keyword),
-                );
-
-                if (matchingKeyword) {
-                  suitableAccount = glaccounts.d.find((acc: any) => {
-                    const accountName = acc.name.toLowerCase();
-                    return (
-                      accountName.includes(matchingKeyword) ||
-                      accountName.includes("penyesuaian " + matchingKeyword) ||
-                      accountName.includes(
-                        "beban penyesuaian " + matchingKeyword,
-                      )
-                    );
-                  });
-                }
-
-                if (!suitableAccount) {
-                  suitableAccount = glaccounts.d.find((acc: any) => {
-                    const accountName = acc.name.toLowerCase();
-                    return (
-                      accountName.includes("hikmat") ||
-                      accountName.includes("adjustment hikmat") ||
-                      accountName.includes("bahan hikmat")
-                    );
-                  });
-                }
-              }
-
-              if (!suitableAccount && itemSource) {
-                suitableAccount = glaccounts.d.find(
-                  (acc: any) => acc.source === itemSource,
-                );
-              }
-
-              if (!suitableAccount && glaccounts.d.length > 0) {
-                suitableAccount = glaccounts.d[0];
-              }
-
-              if (suitableAccount) {
-                setAccountField(suitableAccount);
-              }
-            }
-          }
-        }
-      } else {
-        trySetAccountById();
+      if (mpiCategoryAccount) {
+        setAccountField(mpiCategoryAccount);
+        return;
       }
-    } else {
-      trySetAccountById();
+
+      if (isMpiSource || isKuiSource) {
+        const normalizedName = selectedItem.name?.toLowerCase() || "";
+        const mpiMapping = findBestMappingByKeywords(normalizedName);
+
+        if (mpiMapping) {
+          const matchingAccount = findAccountByName(
+            glaccounts.d,
+            mpiMapping.accountName,
+          );
+
+          if (matchingAccount) {
+            setAccountField(matchingAccount);
+            return;
+          }
+        }
+      }
+
+      if (trySetAccountById()) {
+        return;
+      }
+
+      if (selectedItem.itemCategory) {
+        const cogsGlAccountId =
+          selectedItem.itemCategory.parent?.cogsGlAccountId;
+
+        if (cogsGlAccountId) {
+          const matchingGlAccount = glaccounts.d.find(
+            (acc: any) => acc.id === cogsGlAccountId,
+          );
+
+          if (matchingGlAccount) {
+            setAccountField(matchingGlAccount);
+            return;
+          }
+        } else {
+          const itemCategoryName =
+            selectedItem.itemCategory.name?.toLowerCase();
+
+          let suitableAccount = null;
+
+          if (itemCategoryName) {
+            suitableAccount = glaccounts.d.find((acc: any) => {
+              const accountName = acc.name.toLowerCase();
+              const cleanAccountName = accountName
+                .replace("hpp ", "")
+                .replace("beban ", "");
+
+              const directMatch = accountName.includes(itemCategoryName);
+              const reverseMatch =
+                itemCategoryName.includes(cleanAccountName);
+
+              return directMatch || reverseMatch;
+            });
+
+            if (!suitableAccount && itemSource === "Hikmat") {
+              const hikmatCategoryKeywords = [
+                "krah",
+                "manset",
+                "rib",
+                "bahan",
+                "kain",
+              ];
+
+              const matchingKeyword = hikmatCategoryKeywords.find((keyword) =>
+                itemCategoryName.includes(keyword),
+              );
+
+              if (matchingKeyword) {
+                suitableAccount = glaccounts.d.find((acc: any) => {
+                  const accountName = acc.name.toLowerCase();
+                  return (
+                    accountName.includes(matchingKeyword) ||
+                    accountName.includes("penyesuaian " + matchingKeyword) ||
+                    accountName.includes(
+                      "beban penyesuaian " + matchingKeyword,
+                    )
+                  );
+                });
+              }
+
+              if (!suitableAccount) {
+                suitableAccount = glaccounts.d.find((acc: any) => {
+                  const accountName = acc.name.toLowerCase();
+                  return (
+                    accountName.includes("hikmat") ||
+                    accountName.includes("adjustment hikmat") ||
+                    accountName.includes("bahan hikmat")
+                  );
+                });
+              }
+            }
+
+            if (!suitableAccount && itemSource) {
+              suitableAccount = glaccounts.d.find(
+                (acc: any) => acc.source === itemSource,
+              );
+            }
+
+            if (!suitableAccount && glaccounts.d.length > 0) {
+              suitableAccount = glaccounts.d[0];
+            }
+
+            if (suitableAccount) {
+              setAccountField(suitableAccount);
+            }
+          }
+        }
+      }
     }
   }, [
     glaccounts,
     selectedItemSource,
-    items,
+    selectedAccurateProduct,
     form,
-    formValues,
     selectedItemGlAccountId,
   ]);
 
@@ -657,11 +611,13 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
           opt.displayLabel === values.listPO ||
           (typeof opt.label === "string" && opt.label === values.listPO),
       );
-      const item = barangList.find(
-        (opt: any) =>
-          typeof opt.label === "string" && opt.label === values.barang,
-      );
-      const selectedProduct = item?.item as OzzyProductWithSource | undefined;
+      const entry = barangList.find((option) => option.value === values.barang)?.entry;
+      if (!entry || !miniProductsQuery.data) {
+        message.warning("Pilih barang dari daftar.");
+        return;
+      }
+      const selectedProduct = entry.source === "accurate" ? entry.product : undefined;
+      const stockProduct = entry.source === "mini_warehouse" ? entry.product : undefined;
       const adjustment = akunPenyesuaianList.find((opt: any) => {
         if (
           typeof opt.label === "string" &&
@@ -704,13 +660,6 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         (user) => user.value === values.requestBy,
       );
 
-      if (isMiniWarehouse ? !miniProduct : !selectedProduct?.sku) {
-        message.warning("Pilih barang dari daftar.");
-        return;
-      }
-      const stockProduct = isMiniWarehouse ? miniProduct : undefined;
-      const requestedItemId = stockProduct?.itemCode ?? selectedProduct?.sku;
-
       const normalizeQuantityInput = (raw?: string | number | null) => {
         if (raw === undefined || raw === null) return 0;
         const str = `${raw}`.trim();
@@ -733,18 +682,18 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       const payload = {
         card_id: selectedCardId || (card ? card.value : values.listPO),
         request_type: values.actionType,
-        requested_item_id: requestedItemId,
+        requested_item_id: stockProduct?.itemCode ?? selectedProduct?.sku,
         request_amount: sanitizedAmount,
-        adjustment_no: finalAdjustmentNo,
+        adjustment_no: stockProduct ? null : finalAdjustmentNo,
         description: values.description,
-        stock_source: stockSource,
-        item_name: stockProduct?.itemName ?? (selectedProduct?.name || item?.label || values.barang),
+        stock_source: entry.source,
+        item_name: stockProduct?.itemName ?? selectedProduct?.name,
         item_type_name: stockProduct ? "Non Persediaan" : selectedProduct?.itemTypeName,
         accurate_id: stockProduct?.accurateId ?? selectedProduct?.accurateId,
         accurate_db_id: stockProduct?.accurateDbId ?? selectedProduct?.accurateDbId,
-        adjustment_name: finalAdjustmentName,
+        adjustment_name: stockProduct ? null : finalAdjustmentName,
         satuan: selectedItemUnit || "", // Add the selected unit (satuan) to the payload
-        source: stockProduct?.source ?? selectedItemSource, // Add the source field to the payload
+        source: entry.product.source, // Add the source field to the payload
         type: null,
         received_by: selectedUser ? selectedUser.value : "", // Use UUID for received_by
         received_by_name: selectedUser ? selectedUser.username : "", // Add received_by_name field
@@ -770,11 +719,9 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     if (!open) {
       form.resetFields();
       setFormValid(false);
-      setStockSource("accurate");
       setIsAkunPenyesuaianDisabled(false);
       setSelectedItemUnit("");
       setAvailableUnits([]);
-      setBarangSearchValue("");
       setSelectedCardId(null);
       setSelectedActionType("");
       setSelectedItemSource("");
@@ -867,189 +814,132 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
               ))}
             </Select>
           </Form.Item>
-          <Form.Item label="Jenis barang" style={{ gridColumn: "1 / span 2" }}>
+          <Form.Item
+            name="barang"
+            label="Barang"
+            rules={[{ required: true, message: "Pilih barang dari daftar." }]}
+            style={{ marginBottom: 16, gridColumn: "1 / span 2" }}
+            extra={miniProduct && (
+              `Stok Mini Warehouse tersedia: ${miniProduct.availableQuantity.toLocaleString("id-ID")} ${miniProduct.unitType || "unit"}`
+            )}
+          >
             <Select
-              value={stockSource}
-              options={[
-                { value: "accurate", label: "Persediaan (Accurate)" },
-                { value: "mini_warehouse", label: "Non Persediaan (Mini Warehouse)" },
-              ]}
+              showSearch
+              allowClear
+              optionFilterProp="searchText"
+              disabled={!isPOSelected}
+              loading={miniProductsQuery.isFetching || productsQuery.isFetching}
+              options={miniProductsQuery.data ? barangList : []}
+              placeholder="Cari nama atau kode barang"
+              notFoundContent={miniProductsQuery.isPending || productsQuery.isPending
+                ? "Memuat daftar barang..."
+                : "Barang tidak ditemukan."}
               onChange={(value) => {
-                setStockSource(value);
-                form.setFieldsValue({ barang: undefined, miniWarehouseProduct: undefined, akunPenyesuaian: undefined });
+                const entry = barangList.find((option) => option.value === value)?.entry;
                 resetJumlahAndUnit();
-                setAvailableUnits([]);
-                setBarangSearchValue("");
+                form.setFieldValue("akunPenyesuaian", undefined);
+                setIsAkunPenyesuaianDisabled(false);
                 setSelectedItemSource("");
                 setSelectedItemGlAccountId(null);
                 setSelectedItemUnitPrice("");
+                setAvailableUnits([]);
+                if (!entry) return;
+
+                if (entry.source === "mini_warehouse") {
+                  const unit = entry.product.unitType || "unit";
+                  form.setFieldValue("unit", unit);
+                  setAvailableUnits([{ label: unit, value: unit }]);
+                  setSelectedItemUnit(unit);
+                  return;
+                }
+
+                const selectedItem = entry.product;
+                setSelectedItemSource(selectedItem.source);
+                setSelectedItemGlAccountId(getCogsGlAccountIdFromItem(selectedItem));
+                const unitPrice = selectedItem.unitPrice ?? (selectedItem as any).unit_price;
+                setSelectedItemUnitPrice(unitPrice == null ? "" : String(unitPrice));
+                const unitFields = [
+                  "unit1Name",
+                  "unit2Name",
+                  "unit3Name",
+                  "unit4Name",
+                  "unit5Name",
+                  "unitType",
+                ];
+                const unitSet = new Set<string>();
+                unitFields.forEach((field) => {
+                  const value = (selectedItem as any)[field];
+                  if (value) {
+                    unitSet.add(value);
+                  }
+                });
+
+                const rawUnitData =
+                  (selectedItem as any)?.unit_data ??
+                  (selectedItem as any)?.unitData ??
+                  null;
+                if (rawUnitData) {
+                  try {
+                    const parsed =
+                      typeof rawUnitData === "string"
+                        ? JSON.parse(rawUnitData)
+                        : rawUnitData;
+                    if (Array.isArray(parsed)) {
+                      parsed.forEach((unitEntry: any) => {
+                        const unitName = unitEntry?.name;
+                        if (unitName) {
+                          unitSet.add(String(unitName));
+                        }
+                      });
+                    }
+                  } catch (err) {
+                    // Ignore unit parsing errors and fall back to default unit handling
+                  }
+                }
+
+                const units = Array.from(unitSet).map((unit) => ({
+                  label: unit,
+                  value: unit,
+                }));
+                setAvailableUnits(units);
+
+                const selectedItemUnitType =
+                  selectedItem.unitType !== undefined &&
+                  selectedItem.unitType !== null
+                    ? String(selectedItem.unitType)
+                    : "";
+
+                const preferredUnit =
+                  (selectedItemUnitType &&
+                    units.some(
+                      (u) => String(u.value) === selectedItemUnitType,
+                    ) &&
+                    selectedItemUnitType) ||
+                  (units.length > 0 ? String(units[0].value) : "");
+
+                setSelectedItemUnit(preferredUnit);
+                form.setFieldsValue({
+                  unit: preferredUnit || undefined,
+                });
               }}
             />
           </Form.Item>
-          {isMiniWarehouse ? (
-            <Form.Item
-              name="miniWarehouseProduct"
-              label="Barang Mini Warehouse"
-              rules={[{ required: true, message: "Pilih barang Mini Warehouse." }]}
-              extra={miniProduct ? `Stok tersedia: ${miniProduct.availableQuantity.toLocaleString("id-ID")} ${miniProduct.unitType || "unit"}` : undefined}
-              style={{ gridColumn: "1 / span 2" }}
-            >
-              <Select
-                showSearch
-                optionFilterProp="label"
-                disabled={!isPOSelected}
-                loading={miniProductsQuery.isFetching}
-                placeholder="Cari nama atau kode barang"
-                notFoundContent={miniProductsQuery.isError ? "Gagal memuat katalog Mini Warehouse." : "Barang tidak ditemukan."}
-                options={miniProducts.map((product) => ({
-                  value: product.id,
-                  label: `${product.itemName} · ${product.itemCode} (${product.source})`,
-                }))}
-                onChange={(id) => {
-                  const unit = miniProducts.find((product) => product.id === id)?.unitType || "unit";
-                  form.setFieldsValue({ unit, jumlah: "" });
-                  setAvailableUnits([{ label: unit, value: unit }]);
-                  setSelectedItemUnit(unit);
-                }}
-              />
-            </Form.Item>
-          ) : <Form.Item
-            name="barang"
-            label="Barang"
-            rules={[{ required: true }]}
-            style={{ marginBottom: 16, gridColumn: "1 / span 2" }}
-          >
-            <AutoComplete
-              disabled={!isPOSelected}
-              options={barangList}
-              placeholder="Cari atau pilih Barang"
-              filterOption={false} // Disable client-side filtering as we're using local search
-              notFoundContent="No items found"
-              onSelect={(value, option) => {
-                resetJumlahAndUnit();
-                if (
-                  typeof value === "string" &&
-                  value.startsWith("__header__")
-                ) {
-                  form.setFieldsValue({ barang: undefined });
-                  setIsAkunPenyesuaianDisabled(false);
-                } else if (typeof option.label === "string") {
-                  form.setFieldsValue({ barang: option.label });
-
-                  // Find the selected item from the items array using the stored item object
-                  const selectedItem = option.item;
-
-                  // Set the selected item source to trigger GL accounts fetch
-                  if (selectedItem && selectedItem.source) {
-                    setSelectedItemSource(selectedItem.source);
-                  }
-
-                  // Store available units (include any unitXName fields plus unitType)
-                  if (selectedItem) {
-                    const unitFields = [
-                      "unit1Name",
-                      "unit2Name",
-                      "unit3Name",
-                      "unit4Name",
-                      "unit5Name",
-                      "unitType",
-                    ];
-                    const unitSet = new Set<string>();
-                    unitFields.forEach((field) => {
-                      const value = (selectedItem as any)[field];
-                      if (value) {
-                        unitSet.add(value);
-                      }
-                    });
-
-                    const rawUnitData =
-                      (selectedItem as any)?.unit_data ??
-                      (selectedItem as any)?.unitData ??
-                      null;
-                    if (rawUnitData) {
-                      try {
-                        const parsed =
-                          typeof rawUnitData === "string"
-                            ? JSON.parse(rawUnitData)
-                            : rawUnitData;
-                        if (Array.isArray(parsed)) {
-                          parsed.forEach((unitEntry: any) => {
-                            const unitName = unitEntry?.name;
-                            if (unitName) {
-                              unitSet.add(String(unitName));
-                            }
-                          });
-                        }
-                      } catch (err) {
-                        // Ignore unit parsing errors and fall back to default unit handling
-                      }
-                    }
-
-                    const units = Array.from(unitSet).map((unit) => ({
-                      label: unit,
-                      value: unit,
-                    }));
-                    setAvailableUnits(units);
-
-                    const selectedItemUnitType =
-                      selectedItem.unitType !== undefined &&
-                      selectedItem.unitType !== null
-                        ? String(selectedItem.unitType)
-                        : "";
-
-                    const preferredUnit =
-                      (selectedItemUnitType &&
-                        units.some(
-                          (u) => String(u.value) === selectedItemUnitType,
-                        ) &&
-                        selectedItemUnitType) ||
-                      (units.length > 0 ? String(units[0].value) : "");
-
-                    setSelectedItemUnit(preferredUnit);
-                    form.setFieldsValue({
-                      unit: preferredUnit || undefined,
-                    });
-                  } else {
-                    setAvailableUnits([]);
-                    setSelectedItemUnit("");
-                  }
-
-                  const unitPrice =
-                    (selectedItem as any)?.unitPrice ??
-                    (selectedItem as any)?.unit_price;
-                  setSelectedItemUnitPrice(
-                    unitPrice !== undefined && unitPrice !== null
-                      ? String(unitPrice)
-                      : "",
-                  );
-
-                  // Use COGS GL account from the selected item when provided
-                  const cogsGlAccountId =
-                    getCogsGlAccountIdFromItem(selectedItem);
-                  setSelectedItemGlAccountId(cogsGlAccountId);
-
-                  // GL account selection is now handled by the useEffect
-                  // to ensure proper fallback logic for Hikmat items
-                }
-              }}
-              onChange={(input) => {
-                // Update the search value state which will trigger local filtering
-                setBarangSearchValue(input);
-                form.setFieldsValue({ barang: input });
-                resetJumlahAndUnit();
-
-                // If input is empty, reset akun penyesuaian field and units
-                if (!input) {
-                  setIsAkunPenyesuaianDisabled(false);
-                  setSelectedItemUnit("");
-                  setAvailableUnits([]);
-                  setSelectedItemSource("");
-                  setSelectedItemGlAccountId(null);
-                  setSelectedItemUnitPrice("");
-                }
-              }}
-            />
-          </Form.Item>}
+          {((miniProductsQuery.isError && !miniProductsQuery.data) ||
+            (productsQuery.isError && !productsQuery.data)) && (
+            <div style={{ gridColumn: "1 / span 2" }}>
+              <Typography.Text type="danger">
+                {miniProductsQuery.isError && !miniProductsQuery.data
+                  ? "Katalog Mini Warehouse belum bisa dimuat."
+                  : "Daftar barang Accurate belum bisa dimuat."}
+              </Typography.Text>
+              <Button type="link" onClick={() => {
+                if (miniProductsQuery.isError) void miniProductsQuery.refetch();
+                if (productsQuery.isError) void productsQuery.refetch();
+              }}>
+                Coba lagi
+              </Button>
+            </div>
+          )}
           <Form.Item
             label="Jumlah & Unit"
             style={{ marginBottom: 16, gridColumn: "1 / span 2" }}
@@ -1190,7 +1080,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
             type="primary"
             htmlType="submit"
             block
-            disabled={!formValid || isSubmittingRequest || !isPOSelected}
+            disabled={!formValid || isSubmittingRequest || !isPOSelected || !selectedEntry || !miniProductsQuery.data}
             loading={isSubmittingRequest}
           >
             Submit
