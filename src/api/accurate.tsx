@@ -137,9 +137,9 @@ export const rejectRequest = async (id: string) => {
   return data;
 };
 
-export const markRequestDone = async (id: string) => {
+export const markRequestDone = async (id: string, requestLeft?: number) => {
   // Use snake_case for API request payload
-  const { data } = await api.patch(`/request/${id}`, { is_done: true });
+  const { data } = await api.patch(`/request/${id}`, { is_done: true, requestLeft });
   return data;
 };
 

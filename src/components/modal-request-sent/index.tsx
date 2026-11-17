@@ -1323,7 +1323,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     const cabangFilled = Boolean(getCabangValue(record));
     const isPersediaanProduct =
       (record?.type || "").toLowerCase() === "persediaan";
-    const beliSelection = isPersediaanProduct
+    const beliSelection = record.usesMiniWarehouse ? "Tidak" : isPersediaanProduct
       ? DEFAULT_BELI_STATUS
       : getBeliSelection(record);
     const beliSelected = Boolean(beliSelection && beliSelection !== "-");
@@ -1362,12 +1362,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
     if (getResolvedRequestSent(record) === undefined) {
       missing.push("Jumlah Dikirim");
     }
-    if (getResolvedRequestReceived(record) === undefined) {
+    if (!record.usesMiniWarehouse && getResolvedRequestReceived(record) === undefined) {
       missing.push("Terpakai");
     }
-    // if (getResolvedRequestLeft(record) === undefined) {
-    //   missing.push("Sisa Bahan");
-    // }
+    if (record.usesMiniWarehouse && getResolvedRequestLeft(record) === undefined) {
+      missing.push("Sisa Bahan");
+    }
     if (!getWarehouseReturnedValue(record)) {
       missing.push("Kembali ke Gudang");
     }
@@ -1665,8 +1665,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
 
     setMarkingDone(record.id);
     try {
-      await markRequestDone(record.id);
-      message.success("Request marked as done!");
+      await markRequestDone(record.id, record.usesMiniWarehouse ? getResolvedRequestLeft(record) : undefined);
+      message.success(record.usesMiniWarehouse ? "Request selesai. Pemakaian stok Mini Warehouse tercatat." : "Request marked as done!");
       setReopenedIds((prev) => {
         if (!prev.has(record.id)) return prev;
         const next = new Set(prev);
@@ -1825,6 +1825,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         const workflow = getWorkflowState(record);
         const isPersediaanProduct =
           (record?.type || "").toLowerCase() === "persediaan";
+        if (record.usesMiniWarehouse) return <Tag>Mini Warehouse</Tag>;
         const disabled = !isRowUnlocked(record) || !workflow.cabangFilled;
         return (
           <Select
@@ -2198,7 +2199,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
       width: 160,
     },
     {
-      title: "Accurate",
+      title: "Selesaikan",
       key: "done_action",
       width: 100,
       align: "center" as const,
@@ -2231,7 +2232,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         const isEditing = editingTerpakaiId === record.id;
         return (
           <Space size={4}>
-            {!getProductionReceivedValue(record) && (
+            {!getProductionReceivedValue(record) && !(record.usesMiniWarehouse && !isRowUnlocked(record)) && (
               <Tooltip title={isEditing ? "Editing" : "Edit"}>
                 <Button
                   type="text"
@@ -2260,7 +2261,7 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
                 }}
               />
             </Tooltip>
-            {isSuperAdmin() && (
+            {isSuperAdmin() && !(record.usesMiniWarehouse && !isRowUnlocked(record)) && (
               <Button
                 type="text"
                 size="small"

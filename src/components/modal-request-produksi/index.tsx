@@ -649,7 +649,7 @@ const ModalRequestProduksi: React.FC<ModalRequestProduksiProps> = ({
             <Button
               type="text"
               icon={<EditOutlined />}
-              disabled={!isDone}
+              disabled={!isDone || record.usesMiniWarehouse}
               loading={unlockingId === record.id}
               onClick={() => handleUnlockRequest(record)}
             />

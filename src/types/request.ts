@@ -49,6 +49,7 @@ export interface RequestItem {
   // Support both naming conventions during transition
   is_rejected?: boolean;
   isRejected?: boolean;
+  usesMiniWarehouse?: boolean;
   is_done?: boolean;
   isDone?: boolean;
   satuan?: string;

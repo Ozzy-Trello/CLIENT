@@ -1,4 +1,5 @@
 import { getAllAdjustmentItems, submitRequest } from "@api/accurate";
+import { getMiniWarehouseRequestProducts } from "@api/mini-warehouse";
 import { searchCards } from "@api/card";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import {
@@ -149,6 +150,14 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     React.useState<boolean>(false);
   const [barangSearchValue, setBarangSearchValue] = React.useState<string>("");
   const [cardSearchValue, setCardSearchValue] = React.useState<string>("");
+  const [stockSource, setStockSource] = React.useState<"accurate" | "mini_warehouse">("accurate");
+  const isMiniWarehouse = stockSource === "mini_warehouse";
+  const miniProductsQuery = useQuery({
+    queryKey: ["mini-warehouse-request-products"],
+    queryFn: getMiniWarehouseRequestProducts,
+    enabled: open && isMiniWarehouse,
+  });
+  const miniProducts = miniProductsQuery.data ?? [];
   const [selectedItemUnit, setSelectedItemUnit] = React.useState<string>("");
   const [availableUnits, setAvailableUnits] = React.useState<
     { label: string; value: string }[]
@@ -185,12 +194,12 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       {
         queryKey: ["items", "ozzy-products"],
         queryFn: () => getCombinedOzzyProducts(),
-        enabled: open,
+        enabled: open && !isMiniWarehouse,
       },
       {
         queryKey: ["glaccounts", selectedItemSource],
         queryFn: () => getAllAdjustmentItems(selectedItemSource),
-        enabled: open && !!selectedItemSource, // Only run when modal is open and source is selected
+        enabled: open && !isMiniWarehouse && !!selectedItemSource, // Only run when modal is open and source is selected
       },
     ],
   });
@@ -344,6 +353,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
       : items;
 
     const actionFilteredItems = filteredItems.filter((item) => {
+      if (item.itemTypeName?.trim().toLowerCase() === "non persediaan") return false;
       if (!shouldRestrictToHikmat) {
         return true;
       }
@@ -408,13 +418,15 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
 
   // Monitor form values to determine if the form is valid
   const formValues = Form.useWatch([], form);
+  const miniProductId = Form.useWatch("miniWarehouseProduct", form);
+  const miniProduct = miniProducts.find((product) => product.id === miniProductId);
 
   React.useEffect(() => {
     form
       .validateFields({ validateOnly: true })
       .then(() => setFormValid(true))
       .catch(() => setFormValid(false));
-  }, [formValues]);
+  }, [form, formValues, stockSource]);
 
   // Set akun penyesuaian when GL accounts are loaded and we have a selected item
   React.useEffect(() => {
@@ -692,7 +704,12 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         (user) => user.value === values.requestBy,
       );
 
-      const requestedItemId = selectedProduct?.sku;
+      if (isMiniWarehouse ? !miniProduct : !selectedProduct?.sku) {
+        message.warning("Pilih barang dari daftar.");
+        return;
+      }
+      const stockProduct = isMiniWarehouse ? miniProduct : undefined;
+      const requestedItemId = stockProduct?.itemCode ?? selectedProduct?.sku;
 
       const normalizeQuantityInput = (raw?: string | number | null) => {
         if (raw === undefined || raw === null) return 0;
@@ -720,27 +737,29 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         request_amount: sanitizedAmount,
         adjustment_no: finalAdjustmentNo,
         description: values.description,
-        item_name: selectedProduct?.name || item?.label || values.barang,
-        item_type_name: selectedProduct?.itemTypeName || undefined,
-        accurate_id: selectedProduct?.accurateId || undefined,
-        accurate_db_id: selectedProduct?.accurateDbId || undefined,
+        stock_source: stockSource,
+        item_name: stockProduct?.itemName ?? (selectedProduct?.name || item?.label || values.barang),
+        item_type_name: stockProduct ? "Non Persediaan" : selectedProduct?.itemTypeName,
+        accurate_id: stockProduct?.accurateId ?? selectedProduct?.accurateId,
+        accurate_db_id: stockProduct?.accurateDbId ?? selectedProduct?.accurateDbId,
         adjustment_name: finalAdjustmentName,
         satuan: selectedItemUnit || "", // Add the selected unit (satuan) to the payload
-        source: selectedItemSource || "", // Add the source field to the payload
+        source: stockProduct?.source ?? selectedItemSource, // Add the source field to the payload
         type: null,
         received_by: selectedUser ? selectedUser.value : "", // Use UUID for received_by
         received_by_name: selectedUser ? selectedUser.username : "", // Add received_by_name field
-        unit_price: selectedItemUnitPrice
+        unit_price: !stockProduct && selectedItemUnitPrice
           ? Number(selectedItemUnitPrice)
           : undefined,
       };
       await submitRequest(payload);
-      message.success("Request submitted successfully");
+      message.success("Request berhasil dibuat.");
       await form.resetFields();
       setSelectedCardId(null);
       onClose();
     } catch (err) {
-      message.error("Failed to submit request");
+      const error = err as { response?: { data?: { message?: string } } };
+      message.error(error.response?.data?.message || "Gagal membuat request.");
     } finally {
       setIsSubmittingRequest(false);
     }
@@ -751,6 +770,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
     if (!open) {
       form.resetFields();
       setFormValid(false);
+      setStockSource("accurate");
       setIsAkunPenyesuaianDisabled(false);
       setSelectedItemUnit("");
       setAvailableUnits([]);
@@ -847,7 +867,53 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
               ))}
             </Select>
           </Form.Item>
-          <Form.Item
+          <Form.Item label="Jenis barang" style={{ gridColumn: "1 / span 2" }}>
+            <Select
+              value={stockSource}
+              options={[
+                { value: "accurate", label: "Persediaan (Accurate)" },
+                { value: "mini_warehouse", label: "Non Persediaan (Mini Warehouse)" },
+              ]}
+              onChange={(value) => {
+                setStockSource(value);
+                form.setFieldsValue({ barang: undefined, miniWarehouseProduct: undefined, akunPenyesuaian: undefined });
+                resetJumlahAndUnit();
+                setAvailableUnits([]);
+                setBarangSearchValue("");
+                setSelectedItemSource("");
+                setSelectedItemGlAccountId(null);
+                setSelectedItemUnitPrice("");
+              }}
+            />
+          </Form.Item>
+          {isMiniWarehouse ? (
+            <Form.Item
+              name="miniWarehouseProduct"
+              label="Barang Mini Warehouse"
+              rules={[{ required: true, message: "Pilih barang Mini Warehouse." }]}
+              extra={miniProduct ? `Stok tersedia: ${miniProduct.availableQuantity.toLocaleString("id-ID")} ${miniProduct.unitType || "unit"}` : undefined}
+              style={{ gridColumn: "1 / span 2" }}
+            >
+              <Select
+                showSearch
+                optionFilterProp="label"
+                disabled={!isPOSelected}
+                loading={miniProductsQuery.isFetching}
+                placeholder="Cari nama atau kode barang"
+                notFoundContent={miniProductsQuery.isError ? "Gagal memuat katalog Mini Warehouse." : "Barang tidak ditemukan."}
+                options={miniProducts.map((product) => ({
+                  value: product.id,
+                  label: `${product.itemName} · ${product.itemCode} (${product.source})`,
+                }))}
+                onChange={(id) => {
+                  const unit = miniProducts.find((product) => product.id === id)?.unitType || "unit";
+                  form.setFieldsValue({ unit, jumlah: "" });
+                  setAvailableUnits([{ label: unit, value: unit }]);
+                  setSelectedItemUnit(unit);
+                }}
+              />
+            </Form.Item>
+          ) : <Form.Item
             name="barang"
             label="Barang"
             rules={[{ required: true }]}
@@ -983,7 +1049,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                 }
               }}
             />
-          </Form.Item>
+          </Form.Item>}
           <Form.Item
             label="Jumlah & Unit"
             style={{ marginBottom: 16, gridColumn: "1 / span 2" }}
@@ -1038,7 +1104,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                 ]}
               >
                 <Select
-                  disabled={!isPOSelected || availableUnits.length === 0}
+                  disabled={isMiniWarehouse || !isPOSelected || availableUnits.length === 0}
                   value={selectedItemUnit || undefined}
                   placeholder="Unit"
                   onChange={(value) => setSelectedItemUnit(value)}
@@ -1054,7 +1120,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
               </Form.Item>
             </div>
           </Form.Item>
-          <Form.Item
+          {!isMiniWarehouse && <Form.Item
             name="akunPenyesuaian"
             label="Akun Penyesuaian"
             rules={[]}
@@ -1082,7 +1148,7 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
                 }
               }}
             />
-          </Form.Item>
+          </Form.Item>}
           <Form.Item
             name="requestBy"
             label="Request By"

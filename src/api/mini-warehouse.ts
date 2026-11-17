@@ -1,5 +1,21 @@
 import { api } from ".";
 
+export interface MiniWarehouseRequestProduct {
+  id: string;
+  accurateDbId: string;
+  accurateId: string;
+  itemName: string;
+  itemCode: string;
+  source: string;
+  unitType: string | null;
+  availableQuantity: number;
+}
+
+export const getMiniWarehouseRequestProducts = async (): Promise<MiniWarehouseRequestProduct[]> => {
+  const { data } = await api.get("/request/mini-warehouse-products");
+  return data.data;
+};
+
 export const getMiniWarehouseStock = async () => {
   const { data } = await api.get("/warehouse/mini-stock");
   return data.data;

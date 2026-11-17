@@ -94,7 +94,8 @@ const ModalListRequest: React.FC<ModalListRequestProps> = ({
       await verifyMutation.mutateAsync(id);
       message.success("Request verified!");
     } catch (err) {
-      message.error("Failed to verify request");
+      const error = err as { response?: { data?: { message?: string } } };
+      message.error(error.response?.data?.message || "Gagal menyetujui request.");
     }
   };
 
