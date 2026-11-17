@@ -36,6 +36,7 @@ import {
   MonitorSmartphone,
   ClipboardList,
   Truck,
+  Warehouse,
 } from "lucide-react";
 import { Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import dynamic from "next/dynamic";
@@ -295,6 +296,16 @@ const Sidebar = () => {
           </Link>
         ),
         icon: <Layers size={16} />,
+      });
+
+      menus.push({
+        key: `/workspace/${resolvedWorkspaceId}/mini-warehouse`,
+        label: (
+          <Link className="block w-full" href={`/workspace/${resolvedWorkspaceId}/mini-warehouse`}>
+            Mini Warehouse
+          </Link>
+        ),
+        icon: <Warehouse size={16} />,
       });
 
       menus.push({
@@ -561,6 +572,7 @@ const Sidebar = () => {
       "board",
       "members",
       "materials",
+      "mini-warehouse",
       "cek-ongkir",
       "roles",
       "custom-fields",
