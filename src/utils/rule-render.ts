@@ -30,6 +30,7 @@ const TELEGRAM_CHANNEL_NAMES: Record<string, string> = {
   "-1003747828848": "HR Ozzy Group",
   "-1003866293253": "Customer Care - Ozzy Clothing",
   "-1003673007441": "Finishing - PT MPI",
+  "-1003761505750": "Mekanik - PT MPI",
   "-1003659623498": "Warehouse Bahan - MPI",
   "-1003803710634": "Progress Outlet - Produksi",
   "-1003844846249": "Knitting Krah Manset - KUI",
