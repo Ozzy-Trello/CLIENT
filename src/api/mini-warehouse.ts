@@ -1,13 +1,29 @@
 import { api } from ".";
 
-export interface MiniWarehouseRequestProduct {
+export interface MiniWarehouseCatalogItem {
   id: string;
   accurateDbId: string;
   accurateId: string;
   itemName: string;
-  itemCode: string;
+  itemCode: string | null;
   source: string;
   unitType: string | null;
+}
+
+export interface MiniWarehouseRequestProduct extends MiniWarehouseCatalogItem {
+  itemCode: string;
+  availableQuantity: number;
+}
+
+export interface MiniWarehouseStockBalance {
+  id: string;
+  accurateDbId: string;
+  accurateId: string;
+  itemName: string;
+  itemCode: string | null;
+  unitType: string;
+  quantity: string;
+  reservedQuantity: number;
   availableQuantity: number;
 }
 
@@ -16,12 +32,12 @@ export const getMiniWarehouseRequestProducts = async (): Promise<MiniWarehouseRe
   return data.data;
 };
 
-export const getMiniWarehouseStock = async () => {
+export const getMiniWarehouseStock = async (): Promise<MiniWarehouseStockBalance[]> => {
   const { data } = await api.get("/warehouse/mini-stock");
   return data.data;
 };
 
-export const getMiniWarehouseCatalog = async (sync = false) => {
+export const getMiniWarehouseCatalog = async (sync = false): Promise<MiniWarehouseCatalogItem[]> => {
   const { data } = await api.get("/warehouse/mini-catalog", { params: { sync } });
   return data.data;
 };

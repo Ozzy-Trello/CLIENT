@@ -15,9 +15,18 @@ import {
   completeMiniWarehouseStocktake,
   cancelMiniWarehouseStocktake,
 } from "@api/mini-warehouse";
+import type { MiniWarehouseStockBalance } from "@api/mini-warehouse";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Card, Form, Input, InputNumber, message, Modal, Select, Space, Table, Tabs, Tag, Typography } from "antd";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+
+type StockRow = Omit<MiniWarehouseStockBalance, "id" | "quantity"> & {
+  quantity: string | null;
+  source?: string;
+};
+
+const productKey = (row: { accurateDbId: string; accurateId: string }) =>
+  `${row.accurateDbId}:${row.accurateId}`;
 
 const labelQuantity = (value: number | string | null | undefined) => Number(value || 0).toLocaleString("id-ID", { maximumFractionDigits: 4 });
 
@@ -27,13 +36,42 @@ export default function MiniWarehousePage() {
   const [fulfillmentForm] = Form.useForm();
   const [leftoverForm] = Form.useForm();
   const [stockModalOpen, setStockModalOpen] = useState(false);
+  const [stockSearch, setStockSearch] = useState("");
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [reportingRequest, setReportingRequest] = useState<any>(null);
   const stockQuery = useQuery({ queryKey: ["mini-warehouse-stock"], queryFn: getMiniWarehouseStock });
   const requestQuery = useQuery({ queryKey: ["mini-warehouse-requests"], queryFn: getStockRequestItems });
   const catalogQuery = useQuery({ queryKey: ["mini-warehouse-accurate-items"], queryFn: () => getMiniWarehouseCatalog() });
   const stocktakeQuery = useQuery({ queryKey: ["mini-warehouse-stocktake"], queryFn: getMiniWarehouseStocktake });
-  const catalog = Array.isArray(catalogQuery.data) ? catalogQuery.data : [];
+  const catalog = catalogQuery.data ?? [];
+  const stockRows = useMemo(() => {
+    const rows = new Map<string, StockRow>();
+    for (const balance of stockQuery.data ?? []) {
+      rows.set(productKey(balance), balance);
+    }
+    for (const item of catalogQuery.data ?? []) {
+      const key = productKey(item);
+      const balance = rows.get(key);
+      rows.set(key, {
+        accurateDbId: item.accurateDbId,
+        accurateId: item.accurateId,
+        itemName: item.itemName,
+        itemCode: item.itemCode ?? balance?.itemCode ?? null,
+        unitType: balance?.unitType ?? item.unitType ?? "unit",
+        source: item.source,
+        quantity: balance?.quantity ?? null,
+        reservedQuantity: balance?.reservedQuantity ?? 0,
+        availableQuantity: balance?.availableQuantity ?? 0,
+      });
+    }
+    return Array.from(rows.values()).sort((a, b) => a.itemName.localeCompare(b.itemName, "id"));
+  }, [catalogQuery.data, stockQuery.data]);
+  const stockSearchTerm = stockSearch.trim().toLowerCase();
+  const visibleStockRows = stockRows.filter((row) =>
+    [row.itemName, row.itemCode, row.source].some((value) =>
+      value?.toLowerCase().includes(stockSearchTerm),
+    ),
+  );
   const stocktake = stocktakeQuery.data;
   const locked = Boolean(stocktake?.locked);
   const refreshData = async () => Promise.all([
@@ -45,7 +83,18 @@ export default function MiniWarehousePage() {
   const fulfillMutation = useMutation({ mutationFn: (values: any) => fulfillStockRequestItem(selectedRequest.id, values.source, values.quantity), onSuccess: async () => { message.success("Sumber pemenuhan disimpan"); setSelectedRequest(null); await refreshData(); }, onError: (error: any) => message.error(error?.response?.data?.error || "Gagal memproses permintaan") });
   const leftoverMutation = useMutation({ mutationFn: (values: any) => reportStockRequestLeftover(reportingRequest.id, values.leftoverQuantity), onSuccess: async () => { message.success("Sisa bahan dicatat"); setReportingRequest(null); await refreshData(); }, onError: (error: any) => message.error(error?.response?.data?.error || "Gagal mencatat sisa bahan") });
   const cancelMutation = useMutation({ mutationFn: cancelStockRequestItem, onSuccess: async () => { message.success("Permintaan dibatalkan"); await refreshData(); }, onError: (error: any) => message.error(error?.response?.data?.error || "Permintaan tidak dapat dibatalkan") });
-  const syncCatalogMutation = useMutation({ mutationFn: syncMiniWarehouseCatalog, onSuccess: async () => { message.success("Master barang Accurate diperbarui"); await queryClient.invalidateQueries({ queryKey: ["mini-warehouse-accurate-items"] }); }, onError: (error: any) => message.error(error?.response?.data?.error || "Gagal menyinkronkan Accurate") });
+  const syncCatalogMutation = useMutation({
+    mutationFn: syncMiniWarehouseCatalog,
+    onSuccess: async (items) => {
+      queryClient.setQueryData(["mini-warehouse-accurate-items"], items);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["mini-warehouse-stock"] }),
+        queryClient.invalidateQueries({ queryKey: ["mini-warehouse-request-products"] }),
+      ]);
+      message.success(`${items.length} barang Non Persediaan dari Accurate tersedia di katalog.`);
+    },
+    onError: (error: any) => message.error(error?.response?.data?.error || "Gagal menyinkronkan Accurate"),
+  });
   const startStocktakeMutation = useMutation({ mutationFn: startMiniWarehouseStocktake, onSuccess: async () => { message.success("Stok opname dimulai. Mutasi stok dikunci."); await refreshData(); }, onError: (error: any) => message.error(error?.response?.data?.error || "Gagal memulai stok opname") });
   const countStocktakeMutation = useMutation({ mutationFn: ({ id, quantity }: any) => countMiniWarehouseStocktakeItem(id, quantity), onSuccess: refreshData, onError: (error: any) => message.error(error?.response?.data?.error || "Gagal menyimpan hasil hitung") });
   const completeStocktakeMutation = useMutation({ mutationFn: completeMiniWarehouseStocktake, onSuccess: async () => { message.success("Stok opname selesai dan saldo disesuaikan"); await refreshData(); }, onError: (error: any) => message.error(error?.response?.data?.error || "Belum semua barang dihitung atau ada stok yang direservasi") });
@@ -55,7 +104,15 @@ export default function MiniWarehousePage() {
     { title: "Nama barang", dataIndex: "itemName", key: "itemName" },
     { title: "Kode", dataIndex: "itemCode", key: "itemCode", render: (value: string | null) => value || "—" },
     { title: "Unit", dataIndex: "unitType", key: "unitType" },
-    { title: "Saldo fisik", dataIndex: "quantity", key: "quantity", align: "right" as const, render: labelQuantity },
+    {
+      title: "Saldo fisik",
+      dataIndex: "quantity",
+      key: "quantity",
+      align: "right" as const,
+      render: (quantity: StockRow["quantity"]) => quantity === null
+        ? <Typography.Text type="secondary">Belum input stok</Typography.Text>
+        : labelQuantity(quantity),
+    },
     { title: "Direservasi", dataIndex: "reservedQuantity", key: "reservedQuantity", align: "right" as const, render: labelQuantity },
     { title: "Tersedia", dataIndex: "availableQuantity", key: "availableQuantity", align: "right" as const, render: labelQuantity },
   ];
@@ -75,7 +132,55 @@ export default function MiniWarehousePage() {
       <div><Typography.Title level={3} style={{ marginBottom: 4 }}>Mini Warehouse</Typography.Title><Typography.Text type="secondary">Saldo portal untuk barang Non Persediaan dari Accurate.</Typography.Text></div>
       <Alert type={locked ? "warning" : "info"} showIcon message={locked ? "Stok opname sedang berjalan. Semua mutasi stok dan pemenuhan request dikunci." : "Saldo di halaman ini disimpan di portal dan tidak mengubah stok di Accurate."} />
       <Tabs items={[
-        { key: "stock", label: "Saldo stok", children: <Card title="Stok Mini Warehouse" extra={<Space><Button loading={syncCatalogMutation.isPending} onClick={() => syncCatalogMutation.mutate()}>Sinkronkan barang Accurate</Button><Button type="primary" disabled={locked} onClick={() => { stockForm.resetFields(); setStockModalOpen(true); }}>Input stok</Button></Space>}><Table rowKey={(row: any) => `${row.accurateDbId}:${row.accurateId}`} loading={stockQuery.isLoading} columns={stockColumns as any} dataSource={stockQuery.data || []} pagination={{ pageSize: 20 }} scroll={{ x: 760 }} /></Card> },
+        {
+          key: "stock",
+          label: "Saldo stok",
+          children: (
+            <Card
+              title="Stok Mini Warehouse"
+              extra={
+                <Space wrap>
+                  <Button
+                    loading={syncCatalogMutation.isPending}
+                    disabled={catalogQuery.isFetching}
+                    onClick={() => syncCatalogMutation.mutate()}
+                  >
+                    Sinkronkan barang Accurate
+                  </Button>
+                  <Button type="primary" disabled={locked} onClick={() => { stockForm.resetFields(); setStockModalOpen(true); }}>
+                    Input stok
+                  </Button>
+                </Space>
+              }
+            >
+              <Space direction="vertical" style={{ width: "100%" }}>
+                {catalogQuery.isError && !catalogQuery.data && (
+                  <Alert type="error" showIcon message="Katalog barang Accurate belum bisa dimuat." />
+                )}
+                {stockQuery.isError && !stockQuery.data && (
+                  <Alert type="error" showIcon message="Saldo stok belum bisa dimuat." />
+                )}
+                <Input
+                  allowClear
+                  aria-label="Cari barang Mini Warehouse"
+                  placeholder="Cari nama atau kode barang"
+                  value={stockSearch}
+                  onChange={(event) => setStockSearch(event.target.value)}
+                  style={{ maxWidth: 320 }}
+                />
+                <Table<StockRow>
+                  rowKey={productKey}
+                  loading={stockQuery.isLoading || catalogQuery.isLoading}
+                  columns={stockColumns}
+                  dataSource={stockQuery.data ? visibleStockRows : []}
+                  pagination={{ pageSize: 20 }}
+                  scroll={{ x: 760 }}
+                  locale={{ emptyText: "Barang tidak ditemukan." }}
+                />
+              </Space>
+            </Card>
+          ),
+        },
         { key: "requests", label: "Permintaan stok", children: <Card title="Permintaan barang" extra={<Typography.Text type="secondary">Request dibuat dari tombol utama “Buat Request”</Typography.Text>}><Table rowKey="id" loading={requestQuery.isLoading} columns={requestColumns as any} dataSource={requestQuery.data || []} pagination={{ pageSize: 20 }} scroll={{ x: 950 }} locale={{ emptyText: "Belum ada permintaan barang Non Persediaan yang terhubung." }} /></Card> },
         { key: "stocktake", label: locked ? "Stok opname · Terkunci" : "Stok opname", children: <Card title="Stok opname Mini Warehouse" extra={locked ? <Space><Button danger loading={cancelStocktakeMutation.isPending} onClick={() => cancelStocktakeMutation.mutate()}>Batalkan tanpa penyesuaian</Button><Button type="primary" danger loading={completeStocktakeMutation.isPending} onClick={() => completeStocktakeMutation.mutate()}>Selesaikan & sesuaikan saldo</Button></Space> : <Button type="primary" onClick={() => startStocktakeMutation.mutate(undefined)}>Mulai stok opname</Button>}>
           <Typography.Paragraph type="secondary">Saat dimulai, saldo dan pemenuhan request dikunci. Hitung fisik tiap barang lalu selesaikan opname untuk mencatat selisih ke ledger.</Typography.Paragraph>
@@ -85,11 +190,11 @@ export default function MiniWarehousePage() {
     </Space>
     <Modal title="Input saldo stok" open={stockModalOpen} onCancel={() => setStockModalOpen(false)} onOk={() => stockForm.submit()} confirmLoading={movementMutation.isPending} okText="Simpan saldo">
       <Form form={stockForm} layout="vertical" onFinish={(values) => {
-        const item = catalog.find((entry: any) => `${entry.accurateDbId}:${entry.accurateId}` === values.productKey);
+        const item = catalog.find((entry) => productKey(entry) === values.productKey);
         if (!item) return message.error("Pilih barang Accurate yang valid");
         movementMutation.mutate({ accurateDbId: Number(item.accurateDbId), accurateId: Number(item.accurateId), itemName: item.itemName, itemCode: item.itemCode || undefined, unitType: item.unitType || "unit", quantity: values.quantity, movementType: values.movementType, note: values.note });
       }}>
-        <Form.Item name="productKey" label="Barang Accurate · Non Persediaan" rules={[{ required: true }]}><Select showSearch optionFilterProp="label" loading={catalogQuery.isLoading} options={catalog.map((item: any) => ({ value: `${item.accurateDbId}:${item.accurateId}`, label: `${item.itemCode || "Tanpa kode"} · ${item.itemName} (${item.source})` }))} /></Form.Item>
+        <Form.Item name="productKey" label="Barang Accurate · Non Persediaan" rules={[{ required: true }]}><Select showSearch optionFilterProp="label" loading={catalogQuery.isLoading} options={catalog.map((item) => ({ value: productKey(item), label: `${item.itemCode || "Tanpa kode"} · ${item.itemName} (${item.source})` }))} /></Form.Item>
         <Form.Item name="movementType" label="Jenis input" initialValue="opening" rules={[{ required: true }]}><Select options={[{ value: "opening", label: "Stok awal" }, { value: "addition", label: "Penambahan stok" }]} /></Form.Item>
         <Form.Item name="quantity" label="Jumlah" rules={[{ required: true }]}><InputNumber min={0.0001} precision={4} style={{ width: "100%" }} /></Form.Item>
         <Form.Item name="note" label="Catatan"><Input maxLength={500} /></Form.Item>
