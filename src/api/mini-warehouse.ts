@@ -5,6 +5,38 @@ export const getMiniWarehouseStock = async () => {
   return data.data;
 };
 
+export const getMiniWarehouseCatalog = async (sync = false) => {
+  const { data } = await api.get("/warehouse/mini-catalog", { params: { sync } });
+  return data.data;
+};
+
+export const getMiniWarehouseStocktake = async () => {
+  const { data } = await api.get("/warehouse/stocktake");
+  return data.data;
+};
+
+export const startMiniWarehouseStocktake = async (notes?: string) => {
+  const { data } = await api.post("/warehouse/stocktake", { notes });
+  return data.data;
+};
+
+export const countMiniWarehouseStocktakeItem = async (id: string, countedQuantity: number) => {
+  const { data } = await api.patch(`/warehouse/stocktake/items/${id}`, { countedQuantity });
+  return data.data;
+};
+
+export const completeMiniWarehouseStocktake = async () => {
+  const { data } = await api.post("/warehouse/stocktake/complete");
+  return data.data;
+};
+
+export const cancelMiniWarehouseStocktake = async () => {
+  const { data } = await api.post("/warehouse/stocktake/cancel");
+  return data.data;
+};
+
+export const syncMiniWarehouseCatalog = async () => getMiniWarehouseCatalog(true);
+
 export const getStockRequestItems = async () => {
   const { data } = await api.get("/warehouse/stock-request-items", { params: { page: 1, limit: 200 } });
   return data.data;

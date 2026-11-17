@@ -721,6 +721,9 @@ const ModalRequest: React.FC<ModalRequestProps> = ({ open, onClose }) => {
         adjustment_no: finalAdjustmentNo,
         description: values.description,
         item_name: selectedProduct?.name || item?.label || values.barang,
+        item_type_name: selectedProduct?.itemTypeName || undefined,
+        accurate_id: selectedProduct?.accurateId || undefined,
+        accurate_db_id: selectedProduct?.accurateDbId || undefined,
         adjustment_name: finalAdjustmentName,
         satuan: selectedItemUnit || "", // Add the selected unit (satuan) to the payload
         source: selectedItemSource || "", // Add the source field to the payload
