@@ -2388,7 +2388,7 @@ const CardDetails: React.FC = (props) => {
             onUploadComplete={handlePOUpload}
             title="Upload File PO"
             acceptableExtensions=".pdf,.jpg,.jpeg,.png"
-            maxSize={10 * 1024 * 1024}
+            maxSize={50 * 1024 * 1024}
             multiple
             cardId={selectedCard?.id}
             attachmentType={EnumCardAttachmentType.PO}

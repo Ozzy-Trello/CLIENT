@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons';
 import { uploadFile } from '@api/file';
 import { FileUpload } from '@myTypes/file-upload';
+import { EnumCardAttachmentType } from '@myTypes/card';
 import { getFileIcon } from '@utils/file';
 
 // file type configurations
@@ -147,11 +148,10 @@ const UploadModal: React.FC<UploadModalProps> = ({
   }, [selectedFiles]);
 
   const validateFile = (file: File): boolean => {
-    // Check file size
-    // if (file.size > fileTypeConfig.maxSize) {
-    //   message.error(`File size exceeds ${fileTypeConfig.maxSize / 1024 / 1024}MB limit`);
-    //   return false;
-    // }
+    if (attachmentType === EnumCardAttachmentType.PO && file.size > fileTypeConfig.maxSize) {
+      message.error(`File size exceeds ${fileTypeConfig.maxSize / 1024 / 1024} MB limit`);
+      return false;
+    }
 
     // Skip file type validation if accept is '*'
     if (fileTypeConfig.accept === '*') {
