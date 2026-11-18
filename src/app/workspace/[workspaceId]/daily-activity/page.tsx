@@ -44,7 +44,7 @@ import { CloseOutlined, PaperClipOutlined } from "@ant-design/icons";
 import { Alert, Button, Checkbox, DatePicker, Image, Input, Modal, Popconfirm, Select, Spin, Table, Tag, TimePicker, Typography, message } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { usePermissions } from "@hooks/account";
 import { useCurrentAccount } from "@hooks/account";
 import { useDispatch } from "react-redux";
@@ -95,10 +95,12 @@ const referenceCardHref = (reference: any, fallbackWorkspaceId: string) => {
 export default function DailyActivityPage() {
   const routeParams = useParams<{ workspaceId: string }>();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const workspaceId = routeParams.workspaceId;
-  const notificationReportId = searchParams.get("reportId");
-  const notificationItemId = searchParams.get("itemId");
-  const [tab, setTab] = useState<DailyActivityTab>("mine");
+  const dailyActivityPath = `/workspace/${workspaceId}/daily-activity`;
+  const linkedReportId = searchParams.get("reportId");
+  const linkedItemId = searchParams.get("itemId");
+  const [tab, setTab] = useState<DailyActivityTab>(linkedReportId ? "team" : "mine");
   const [settingsSection, setSettingsSection] = useState<SettingsSection>("duty");
   const [workDate, setWorkDate] = useState(today());
   const [teamDateRange, setTeamDateRange] = useState<[string, string]>([today(), today()]);
@@ -117,9 +119,9 @@ export default function DailyActivityPage() {
   const [teamUserFilterIds, setTeamUserFilterIds] = useState<string[]>([]);
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(linkedReportId);
   const [selectedTeamDay, setSelectedTeamDay] = useState<DailyActivityDay | null>(null);
-  const [commentItemId, setCommentItemId] = useState<string | null>(null);
+  const [commentItemId, setCommentItemId] = useState<string | null>(linkedReportId ? linkedItemId : null);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [scopeViewerId, setScopeViewerId] = useState<string>();
   const [scopePreview, setScopePreview] = useState<string[]>([]);
@@ -152,6 +154,7 @@ export default function DailyActivityPage() {
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
   const didAutoOpenUnreadComment = useRef(false);
+  const lastPendingReviewId = useRef<string | null>(null);
   const { isSuperAdmin } = usePermissions();
   const accountQuery = useCurrentAccount();
   const currentUserId = accountQuery.data?.data?.id;
@@ -165,8 +168,16 @@ export default function DailyActivityPage() {
   const myLeaveRequestsQuery = useQuery({ queryKey: ["daily-activity-leave-requests", "mine"], queryFn: getMyDailyActivityLeaveRequests, enabled: tab === "mine", refetchInterval: 30_000 });
   const pendingLeaveRequestsQuery = useQuery({ queryKey: ["daily-activity-leave-requests", "inbox"], queryFn: getPendingDailyActivityLeaveRequests, refetchInterval: 30_000 });
   const allLeaveRequestsQuery = useQuery({ queryKey: ["daily-activity-leave-requests", "admin"], queryFn: getAllDailyActivityLeaveRequests, enabled: isAdmin && tab === "leave", refetchInterval: 30_000 });
-  const teamQuery = useQuery({ queryKey: ["daily-activity-reports", teamDateRange], queryFn: () => getDailyActivityReports(teamDateRange[0], teamDateRange[1]), enabled: tab === "team" });
   const detailQuery = useQuery({ queryKey: ["daily-activity-report", selectedReportId], queryFn: () => getDailyActivityReport(selectedReportId!), enabled: !!selectedReportId });
+  const linkedWorkDate = linkedReportId === selectedReportId ? detailQuery.data?.work_date : undefined;
+  const reportsFrom = linkedWorkDate ?? teamDateRange[0];
+  const reportsTo = linkedWorkDate ?? teamDateRange[1];
+  const teamQuery = useQuery({
+    queryKey: ["daily-activity-reports", [reportsFrom, reportsTo]],
+    queryFn: () => getDailyActivityReports(reportsFrom, reportsTo),
+    enabled: tab === "team" && (!linkedReportId || !!linkedWorkDate),
+    refetchOnWindowFocus: "always",
+  });
   const commentsQuery = useQuery({ queryKey: ["daily-activity-item-comments", commentItemId], queryFn: () => getDailyActivityItemComments(commentItemId!), enabled: !!commentItemId });
   const structureQuery = useQuery({ queryKey: ["daily-activity-structure"], queryFn: getDailyActivityStructure, enabled: tab === "structure" });
   const configQuery = useQuery({ queryKey: ["daily-activity-configuration"], queryFn: getDailyActivityConfiguration, enabled: (isAdmin && ["settings", "structure", "calendar"].includes(tab)) || (isHr && tab === "calendar") });
@@ -225,18 +236,23 @@ export default function DailyActivityPage() {
 
   useEffect(() => {
     const review = accessQuery.data?.oldest_pending_review;
-    if (review && !accessQuery.data?.oldest_missed_date) {
-      setTab("team");
-      setSelectedReportId(review.report_id);
-      setTeamDateRange([review.work_date, review.work_date]);
+    if (!review || accessQuery.data?.oldest_missed_date) {
+      lastPendingReviewId.current = null;
+      return;
     }
-  }, [accessQuery.data?.oldest_pending_review?.report_id, accessQuery.data?.oldest_pending_review?.work_date, accessQuery.data?.oldest_missed_date]);
+    if (lastPendingReviewId.current === review.report_id) return;
+    lastPendingReviewId.current = review.report_id;
+    if (linkedReportId) return;
+    setTab("team");
+    setSelectedReportId(review.report_id);
+    setTeamDateRange([review.work_date, review.work_date]);
+  }, [accessQuery.data?.oldest_pending_review, accessQuery.data?.oldest_missed_date, linkedReportId]);
 
   useEffect(() => {
     if (!accessQuery.isSuccess || didAutoOpenUnreadComment.current) return;
     didAutoOpenUnreadComment.current = true;
     const unread = accessQuery.data?.oldest_unread_comment;
-    if (!unread || !currentUserId) return;
+    if (linkedReportId || !unread || !currentUserId) return;
     setCommentItemId(unread.item_id);
     if (unread.owner_id === currentUserId) {
       setTab("mine");
@@ -246,21 +262,28 @@ export default function DailyActivityPage() {
       setSelectedReportId(unread.report_id);
       setTeamDateRange([unread.work_date, unread.work_date]);
     }
-  }, [accessQuery.data, accessQuery.isSuccess, currentUserId]);
+  }, [accessQuery.data, accessQuery.isSuccess, currentUserId, linkedReportId]);
 
   useEffect(() => {
-    if (!notificationReportId || !notificationItemId) return;
+    if (!linkedReportId) return;
     setTab("team");
-    setSelectedReportId(notificationReportId);
-    setCommentItemId(notificationItemId);
-  }, [notificationReportId, notificationItemId]);
+    setSelectedReportId(linkedReportId);
+    setSelectedTeamDay(null);
+    setCommentItemId(linkedItemId);
+  }, [linkedReportId, linkedItemId]);
 
-  useEffect(() => {
-    const workDate = detailQuery.data?.work_date;
-    if (notificationReportId && workDate && (teamDateRange[0] !== workDate || teamDateRange[1] !== workDate)) {
-      setTeamDateRange([workDate, workDate]);
+  const closeReportDetail = () => {
+    setSelectedReportId(null);
+    setSelectedTeamDay(null);
+    setCommentItemId(null);
+    if (linkedReportId) {
+      const nextParams = new URLSearchParams(searchParams.toString());
+      nextParams.delete("reportId");
+      nextParams.delete("itemId");
+      const query = nextParams.toString();
+      router.replace(query ? `${dailyActivityPath}?${query}` : dailyActivityPath, { scroll: false });
     }
-  }, [detailQuery.data?.work_date, notificationReportId, teamDateRange]);
+  };
 
   useEffect(() => {
     if (!configQuery.data) return;
@@ -470,10 +493,7 @@ export default function DailyActivityPage() {
   const cardResults = ((cardSearchQuery.data || []) as Card[]).filter((card) => !card.archive);
   const taskResults: NotulensiSummary[] = taskSearchQuery.data?.data || [];
   const teamRows = teamQuery.data || [];
-  useEffect(() => {
-    const row = selectedReportId ? teamRows.find((item) => item.report_id === selectedReportId) : null;
-    if (row) setSelectedTeamDay(row);
-  }, [selectedReportId, teamRows]);
+  const selectedReportDay = selectedReportId ? teamRows.find((row) => row.report_id === selectedReportId) : undefined;
   const teamDeadline = teamRows.find((row) => row.work_date === teamDateRange[1] && row.deadline_time)?.deadline_time?.slice(0, 5)
     || teamRows.find((row) => row.deadline_time)?.deadline_time?.slice(0, 5)
     || "23:59";
@@ -846,19 +866,21 @@ export default function DailyActivityPage() {
 
       {tab === "team" && (
         <section className="flex flex-col gap-3">
-          {!selectedTeamDay && <section className="rounded-lg border bg-white p-4">
+          {!selectedReportId && !selectedTeamDay && <section className="rounded-lg border bg-white p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><Typography.Title level={4} className="!mb-0">Persetujuan cuti</Typography.Title><Tag>{pendingLeaveRequests.length} menunggu</Tag></div>
             {pendingLeaveRequestsQuery.isLoading ? <Spin /> : pendingLeaveRequestsQuery.isError ? <Alert type="error" showIcon message="Pengajuan cuti gagal dimuat. Coba muat ulang halaman." /> : pendingLeaveRequests.length ? <div className="grid gap-3">{pendingLeaveRequests.map((request) => <article key={request.id} className="rounded border p-3"><div className="flex flex-wrap items-start justify-between gap-3"><div><Typography.Text strong>{request.employee_name}</Typography.Text><Typography.Text type="secondary" className="ml-2">{request.employee_role_name || ""}</Typography.Text><div className="mt-1">{leavePeriod(request.start_date, request.end_date)}</div>{request.note && <Typography.Paragraph className="!mb-0 !mt-2">{request.note}</Typography.Paragraph>}</div><div className="flex gap-2"><Button disabled={decideLeaveMutation.isPending} onClick={() => { setLeaveDecision({ requestId: request.id, decision: "rejected" }); setLeaveDecisionNote(""); }}>Tolak</Button><Button type="primary" disabled={decideLeaveMutation.isPending} onClick={() => { setLeaveDecision({ requestId: request.id, decision: "approved" }); setLeaveDecisionNote(""); }}>Setujui</Button></div></div></article>)}</div> : <Typography.Text type="secondary">Tidak ada pengajuan cuti yang menunggu.</Typography.Text>}
           </section>}
           {teamScopePreviewIds && <Alert type="info" showIcon message={`Simulasi cakupan: ${users.find((user) => user.id === scopeViewerId)?.username || "pengguna"}`} action={<Button size="small" onClick={() => { setTeamScopePreviewIds(null); setScopePreview([]); }}>Akhiri Simulasi</Button>} />}
-          {selectedTeamDay && (
+          {(selectedReportId || selectedTeamDay) && (
             <section className="rounded-xl border border-slate-200 bg-white p-4">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <Button onClick={() => { setSelectedReportId(null); setSelectedTeamDay(null); }}>← Kembali ke Monitoring Tim</Button>
+                <Button onClick={closeReportDetail}>← Kembali ke Monitoring Tim</Button>
                 {detailQuery.data && <Tag color={detailQuery.data.status === "submitted" ? "green" : "gold"}>{detailQuery.data.status === "submitted" ? "Sudah Kirim" : "Draft"}</Tag>}
               </div>
-              {selectedReportId && detailQuery.isLoading ? <Spin /> : selectedReportId && detailQuery.data ? <>
-                <Typography.Title level={4}>{selectedTeamDay.username} · {wibDateLabel(selectedTeamDay.work_date)}</Typography.Title>
+              {selectedReportId && detailQuery.isLoading ? <Spin /> : selectedReportId && detailQuery.isError ? (
+                <Alert type="error" showIcon message="Detail laporan gagal dimuat." />
+              ) : selectedReportId && detailQuery.data ? <>
+                <Typography.Title level={4}>{selectedReportDay?.username || "Laporan Daily Activity"} · {wibDateLabel(detailQuery.data.work_date)}</Typography.Title>
                 {detailQuery.data.activities.map((activity, index) => <article key={activity.id} className="mb-3 rounded-lg border p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0 flex-1"><Typography.Text type="secondary">Aktivitas {index + 1}</Typography.Text><p className="whitespace-pre-wrap">{activity.content}</p></div>{detailQuery.data.status === "submitted" && (detailQuery.data.can_review || detailQuery.data.user_id === currentUserId) && <Button className="shrink-0" size="small" type={commentItemId === activity.id ? "primary" : "default"} onClick={() => setCommentItemId((current) => current === activity.id ? null : activity.id)} aria-expanded={commentItemId === activity.id}>Komentar{activity.comments_count ? ` · ${activity.comments_count}` : ""}{accessQuery.data?.oldest_unread_comment?.item_id === activity.id ? " · Belum Dibaca" : ""}</Button>}</div>{activity.references?.length ? <div className="mt-2">{renderActivityReferences(activity.references, activity.id, false)}</div> : null}{renderCommentPanel(activity.id)}</article>)}
                 {detailQuery.data.history?.length ? <details className="mt-4"><summary>Riwayat laporan</summary><ul>{detailQuery.data.history.map((entry, index) => {
                   const actorName = entry.actor_name?.trim();
@@ -875,8 +897,8 @@ export default function DailyActivityPage() {
                   return <li key={`${entry.created_at}:${index}`}>{dayjs(entry.created_at).format("DD MMM YYYY HH:mm")} · {actionLabel}</li>;
                 })}</ul></details> : null}
                 {detailQuery.data.can_review && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 p-3">{detailQuery.data.reviewed_at ? <Typography.Text type="success">✓ Sudah dicek {wibDateAndTime(detailQuery.data.reviewed_at).date} {wibDateAndTime(detailQuery.data.reviewed_at).time} WIB</Typography.Text> : <Typography.Text type="warning">Belum ditandai sudah dicek</Typography.Text>}<Button type="primary" disabled={!!detailQuery.data.reviewed_at} loading={reviewMutation.isPending} onClick={() => selectedReportId && reviewMutation.mutate(selectedReportId)}>Tandai Sudah Dicek</Button></div>}
-                {detailQuery.data.user_id === currentUserId && <Button type="primary" className="mt-3" onClick={() => { setWorkDate(detailQuery.data!.work_date); setTab("mine"); }}>Edit Daily Saya</Button>}
-              </> : !selectedTeamDay.report_id ? <><Typography.Title level={4}>{selectedTeamDay.username} · {dayjs(selectedTeamDay.work_date).format("DD MMMM YYYY")}</Typography.Title><Tag color={selectedTeamDay.status === "on_leave" ? "blue" : "red"}>{selectedTeamDay.status === "on_leave" ? "Cuti" : "Belum Isi"}</Tag><Typography.Paragraph className="mt-3">{selectedTeamDay.status === "on_leave" ? "Cuti disetujui. Daily Activity tidak wajib pada tanggal ini." : "Laporan belum diisi."}</Typography.Paragraph></> : null}
+                {detailQuery.data.user_id === currentUserId && <Button type="primary" className="mt-3" onClick={() => { setWorkDate(detailQuery.data!.work_date); closeReportDetail(); setTab("mine"); }}>Edit Daily Saya</Button>}
+              </> : selectedTeamDay ? <><Typography.Title level={4}>{selectedTeamDay.username} · {dayjs(selectedTeamDay.work_date).format("DD MMMM YYYY")}</Typography.Title><Tag color={selectedTeamDay.status === "on_leave" ? "blue" : "red"}>{selectedTeamDay.status === "on_leave" ? "Cuti" : "Belum Isi"}</Tag><Typography.Paragraph className="mt-3">{selectedTeamDay.status === "on_leave" ? "Cuti disetujui. Daily Activity tidak wajib pada tanggal ini." : "Laporan belum diisi."}</Typography.Paragraph></> : null}
             </section>
           )}
           {!selectedReportId && <>
@@ -893,7 +915,35 @@ export default function DailyActivityPage() {
                { title: "Nama / jabatan", width: 230, render: (_value, row) => <div><Typography.Text strong>{row.username}</Typography.Text><br /><Typography.Text type="secondary">{row.role_name || "-"}</Typography.Text></div> },
                { title: "Status laporan", width: 210, dataIndex: "status", render: (value, row) => <div><Tag color={value === "submitted" ? (wasSubmittedLate(row) ? "orange" : "green") : value === "missing" ? "red" : value === "on_leave" ? "blue" : "gold"}>{value === "submitted" ? (wasSubmittedLate(row) ? "Terlambat" : "✓ Sudah Kirim") : value === "missing" ? "Belum Isi" : value === "on_leave" ? "Cuti" : "Draft"}</Tag>{row.submitted_at && <div className="mt-1 text-xs text-slate-500">{wasSubmittedLate(row) ? "Terlambat · " : "Dikirim "}{wibDateAndTime(row.submitted_at).time} WIB</div>}{row.review_required && value === "submitted" && <div className="mt-1 text-xs text-slate-500">{row.reviewed_at ? "✓ Sudah dicek" : "Menunggu dicek"}</div>}</div> },
                { title: "Aktivitas hari ini", width: 420, render: (_value, row) => row.activities.length ? <div><p className="line-clamp-2">{row.activities[0].content}</p><Typography.Text type="secondary">{row.activities.length} aktivitas</Typography.Text></div> : <Typography.Text type="secondary">{row.status === "on_leave" ? "Cuti disetujui" : "Belum ada aktivitas tercatat."}</Typography.Text> },
-               { title: "Aksi", width: 140, fixed: "right", render: (_value, row) => <Button type="link" className="px-1" aria-label={`${row.report_id ? "Lihat detail" : "Lihat status"} ${row.username}`} onClick={() => { setSelectedTeamDay(row); setSelectedReportId(row.report_id); }}>{row.report_id ? row.activities.length ? "Lihat Detail" : "Lihat Status" : "Lihat Status"}</Button> },
+               {
+                 title: "Aksi",
+                 width: 140,
+                 fixed: "right",
+                 render: (_value, row) => {
+                   if (!row.report_id) {
+                     return <Button type="link" className="px-1" aria-label={`Lihat status ${row.username}`} onClick={() => setSelectedTeamDay(row)}>Lihat Status</Button>;
+                   }
+
+                   const label = row.activities.length ? "Lihat Detail" : "Lihat Status";
+                   return (
+                     <Button
+                       type="link"
+                       className="px-1"
+                       href={`${dailyActivityPath}?${new URLSearchParams({ reportId: row.report_id })}`}
+                       aria-label={`${label} ${row.username}`}
+                       onClick={(event) => {
+                         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                         event.preventDefault();
+                         setSelectedTeamDay(null);
+                         setSelectedReportId(row.report_id);
+                         setCommentItemId(null);
+                       }}
+                     >
+                       {label}
+                     </Button>
+                   );
+                 },
+               },
              ]} /></div>
              <div className="ozfooter"><span>{filteredActivityRows.length} laporan / status ditemukan</span><span>Batas kirim harian: {teamDeadline} WIB</span></div>
           </>}
