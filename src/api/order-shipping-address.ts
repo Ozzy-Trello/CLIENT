@@ -1,7 +1,6 @@
 import { api } from ".";
 
 export interface OrderShippingAddress {
-  customerPhone: string;
   recipientName: string;
   recipientPhone?: string;
   address: string;
@@ -14,7 +13,6 @@ export interface OrderShippingAddress {
 
 export interface OrderShippingDetails {
   shippingAddress: OrderShippingAddress | null;
-  customerPhone: string | null;
   confirmationStatus: "pending" | "sending" | "sent" | "failed" | "uncertain" | null;
 }
 

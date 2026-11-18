@@ -53,7 +53,7 @@ function AddressFields({ boardId, cardId, canEdit }: Props) {
     onSuccess: (address) => {
       form.setFieldsValue({ ...address, recipientPhone: address.recipientPhone ?? "" });
       queryClient.setQueryData<OrderShippingDetails>(queryKey, (current) =>
-        current && { ...current, shippingAddress: address, customerPhone: address.customerPhone },
+        current && { ...current, shippingAddress: address },
       );
       void queryClient.invalidateQueries({ queryKey });
       message.success("Alamat pengiriman disimpan.");
@@ -73,7 +73,7 @@ function AddressFields({ boardId, cardId, canEdit }: Props) {
     );
   }
 
-  const { shippingAddress, customerPhone, confirmationStatus } = addressQuery.data;
+  const { shippingAddress, confirmationStatus } = addressQuery.data;
   return (
     <>
       {confirmationStatus && (
@@ -83,7 +83,7 @@ function AddressFields({ boardId, cardId, canEdit }: Props) {
       )}
       {canEdit && (
         <Typography.Paragraph>
-          Setelah kartu masuk Lunas, konfirmasi alamat dikirim ke nomor WhatsApp pemesan.
+          Saat kartu masuk Lunas, konfirmasi dikirim ke nomor yang terdaftar untuk kode member di field Customer.
         </Typography.Paragraph>
       )}
       {!canEdit && !shippingAddress ? (
@@ -93,12 +93,9 @@ function AddressFields({ boardId, cardId, canEdit }: Props) {
           form={form}
           layout="vertical"
           disabled={!canEdit || save.isPending}
-          initialValues={shippingAddress ?? { customerPhone: customerPhone ?? "" }}
+          initialValues={shippingAddress ?? undefined}
           onFinish={(values) => save.mutate(values)}
         >
-          <Form.Item name="customerPhone" label="WhatsApp pemesan" rules={required}>
-            <Input type="tel" maxLength={40} />
-          </Form.Item>
           <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
             <Form.Item name="recipientName" label="Nama penerima" rules={required}>
               <Input maxLength={120} />
