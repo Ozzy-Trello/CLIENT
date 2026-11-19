@@ -115,7 +115,6 @@ import StitchSection from "./stitch";
 import SablonSection from "./sablon";
 import CardTimeInList from "./time-in-lists";
 import Shipment, { canInputResi } from "./shipment";
-import OrderShippingAddressSection, { OUTLET_ORDER_BOARD_ID } from "./order-shipping-address";
 import { uploadFile } from "@api/file";
 import { api } from "@api/index";
 import { useCardAttachment } from "@hooks/card_attachment";
@@ -1851,15 +1850,6 @@ const CardDetails: React.FC = (props) => {
             isSuperAdmin={isSuperAdmin}
           />
         </CollapsibleSection>
-      )}
-
-      {selectedCard && selectedCard.type !== "dashcard" && boardId === OUTLET_ORDER_BOARD_ID && (
-        <OrderShippingAddressSection
-          key={selectedCard.id}
-          boardId={boardId}
-          cardId={selectedCard.id}
-          canEdit={canUpdateCard()}
-        />
       )}
 
       {selectedCard?.type == "dashcard" && (
