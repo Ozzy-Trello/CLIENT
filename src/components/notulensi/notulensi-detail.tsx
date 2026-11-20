@@ -45,6 +45,7 @@ import {
 } from "@hooks/notulensi";
 import NotulensiUserSelect from "@components/notulensi/notulensi-user-select";
 import { useCurrentAccount } from "@hooks/account";
+import { useNotulensiPrivateNoteDraft } from "@hooks/notulensi-private-note-draft";
 import { searchCards } from "@api/card";
 import { Card, CardAttachment, EnumAttachmentType, EnumCardAttachmentType } from "@myTypes/card";
 import { NotulensiComment, NotulensiDetail, NotulensiProgress, NotulensiWorkflowAction } from "@myTypes/notulensi";
@@ -118,7 +119,6 @@ export default function NotulensiDetailView({
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingComment, setEditingComment] = useState("");
   const [replyingTo, setReplyingTo] = useState<NotulensiComment | null>(null);
-  const [privateNoteDraft, setPrivateNoteDraft] = useState("");
   const [pendingAction, setPendingAction] = useState<NotulensiWorkflowAction | null>(null);
   const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
@@ -190,7 +190,17 @@ export default function NotulensiDetailView({
     return () => window.clearTimeout(timeout);
   }, [commentId, detail, reviewNotificationId]);
 
-  const privateNote = privateNoteQuery.data?.data ?? detail?.privateNote ?? null;
+  const privateNote = privateNoteQuery.data
+    ? privateNoteQuery.data.data
+    : detail?.privateNote ?? null;
+  const {
+    value: privateNoteDraft,
+    setValue: setPrivateNoteDraft,
+    reset: resetPrivateNoteDraft,
+  } = useNotulensiPrivateNoteDraft(
+    `${workspaceId}:${detail?.id}:${currentUser?.id}`,
+    privateNote?.content || ""
+  );
 
   const timelineEntries = buildNotulensiTimeline(
     detail?.statusHistory,
@@ -229,10 +239,6 @@ export default function NotulensiDetailView({
         createdAt: attachment.createdAt,
       },
     }));
-
-  useEffect(() => {
-    setPrivateNoteDraft(privateNote?.content || "");
-  }, [privateNote?.content]);
 
   if (loading) {
     return <Skeleton active paragraph={{ rows: 10 }} />;
@@ -1208,6 +1214,7 @@ export default function NotulensiDetailView({
                   />
                   <Input.TextArea
                     rows={6}
+                    disabled={updatePrivateNoteMutation.isPending || deletePrivateNoteMutation.isPending}
                     value={privateNoteDraft}
                     onChange={(event) => setPrivateNoteDraft(event.target.value)}
                     placeholder="Write a private note"
@@ -1219,7 +1226,7 @@ export default function NotulensiDetailView({
                         onConfirm={async () => {
                           try {
                             await deletePrivateNoteMutation.mutateAsync({ workspaceId, id: detail.id });
-                            setPrivateNoteDraft("");
+                            resetPrivateNoteDraft();
                             message.success("Private note deleted");
                           } catch (privateNoteDeleteError) {
                             message.error(
@@ -1242,6 +1249,7 @@ export default function NotulensiDetailView({
                             id: detail.id,
                             payload: { content: privateNoteDraft.trim() },
                           });
+                          resetPrivateNoteDraft();
                           message.success("Private note saved");
                         } catch (privateNoteError) {
                           message.error(getErrorMessage(privateNoteError, "Failed to save private note"));
