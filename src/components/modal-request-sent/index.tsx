@@ -1,3 +1,4 @@
+import { downloadMiniWarehouseLabels } from "@utils/mini-warehouse-labels";
 import {
   getAllRequests,
   markRequestDone,
@@ -737,7 +738,8 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         (Array.isArray(response?.items) && response.items) ||
         (Array.isArray(response?.data?.items) && response.data.items) ||
         [];
-      const printedCount = items.length;
+      const miniWarehouseLabels = response?.miniWarehouseLabels ?? response?.data?.miniWarehouseLabels ?? [];
+      const printedCount = items.length + miniWarehouseLabels.length;
       const payloadData = response?.data ?? {};
       const downloadUrl =
         payloadData.download_url ||
@@ -746,26 +748,18 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
         payloadData?.data?.downloadUrl ||
         response?.download_url ||
         response?.downloadUrl;
+      if (downloadUrl) window.open(downloadUrl, "_blank", "noopener,noreferrer");
+      if (miniWarehouseLabels.length) await downloadMiniWarehouseLabels(miniWarehouseLabels);
       if (printedCount > 0) {
-        message.success(
-          targetRequest
-            ? "Barcode print triggered untuk request ini."
-            : `Barcode print triggered for ${printedCount} item${
-                printedCount === 1 ? "" : "s"
-              }.`
-        );
-        if (downloadUrl) {
-          window.open(downloadUrl, "_blank", "noopener,noreferrer");
-        }
-        await refetch();
-        setLastRefreshedAt(new Date());
+        message.success(targetRequest ? "Barcode request siap dicetak." : `${printedCount} barcode siap dicetak.`);
       } else {
-        message.info(
-          targetRequest
-            ? "Request ini belum memenuhi syarat cetak barcode."
-            : "Tidak ada request yang perlu dicetak barcode."
-        );
+        message.info(response?.message || "Tidak ada sisa bahan yang perlu dicetak.");
       }
+      if (response?.legacyPrintFailed) {
+        message.warning("Barcode untuk request di luar Mini Warehouse gagal dibuat. Ulangi cetak untuk request tersebut.");
+      }
+      await refetch();
+      setLastRefreshedAt(new Date());
     } catch (error: any) {
       const reason = extractApiErrorReason(error);
       message.error(reason || "Gagal memicu cetak barcode");

@@ -82,11 +82,55 @@ export const createMiniWarehouseStockRequest = async (payload: {
   return data.data;
 };
 
+export interface MiniWarehouseLabel {
+  code: string;
+  itemName: string;
+  itemCode: string | null;
+  unitType: string;
+  quantity: string;
+}
+
+export interface MiniWarehouseMovement {
+  id: string;
+  movementType: string;
+  quantity: string;
+  balanceAfter: string;
+  createdAt: string;
+  createdByName: string | null;
+  note: string | null;
+  voidedAt: string | null;
+  requestReference: string | number | null;
+  labels: MiniWarehouseLabel[];
+}
+
 export const recordMiniWarehouseMovement = async (payload: {
-  accurateDbId: number; accurateId: number; itemName: string; itemCode?: string;
-  unitType: string; quantity: number; movementType: "opening" | "addition"; note?: string;
-}) => {
+  operationId: string;
+  accurateDbId: number;
+  accurateId: number;
+  quantity: number;
+  movementType: "opening" | "addition" | "reduction";
+  labelQuantities: number[];
+  note?: string;
+}): Promise<{ labels: MiniWarehouseLabel[] }> => {
   const { data } = await api.post("/warehouse/mini-stock/movements", payload);
+  return data.data;
+};
+
+export const getMiniWarehouseMovements = async (
+  balanceId: string, page: number,
+): Promise<{ movements: MiniWarehouseMovement[]; total: number }> => {
+  const { data } = await api.get(`/warehouse/mini-stock/${balanceId}/movements`, { params: { page } });
+  return data.data;
+};
+
+export const reverseMiniWarehouseOpening = async (id: string, note: string) => {
+  await api.post(`/warehouse/mini-stock/movements/${id}/reverse-opening`, { note });
+};
+
+export const lookupMiniWarehouseLabel = async (
+  code: string,
+): Promise<MiniWarehouseLabel & { availableQuantity: number; balanceId: string | null; returnPending: boolean }> => {
+  const { data } = await api.get("/warehouse/mini-stock/labels/lookup", { params: { code } });
   return data.data;
 };
 
