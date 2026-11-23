@@ -5,7 +5,7 @@ import RichTextEditorClient from "./client";
 
 const mockEditor: any = {
   root: { innerHTML: "" },
-  getSelection: () => ({ index: 3 }),
+  getSelection: jest.fn(() => ({ index: 3 })),
   getLength: () => 3,
   getModule: () => undefined,
   setSelection: jest.fn(),
@@ -25,7 +25,10 @@ jest.mock("../../hooks/account", () => ({ useAccountList: () => ({ data: { data:
 jest.mock("antd", () => ({ message: { success: jest.fn(), error: jest.fn() } }));
 
 describe("rich text description image input", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockEditor.getSelection.mockReturnValue({ index: 3 });
+  });
 
   it.each(["paste", "drop"])("uploads %s images and inserts only the returned URL at the cursor", async event => {
     const file = new File(["image"], "design.png", { type: "image/png" });
@@ -51,6 +54,18 @@ describe("rich text description image input", () => {
     }));
     expect(mockEditor.insertEmbed).not.toHaveBeenCalled();
     expect(message.error).toHaveBeenCalledWith("Failed to upload image");
+  });
+
+  it("keeps the paste position if the cursor moves before upload completes", async () => {
+    let complete!: (url: string) => void;
+    const upload = jest.fn().mockReturnValue(new Promise(resolve => { complete = resolve; }));
+    const view = render(<RichTextEditorClient onImageUpload={upload} />);
+    fireEvent.paste(view.container.firstChild!, {
+      clipboardData: { files: [new File(["image"], "design.png", { type: "image/png" })], items: [] },
+    });
+    mockEditor.getSelection.mockReturnValue({ index: 7 });
+    await act(async () => complete("https://files.test/design.png"));
+    expect(mockEditor.insertEmbed).toHaveBeenCalledWith(3, "image", "https://files.test/design.png");
   });
 
   it("does not insert a late upload into an editor that has been closed", async () => {
