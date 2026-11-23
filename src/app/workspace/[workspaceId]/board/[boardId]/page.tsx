@@ -155,7 +155,7 @@ function areListCardsEqual(current: Card[] = [], next: Card[] = []) {
       if (currentCFs !== nextCFs) return false;
 
       if (card.name !== nextCard.name) return false;
-      if (card.description !== nextCard.description) return false;
+      if (card.description !== nextCard.description && nextCard.description !== "[has_content]" && nextCard.description !== undefined) return false;
       if (card.dueDate !== nextCard.dueDate) return false;
       if (card.isComplete !== nextCard.isComplete) return false;
 

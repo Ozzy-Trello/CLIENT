@@ -12,6 +12,7 @@ import { useBoardPermissionsContext } from "@providers/board-permissions-context
 import { useQueryClient } from "@tanstack/react-query";
 import { invalidateCardContext } from "@utils/query-invalidation";
 import { normalizeQuillHtml, linkifyHtml } from "@utils/normalize-quill-html";
+import { isCardDescriptionPlaceholder } from "@utils/card-description";
 
 const Description: React.FC<{
   card: Card;
@@ -24,9 +25,7 @@ const Description: React.FC<{
 
   const [isEditingDescription, setIsEditingDescription] =
     useState<boolean>(false);
-  const [newDescription, setNewDescription] = useState<string>(
-    card?.description || ""
-  );
+  const [newDescription, setNewDescription] = useState<string>("");
   const params = useParams();
   const boardId = Array.isArray(params.boardId)
     ? params.boardId[0]
@@ -41,7 +40,7 @@ const Description: React.FC<{
   const descriptionRef = useRef<HTMLDivElement>(null);
   const [isHighlighted, setIsHighlighted] = useState(false);
 
-  const { updateCardAsync, isUpdating, refetch } = useCardDetails(
+  const { card: detailCard, isDescriptionLoaded, updateCardAsync, isUpdating, refetch } = useCardDetails(
     card.id,
     card.listId,
     boardId || ""
@@ -52,7 +51,7 @@ const Description: React.FC<{
   const { canUpdateCard } = useBoardPermissionsContext();
 
   const enableEditDescription = () => {
-    if (canUpdateCard()) {
+    if (isDescriptionLoaded && canUpdateCard()) {
       setIsEditingDescription(true);
     }
   };
@@ -62,6 +61,7 @@ const Description: React.FC<{
   };
 
   const handleSaveDescriptionClick = async () => {
+    if (!isDescriptionLoaded || isCardDescriptionPlaceholder(detailCard?.description)) return;
     try {
       await updateCardAsync({
         description: newDescription,
@@ -96,14 +96,14 @@ const Description: React.FC<{
   useEffect(() => {
     // When switching cards, reset edit state and sync description
     setIsEditingDescription(false);
-    setNewDescription(card?.description || "");
+    setNewDescription("");
   }, [card?.id]);
 
   useEffect(() => {
     if (!isEditingDescription) {
-      setNewDescription(card?.description || "");
+      setNewDescription(detailCard?.description && !isCardDescriptionPlaceholder(detailCard.description) ? detailCard.description : "");
     }
-  }, [card?.description, isEditingDescription]);
+  }, [detailCard?.description, isEditingDescription, isDescriptionLoaded]);
 
   useEffect(() => {
     if (!isReviewTarget || !descriptionRef.current) return;
@@ -113,7 +113,7 @@ const Description: React.FC<{
     return () => window.clearTimeout(timeout);
   }, [isReviewTarget]);
 
-  const readOnlyDescription = card.description || newDescription;
+  const readOnlyDescription = isDescriptionLoaded ? detailCard?.description || "" : "";
   const normalizedReadOnlyDescription = linkifyHtml(
     normalizeQuillHtml(readOnlyDescription)
   );
@@ -136,6 +136,7 @@ const Description: React.FC<{
             type="text"
             size="small"
             onClick={enableEditDescription}
+            disabled={!isDescriptionLoaded}
             className="rounded-md hover:opacity-80"
             style={{
               color: `rgb(${colors["text-muted"]})`,
@@ -147,7 +148,9 @@ const Description: React.FC<{
         )}
       </div>
 
-      {isEditingDescription ? (
+      {!isDescriptionLoaded ? (
+        <div className="ml-8 p-3 min-h-20" aria-label="Loading description"><Loader2 className="animate-spin" size={16} /></div>
+      ) : isEditingDescription ? (
         <div
           className="rounded-md overflow-hidden ml-8"
           style={{
@@ -180,7 +183,7 @@ const Description: React.FC<{
               onClick={disableEditDescription}
               size="middle"
               className="mr-2 rounded-md"
-              disabled={isUpdating}
+              disabled={isUpdating || !isDescriptionLoaded}
             >
               Cancel
             </Button>

@@ -9,6 +9,7 @@ import {
   WebSocketEventPayload,
 } from "@myTypes/event";
 import { queryKeys } from "@constants/query-keys";
+import { mergeCardDescription } from "@utils/card-description";
 import { useAutomationNotifications } from "@hooks/use-automation-notifications";
 import {
   handleBatchUpdate,
@@ -537,8 +538,10 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
               queryClient.setQueryData(
                 queryKeys.cards.list(toListId),
                 (old: any) => {
+                  const existingCard = old?.data?.find?.((c: any) => c.id === card.id);
                   const movedCard = {
                     ...card,
+                    description: mergeCardDescription(existingCard?.description, card.description),
                     listId: toListId,
                     list_id: toListId,
                   };
@@ -586,6 +589,18 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
 
           case EnumUserActionEvent.CardUpdated:
             const { card: updatedCard, listId } = message.data;
+
+            const currentDetail = queryClient.getQueryData<any>(queryKeys.cards.detail(updatedCard.id));
+            if (currentDetail?.data) {
+              queryClient.setQueryData(queryKeys.cards.detail(updatedCard.id), {
+                ...currentDetail,
+                data: {
+                  ...currentDetail.data,
+                  ...updatedCard,
+                  description: mergeCardDescription(currentDetail.data.description, updatedCard.description),
+                },
+              });
+            }
 
             // Invalidate only affected queries - removed lists.all for performance
             queryClient.invalidateQueries({

@@ -6,6 +6,7 @@ import UploadModal from "../modal-upload/modal-upload";
 import { searchCards } from "@api/card";
 import { Card } from "@myTypes/card";
 import { rankCardSearchResults } from "./search-utils";
+import { isCardDescriptionPlaceholder } from "@utils/card-description";
 
 const { Text } = Typography;
 
@@ -195,7 +196,7 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
                         <div
                           className="prose prose-sm max-w-none text-[10px]"
                           dangerouslySetInnerHTML={{
-                            __html: item.description || "",
+                            __html: isCardDescriptionPlaceholder(item.description) ? "" : item.description || "",
                           }}
                         />
                       </div>
@@ -230,7 +231,7 @@ const ContentAttach: React.FC<ContentAttachProps> = ({
                     description={
                       <div>
                         <Text type="secondary" className="text-xs">
-                          {item.description}
+                          {isCardDescriptionPlaceholder(item.description) ? "" : item.description}
                         </Text>
                         <Text type="secondary" className="text-xs mx-1">
                           •

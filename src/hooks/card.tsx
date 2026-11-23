@@ -20,6 +20,7 @@ import { ApiResponse } from "../types/type";
 import { Card, CopycardPost } from "../types/card";
 import { useEffect, useState, useCallback } from "react";
 import { queryKeys } from "@constants/query-keys";
+import { mergeCardListDescriptions } from "@utils/card-description";
 
 export function useCards(listId: string, boardId: string) {
   const queryClient = useQueryClient();
@@ -27,7 +28,14 @@ export function useCards(listId: string, boardId: string) {
   // Main query for cards
   const cardsQuery = useQuery({
     queryKey: queryKeys.cards.list(listId),
-    queryFn: () => cards(listId, boardId),
+    queryFn: async () => {
+      const response = await cards(listId, boardId);
+      const previous = queryClient.getQueryData<ApiResponse<Card[]>>(queryKeys.cards.list(listId));
+      if (response?.data && previous?.data) {
+        response.data = mergeCardListDescriptions(previous.data, response.data);
+      }
+      return response;
+    },
     enabled: !!listId,
     refetchOnMount: false, // Prevent refetch on mount, rely on cache and optimistic updates
     refetchOnWindowFocus: false,
@@ -578,8 +586,8 @@ export function useCardsPaginated(
 
   const cardsQuery = useQuery({
     queryKey,
-    queryFn: () =>
-      cards(
+    queryFn: async () => {
+      const response = await cards(
         listId,
         boardId,
         1,
@@ -587,7 +595,13 @@ export function useCardsPaginated(
         labelIds,
         options?.sortBy,
         options?.sortOrder
-      ),
+      );
+      const previous = queryClient.getQueryData<ApiResponse<Card[]>>(queryKey);
+      if (response?.data && previous?.data) {
+        response.data = mergeCardListDescriptions(previous.data, response.data);
+      }
+      return response;
+    },
     enabled: isEnabled,
     refetchOnMount: false,
     refetchOnWindowFocus: false,

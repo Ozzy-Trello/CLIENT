@@ -21,6 +21,7 @@ import { useDebouncedCallback } from "@hooks/useDebouncedCallback";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDashcardList } from "@hooks/dashcard-list";
 import { useCardDetails } from "@hooks/card-details";
+import { mergeCardDescription } from "@utils/card-description";
 import { useRecentlyViewed } from "@hooks/recently-viewed";
 import { useSelector } from "react-redux";
 import { selectCurrentBoard, selectCurrentWorkspace } from "@store/workspace_slice";
@@ -299,7 +300,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
       updatedAt: (card as any).updatedAt || (card as any).updated_at || null,
       listId: card.listId,
       name: card.name,
-      description: card.description,
+      description: mergeCardDescription(undefined, card.description),
       isComplete: (card as any).isComplete ?? false,
       completedAt:
         (card as any).completedAt ??
@@ -476,6 +477,9 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         const merged = {
           ...(prevCard || {}),
           ...fetchedCard,
+          description: cardDetailsQuery.isDescriptionLoaded
+            ? fetchedCard.description
+            : mergeCardDescription(prevCard?.description, fetchedCard.description),
           listId: newListId,
           ...(mergedName ? { name: mergedName } : {}),
         } as Card;
@@ -484,7 +488,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
         return merged;
       });
     }
-  }, [cardDetailsQuery.card, activeList?.id, isCardDetailOpen, isPending, isSameCard, snapshotCard]);
+  }, [cardDetailsQuery.card, cardDetailsQuery.isDescriptionLoaded, activeList?.id, isCardDetailOpen, isPending, isSameCard, snapshotCard]);
 
   const closeCardDetail = useCallback(() => {
     setSelectedCard(null);
@@ -927,6 +931,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
                   return {
                     ...(prev || {}),
                     ...fetchedCard,
+                    description: fetchedCard.description,
                     listId: fetchedListId,
                     ...(mergedName ? { name: mergedName } : {}),
                   } as Card;
@@ -960,6 +965,7 @@ export const CardDetailProvider: React.FC<{ children: ReactNode }> = ({
                 return {
                   ...(prev || {}),
                   ...fetchedCard,
+                  description: fetchedCard.description,
                   listId: fetchedListId,
                   ...(mergedName ? { name: mergedName } : {}),
                 } as Card;

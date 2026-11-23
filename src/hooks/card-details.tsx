@@ -8,6 +8,7 @@ import {
   resolveCardContextForInvalidation,
 } from "@utils/query-invalidation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { isCardDescriptionPlaceholder } from "@utils/card-description";
 
 export function useCardDetails(
   cardId: string,
@@ -598,6 +599,10 @@ export function useCardDetails(
     card: cardDetailsQuery.data?.data,
     isLoading: cardDetailsQuery.isLoading,
     isFetching: cardDetailsQuery.isFetching,
+    isDescriptionLoaded:
+      cardDetailsQuery.isSuccess &&
+      !cardDetailsQuery.isPlaceholderData &&
+      !isCardDescriptionPlaceholder(cardDetailsQuery.data?.data?.description),
     isError: cardDetailsQuery.isError,
     error: cardDetailsQuery.error,
     refetch: cardDetailsQuery.refetch,
