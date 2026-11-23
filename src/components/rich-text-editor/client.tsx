@@ -138,7 +138,9 @@ const RichTextEditorClient = forwardRef<RichTextEditorHandle, RichTextEditorProp
 
     const addImageFile = useCallback(async (file: File, index?: number) => {
       if (onImageUploadRef.current) {
-        insertImage(await onImageUploadRef.current(file), index);
+        const editor = quillRef.current?.getEditor();
+        const url = await onImageUploadRef.current(file);
+        if (editor && editor === quillRef.current?.getEditor()) insertImage(url, index);
         return;
       }
 

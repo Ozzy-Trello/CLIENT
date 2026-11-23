@@ -2,7 +2,7 @@ import CardAttachmentImageListModal from "@components/modal-list-card-attachment
 import RichTextEditor from "@components/rich-text-editor";
 import { useCardDetails } from "@hooks/card-details";
 import { Card } from "@myTypes/card";
-import { Button, Typography } from "antd";
+import { Button, Typography, message } from "antd";
 import { AlignLeft, Edit, Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
@@ -13,6 +13,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { invalidateCardContext } from "@utils/query-invalidation";
 import { normalizeQuillHtml, linkifyHtml } from "@utils/normalize-quill-html";
 import { isCardDescriptionPlaceholder } from "@utils/card-description";
+import { uploadFile } from "@api/file";
+import { uploadEmbeddedDescriptionImages } from "@utils/description-images";
 
 const Description: React.FC<{
   card: Card;
@@ -26,6 +28,13 @@ const Description: React.FC<{
   const [isEditingDescription, setIsEditingDescription] =
     useState<boolean>(false);
   const [newDescription, setNewDescription] = useState<string>("");
+  const [pendingImageUploads, setPendingImageUploads] = useState(0);
+  const [isPreparingDescription, setIsPreparingDescription] = useState(false);
+  const preparingRef = useRef(false);
+  const pendingUploadsRef = useRef(0);
+  const uploadedImagesRef = useRef(new Map<string, string>());
+  const activeCardIdRef = useRef(card.id);
+  activeCardIdRef.current = card.id;
   const params = useParams();
   const boardId = Array.isArray(params.boardId)
     ? params.boardId[0]
@@ -60,19 +69,39 @@ const Description: React.FC<{
     setIsEditingDescription(false);
   };
 
-  const handleSaveDescriptionClick = async () => {
-    if (!isDescriptionLoaded || isCardDescriptionPlaceholder(detailCard?.description)) return;
+  const uploadDescriptionImage = async (file: File) => {
+    pendingUploadsRef.current += 1;
+    setPendingImageUploads(pendingUploadsRef.current);
     try {
+      const response = await uploadFile(file, { cardId: card.id, prefix: "card-description" });
+      const url = response.data?.url;
+      if (!url || !/^https?:\/\//i.test(url)) throw new Error("Image upload did not return a URL");
+      return url;
+    } finally {
+      pendingUploadsRef.current -= 1;
+      setPendingImageUploads(pendingUploadsRef.current);
+    }
+  };
+
+  const handleSaveDescriptionClick = async () => {
+    if (!isDescriptionLoaded || isCardDescriptionPlaceholder(detailCard?.description) || preparingRef.current || pendingUploadsRef.current) return;
+    preparingRef.current = true;
+    setIsPreparingDescription(true);
+    try {
+      const description = await uploadEmbeddedDescriptionImages(newDescription, uploadDescriptionImage, uploadedImagesRef.current);
+      if (activeCardIdRef.current !== card.id) return;
+      setNewDescription(description);
       await updateCardAsync({
-        description: newDescription,
+        description,
       });
+      if (activeCardIdRef.current !== card.id) return;
       
       if (setSelectedCard) {
         setSelectedCard((prevCard) => {
-          if (!prevCard) return prevCard;
+          if (!prevCard || prevCard.id !== card.id) return prevCard;
           return {
             ...prevCard,
-            description: newDescription,
+            description,
           };
         });
       }
@@ -89,7 +118,11 @@ const Description: React.FC<{
       setIsEditingDescription(false);
     } catch (error) {
       console.error("Failed to save description:", error);
+      message.error("Could not save description. Your draft is still open; please try again.");
       // isUpdating will automatically be reset to false on error
+    } finally {
+      preparingRef.current = false;
+      setIsPreparingDescription(false);
     }
   };
 
@@ -97,6 +130,7 @@ const Description: React.FC<{
     // When switching cards, reset edit state and sync description
     setIsEditingDescription(false);
     setNewDescription("");
+    uploadedImagesRef.current = new Map();
   }, [card?.id]);
 
   useEffect(() => {
@@ -171,7 +205,10 @@ const Description: React.FC<{
             setOpenCustomImageSelector={setOpenCardAttachmentListModal}
             openCustomImagesSelector={openCardAttachmentListModal}
             selectedAttachmentImageUrl={selectedattachmentImageUrl}
+            onImageUpload={uploadDescriptionImage}
+            readOnly={isPreparingDescription || isUpdating}
           />
+          {pendingImageUploads > 0 && <div role="status" className="px-3 py-2">Uploading images...</div>}
           <div
             className="flex justify-end p-2"
             style={{
@@ -183,7 +220,7 @@ const Description: React.FC<{
               onClick={disableEditDescription}
               size="middle"
               className="mr-2 rounded-md"
-              disabled={isUpdating || !isDescriptionLoaded}
+              disabled={isUpdating || isPreparingDescription || pendingImageUploads > 0 || !isDescriptionLoaded}
             >
               Cancel
             </Button>
@@ -192,8 +229,8 @@ const Description: React.FC<{
               onClick={handleSaveDescriptionClick}
               size="middle"
               className="rounded-md bg-blue-600 hover:bg-blue-700"
-              loading={isUpdating}
-              disabled={isUpdating}
+              loading={isUpdating || isPreparingDescription}
+              disabled={isUpdating || isPreparingDescription || pendingImageUploads > 0}
             >
               {isUpdating ? "Saving..." : "Save"}
             </Button>
