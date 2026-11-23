@@ -146,10 +146,10 @@ export const useCardActivity = (
     hasMore,
     loadMore,
     addCardActivity: (payload: CardActivity) => {
-      addCardActivityMutation.mutate(payload);
+      return addCardActivityMutation.mutateAsync(payload);
     },
     updateComment: (activityId: string, text: string) => {
-      updateCommentMutation.mutate({ activityId, text });
+      return updateCommentMutation.mutateAsync({ activityId, text });
     },
     deleteComment: (activityId: string) => {
       deleteCommentMutation.mutate(activityId);

@@ -7,6 +7,7 @@ import {
   Divider,
   Popconfirm,
   Tooltip,
+  message,
 } from "antd";
 import { InfoCircleOutlined, MessageOutlined } from "@ant-design/icons";
 import { generateId } from "@utils/general";
@@ -22,6 +23,8 @@ import CardAttachmentImageListModal from "@components/modal-list-card-attachment
 import { useBoardPermissionsContext } from "@providers/board-permissions-context";
 import { normalizeQuillHtml, linkifyHtml } from "@utils/normalize-quill-html";
 import { getUnreadCount, markNotificationRead } from "@api/notifications";
+import { uploadFile } from "@api/file";
+import { uploadEmbeddedDescriptionImages } from "@utils/description-images";
 import { useDispatch } from "react-redux";
 import {
   markNotificationReadLocally,
@@ -100,6 +103,42 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
   const [highlightedActivityId, setHighlightedActivityId] = useState<string | null>(null);
   const activityRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const processedCommentTargetRef = useRef<string | null>(null);
+  const [pendingUploads, setPendingUploads] = useState(0);
+  const pendingUploadsRef = useRef(0);
+  const [preparingComment, setPreparingComment] = useState(false);
+  const savingRef = useRef(false);
+  const uploadedImagesRef = useRef(new Map<string, string>());
+  const editedImagesRef = useRef(new Map<string, string>());
+  const activeCardIdRef = useRef(card.id);
+  activeCardIdRef.current = card.id;
+  const busy = preparingComment || isAddingActivity || isUpdatingComment;
+
+  useEffect(() => {
+    setIsEditingComment(false);
+    setComment("");
+    setFirstImage(null);
+    setPendingMention(null);
+    setEditingCommentId(null);
+    setEditingContent("");
+    setOpenCardAttachmentListModal(false);
+    setSelectedAttachmentImageUrl("");
+    uploadedImagesRef.current = new Map();
+    editedImagesRef.current = new Map();
+  }, [card.id]);
+
+  const uploadCommentImage = async (file: File) => {
+    pendingUploadsRef.current += 1;
+    setPendingUploads(pendingUploadsRef.current);
+    try {
+      const response = await uploadFile(file, { cardId: card.id, prefix: "card-comment" });
+      const url = response.data?.url;
+      if (!url || !/^https?:\/\//i.test(url)) throw new Error("Image upload did not return a URL");
+      return url;
+    } finally {
+      pendingUploadsRef.current -= 1;
+      setPendingUploads(pendingUploadsRef.current);
+    }
+  };
 
   // Get board permissions
   const { canCommentOnCard } = useBoardPermissionsContext();
@@ -152,7 +191,8 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
     setIsEditingComment(false);
   };
 
-  const handleSaveCommentClick = (): void => {
+  const handleSaveCommentClick = async (): Promise<void> => {
+    if (savingRef.current || pendingUploadsRef.current) return;
     // Add validation
     if (!comment || comment.trim() === "") {
       return;
@@ -166,23 +206,60 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
       return;
     }
 
-    const newComment: CardActivity = {
-      id: generateId(),
-      senderUserId: currentUser.id,
-      cardId: card.id,
-      activityType: EnumCardActivityType.Comment,
-      triggeredBy: "user",
-      comment: {
-        text: comment,
-      },
-    };
+    savingRef.current = true;
+    setPreparingComment(true);
+    try {
+      const text = await uploadEmbeddedDescriptionImages(comment, uploadCommentImage, uploadedImagesRef.current);
+      if (activeCardIdRef.current !== card.id) return;
+      setComment(text);
+      const newComment: CardActivity = {
+        id: generateId(),
+        senderUserId: currentUser.id,
+        cardId: card.id,
+        activityType: EnumCardActivityType.Comment,
+        triggeredBy: "user",
+        comment: {
+          text,
+        },
+      };
 
-    // Call the mutation
-    addCardActivity(newComment);
+      // Call the mutation
+      await addCardActivity(newComment);
+      if (activeCardIdRef.current !== card.id) return;
 
-    // Reset form after successful submission
-    setComment("");
-    disableEditComment();
+      // Reset form after successful submission
+      setComment("");
+      uploadedImagesRef.current.clear();
+      disableEditComment();
+    } catch {
+      message.error("Could not save comment. Your draft is still open; please try again.");
+    } finally {
+      savingRef.current = false;
+      setPreparingComment(false);
+    }
+  };
+
+  const handleUpdateComment = async (activityId: string) => {
+    if (savingRef.current || pendingUploadsRef.current) return;
+    const plain = editingContent.replace(/<[^>]*>/g, "").trim();
+    if (!plain && !/<img\b/i.test(editingContent)) return;
+    savingRef.current = true;
+    setPreparingComment(true);
+    try {
+      const text = await uploadEmbeddedDescriptionImages(editingContent, uploadCommentImage, editedImagesRef.current);
+      if (activeCardIdRef.current !== card.id) return;
+      setEditingContent(text);
+      await updateComment(activityId, text);
+      if (activeCardIdRef.current !== card.id) return;
+      editedImagesRef.current.clear();
+      setEditingCommentId(null);
+      setEditingContent("");
+    } catch {
+      message.error("Could not update comment. Your draft is still open; please try again.");
+    } finally {
+      savingRef.current = false;
+      setPreparingComment(false);
+    }
   };
 
   // Function to extract the first image
@@ -482,10 +559,14 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
                   setOpenCustomImageSelector={setOpenCardAttachmentListModal}
                   openCustomImagesSelector={openCardAttachmentListModal}
                   selectedAttachmentImageUrl={selectedattachmentImageUrl}
+                  onImageUpload={uploadCommentImage}
+                  readOnly={busy}
                 />
+                {pendingUploads > 0 && <div role="status" className="px-3 py-2">Uploading images...</div>}
                 <div className="flex justify-end p-2 bg-gray-50 border-t">
                   <Button
                     onClick={disableEditComment}
+                    disabled={busy || pendingUploads > 0}
                     size="small"
                     className="mr-2 rounded-md text-xs"
                   >
@@ -494,6 +575,8 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
                   <Button
                     type="primary"
                     onClick={handleSaveCommentClick}
+                    disabled={busy || pendingUploads > 0}
+                    loading={busy}
                     size="small"
                     className="rounded-md bg-blue-600 hover:bg-blue-700 text-xs"
                   >
@@ -580,11 +663,16 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
                         onChange={(val: string) => setEditingContent(val)}
                         workspaceId={workspaceId}
                         boardId={boardId}
+                        onImageUpload={uploadCommentImage}
+                        readOnly={busy}
                       />
+                      {pendingUploads > 0 && <div role="status">Uploading images...</div>}
                       <div className="flex gap-2">
                         <Button
                           size="small"
+                          disabled={busy || pendingUploads > 0}
                           onClick={() => {
+                            editedImagesRef.current.clear();
                             setEditingCommentId(null);
                             setEditingContent("");
                           }}
@@ -594,23 +682,9 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
                         <Button
                           type="primary"
                           size="small"
-                          loading={isUpdatingComment}
-                          onClick={async () => {
-                            const plain = editingContent
-                              .replace(/<[^>]*>/g, "")
-                              .trim();
-                            if (!plain) return;
-                            if (!item.id) return;
-                            try {
-                              await updateComment(item.id, editingContent);
-                              // Only reset edit state after successful update
-                              setEditingCommentId(null);
-                              setEditingContent("");
-                            } catch (error) {
-                              console.error("Failed to update comment:", error);
-                              // Don't reset edit state on error so user can retry
-                            }
-                          }}
+                          loading={busy}
+                          disabled={busy || pendingUploads > 0}
+                          onClick={() => { if (item.id) void handleUpdateComment(item.id); }}
                         >
                           Save
                         </Button>
@@ -642,6 +716,7 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
                       type="link"
                       size="small"
                       className="text-xs text-gray-500 hover:text-blue-600 p-0 h-auto"
+                      disabled={busy || pendingUploads > 0}
                       onClick={() =>
                         handleReply(
                           item?.senderUserUsername || "",
@@ -657,8 +732,10 @@ const Activity: React.FC<ActivitySectionProps> = (props) => {
                           type="link"
                           size="small"
                           className="text-xs text-gray-500 hover:text-blue-600 p-0 h-auto ml-2"
+                          disabled={busy || pendingUploads > 0}
                           onClick={() => {
                             if (!item.id) return;
+                            editedImagesRef.current.clear();
                             setEditingCommentId(item.id);
                             setEditingContent(item?.comment?.text || "");
                           }}
