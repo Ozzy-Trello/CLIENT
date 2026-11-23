@@ -2845,6 +2845,12 @@ const ModalRequestSent: React.FC<ModalRequestSentProps> = ({
               block
               size="large"
               icon={<Warehouse size={18} />}
+              disabled={
+                barcodeModalTarget !== null &&
+                (parseNumericValue(
+                  getRequestLeftValue(barcodeModalTarget),
+                ) ?? 0) <= 0
+              }
               onClick={() => handleBarcodeTypeSelect("warehouse")}
               loading={isPrintingBarcode}
               style={{
