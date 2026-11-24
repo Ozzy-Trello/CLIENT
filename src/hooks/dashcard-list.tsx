@@ -9,13 +9,14 @@ import { useEffect } from "react";
 type UseDashcardListOptions = {
   syncContext?: boolean;
   limit?: number;
+  includeDescriptions?: boolean;
 };
 
 export const useDashcardList = (
   card: Card | null,
   options: UseDashcardListOptions = {}
 ) => {
-  const { syncContext = false, limit } = options;
+  const { syncContext = false, limit, includeDescriptions = false } = options;
   const { setItemDashcard, setDashcardConfig } = useCardDetailContext();
   const queryClient = useQueryClient();
   const params = useParams();
@@ -26,8 +27,8 @@ export const useDashcardList = (
   const cardId = card?.id;
 
   const result = useQuery({
-    queryKey: ["list-dashcard", cardId, workspaceId, limit ?? "all"],
-    queryFn: () => getListDashcard(workspaceId as string, cardId as string, limit),
+    queryKey: ["list-dashcard", cardId, workspaceId, limit ?? "all", includeDescriptions],
+    queryFn: () => getListDashcard(workspaceId as string, cardId as string, limit, includeDescriptions),
     enabled: !!cardId,
   });
 

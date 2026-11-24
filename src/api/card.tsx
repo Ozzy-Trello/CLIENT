@@ -560,10 +560,13 @@ export const getCardLabels = async (
 export const getListDashcard = async (
   workspaceId: string,
   id: string,
-  limit?: number
+  limit?: number,
+  includeDescriptions = false
 ) => {
   const { data } = await api.get(`/card/${id}/list-dashcard/${workspaceId}`, {
-    params: limit ? { limit } : undefined,
+    params: includeDescriptions
+      ? { ...(limit ? { limit } : {}), include_descriptions: "true" }
+      : limit ? { limit } : undefined,
   });
 
   return data as ApiResponse<ListDashcardDataResponse>;

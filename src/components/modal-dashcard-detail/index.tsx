@@ -19,7 +19,7 @@ const ModalDashcardDetail: FC<ModalDashcardDetailProps> = ({
   card,
 }) => {
   const { itemDashcard, selectedCard, setSelectedCard } = useCardDetailContext();
-  useDashcardList(open ? card : null, { syncContext: true });
+  useDashcardList(open ? card : null, { syncContext: true, includeDescriptions: true });
 
   useEffect(() => {
     if (open && card && selectedCard?.id !== card.id) {
