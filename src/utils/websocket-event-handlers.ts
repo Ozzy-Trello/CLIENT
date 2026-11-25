@@ -43,7 +43,7 @@ export function invalidateNotulensiNotification(
  * Handle board.card.moved automation events by invalidating
  * the card/list/board caches that are affected.
  */
-export function handleCardMoved(
+export async function handleCardMoved(
   queryClient: QueryClient,
   data: WebSocketEventPayload
 ) {
@@ -78,6 +78,12 @@ export function handleCardMoved(
     console.warn("[WS] Card moved event missing required fields", data);
     return;
   }
+
+  await Promise.all([
+    queryClient.cancelQueries({ queryKey: queryKeys.cards.list(fromListId) }),
+    queryClient.cancelQueries({ queryKey: queryKeys.cards.list(toListId) }),
+    queryClient.cancelQueries({ queryKey: queryKeys.cards.detail(cardId) }),
+  ]);
 
   console.log("[WS] 🔄 handleCardMoved:", { cardId, fromListId, toListId, boardId });
 
