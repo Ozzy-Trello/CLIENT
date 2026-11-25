@@ -3,7 +3,7 @@ import { queryKeys } from "@constants/query-keys";
 import { handleCardMoved, invalidateCardLabelQueries, invalidateNotulensiNotification } from "./websocket-event-handlers";
 
 describe("handleCardMoved", () => {
-  it("moves a payload card between list caches immediately", () => {
+  it("moves a payload card between list caches immediately", async () => {
     const queryClient = new QueryClient();
     const card = { id: "card-1", name: "Moved card", listId: "list-a" };
 
@@ -17,7 +17,7 @@ describe("handleCardMoved", () => {
       data: card,
     });
 
-    handleCardMoved(queryClient, {
+    await handleCardMoved(queryClient, {
       cardId: "card-1",
       card,
       listId: "list-b",
@@ -44,6 +44,79 @@ describe("handleCardMoved", () => {
       (queryClient.getQueryData(queryKeys.cards.detail("card-1")) as any).data
     ).toMatchObject({
       id: "card-1",
+      listId: "list-b",
+      list_id: "list-b",
+    });
+  });
+
+  it("keeps the card out of the old list when a stale refetch resolves after the move", async () => {
+    const queryClient = new QueryClient();
+    const card = { id: "card-1", name: "Moved card", listId: "list-a" };
+
+    queryClient.setQueryData(queryKeys.cards.list("list-a"), { data: [card] });
+    queryClient.setQueryData(queryKeys.cards.list("list-b"), { data: [] });
+    queryClient.setQueryData(queryKeys.cards.detail("card-1"), { data: card });
+
+    const inFlight = queryClient.fetchQuery({
+      queryKey: queryKeys.cards.list("list-a"),
+      queryFn: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return { data: [card] };
+      },
+      staleTime: 0,
+    });
+
+    await handleCardMoved(queryClient, {
+      cardId: "card-1",
+      card,
+      listId: "list-b",
+      boardId: "board-1",
+      changes: { oldListId: "list-a", newListId: "list-b" },
+    });
+
+    try {
+      await inFlight;
+    } catch {}
+
+    expect((queryClient.getQueryData(queryKeys.cards.list("list-a")) as any).data).toEqual([]);
+    expect((queryClient.getQueryData(queryKeys.cards.list("list-b")) as any).data).toContainEqual({
+      ...card,
+      listId: "list-b",
+      list_id: "list-b",
+    });
+  });
+
+  it("keeps the moved card in the destination list after the stale refetch resolves", async () => {
+    const queryClient = new QueryClient();
+    const card = { id: "card-1", name: "Moved card", listId: "list-a" };
+
+    queryClient.setQueryData(queryKeys.cards.list("list-a"), { data: [card] });
+    queryClient.setQueryData(queryKeys.cards.list("list-b"), { data: [] });
+    queryClient.setQueryData(queryKeys.cards.detail("card-1"), { data: card });
+
+    const inFlight = queryClient.fetchQuery({
+      queryKey: queryKeys.cards.list("list-a"),
+      queryFn: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return { data: [card] };
+      },
+      staleTime: 0,
+    });
+
+    await handleCardMoved(queryClient, {
+      cardId: "card-1",
+      card,
+      listId: "list-b",
+      boardId: "board-1",
+      changes: { oldListId: "list-a", newListId: "list-b" },
+    });
+
+    try {
+      await inFlight;
+    } catch {}
+
+    expect((queryClient.getQueryData(queryKeys.cards.list("list-b")) as any).data).toContainEqual({
+      ...card,
       listId: "list-b",
       list_id: "list-b",
     });

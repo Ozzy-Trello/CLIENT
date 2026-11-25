@@ -1454,7 +1454,7 @@ export function useWebSocketCardUpdates(socket: WebSocket | null) {
             handleCardMoved(
               queryClient,
               message.data as WebSocketEventPayload
-            );
+            ).catch(() => {});
             refreshDashcard = true;
             break;
 
