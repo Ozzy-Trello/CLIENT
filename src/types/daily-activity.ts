@@ -35,6 +35,7 @@ export interface DailyActivityReport {
   user_id: string;
   work_date: string;
   status: "draft" | "submitted";
+  revision: number;
   first_submitted_at: string | null;
   reviewed_by?: string | null;
   reviewed_at?: string | null;
@@ -42,6 +43,13 @@ export interface DailyActivityReport {
   review_required?: boolean;
   activities: DailyActivityItem[];
   history?: Array<{ action: string; snapshot: unknown; created_at: string; actor_id: string; actor_name?: string | null }>;
+}
+
+export interface DailyActivitySaveOptions {
+  expected_revision: number | null;
+  expected_report_id: string | null;
+  removed_activity_ids: string[];
+  request_id: string;
 }
 
 export interface DailyActivityDay {

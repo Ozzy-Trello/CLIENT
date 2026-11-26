@@ -1,5 +1,5 @@
 import { api } from "@api/index";
-import { addDailyActivityItemComment, getDailyActivityConfiguration, getDailyActivityItemComments, reviewDailyActivityReport, setDailyActivityReviewerConfiguration } from "./daily-activity";
+import { addDailyActivityItemComment, getDailyActivityConfiguration, getDailyActivityItemComments, reviewDailyActivityReport, setDailyActivityReviewerConfiguration, saveDailyActivityDraft, submitDailyActivity } from "./daily-activity";
 
 jest.mock("@api/index", () => ({ api: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn(), patch: jest.fn() } }));
 
@@ -7,6 +7,17 @@ const mockedApi = api as jest.Mocked<typeof api>;
 
 describe("daily activity configuration api", () => {
   beforeEach(() => jest.clearAllMocks());
+
+  it("sends the edit version, explicit removals and retry identity for both save endpoints", async () => {
+    const options = { expected_revision: 4, expected_report_id: "report-1", removed_activity_ids: ["removed-1"], request_id: "request-1" };
+    const activities = [{ id: "item-1", content: "Kept activity" }];
+    mockedApi.put.mockResolvedValue({ data: { data: { id: "report-1", revision: 5, activities } } } as any);
+    mockedApi.post.mockResolvedValue({ data: { data: { id: "report-1", revision: 5, activities } } } as any);
+    await expect(saveDailyActivityDraft("2026-11-25", activities, options)).resolves.toMatchObject({ revision: 5 });
+    await submitDailyActivity("2026-11-25", activities, options);
+    expect(mockedApi.put).toHaveBeenCalledWith("/daily-activity/my-report/draft", { work_date: "2026-11-25", activities, ...options });
+    expect(mockedApi.post).toHaveBeenCalledWith("/daily-activity/my-report/submit", { work_date: "2026-11-25", activities, ...options });
+  });
 
   it("normalizes missing configuration collections to empty arrays", async () => {
     mockedApi.get.mockResolvedValue({ data: { data: { roles: [{ id: "role-1", name: "SPV" }] } } } as any);

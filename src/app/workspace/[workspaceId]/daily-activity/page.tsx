@@ -18,17 +18,14 @@ import {
   getMyDailyActivityLeaveRequests,
   getPendingDailyActivityLeaveRequests,
   previewDailyActivityScope,
-  getMyDailyActivity,
   removeDailyActivityHoliday,
   removeDailyActivityReference,
   renameDailyActivityReference,
   reviewDailyActivityReport,
-  saveDailyActivityDraft,
   setDailyActivityDeadline,
   setDailyActivityRoleRule,
   setDailyActivityUserOverride,
   setDailyActivityReviewerConfiguration,
-  submitDailyActivity,
   updateDailyActivityLeaveRequest,
   uploadDailyActivityAttachment,
   updateDailyActivityRoleManager,
@@ -39,6 +36,7 @@ import { getUnreadCount } from "@api/notifications";
 import { DailyActivityDay, DailyActivityLeaveRequest, DailyActivityTab, DailyActivityUser, DailyActivityStructureRole, DailyActivityReference } from "@myTypes/daily-activity";
 import { Card } from "@myTypes/card";
 import { NotulensiSummary } from "@myTypes/notulensi";
+import { useDailyActivityDraft } from "@hooks/use-daily-activity-draft";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CloseOutlined, PaperClipOutlined } from "@ant-design/icons";
 import { Alert, Button, Checkbox, DatePicker, Image, Input, Modal, Popconfirm, Select, Spin, Table, Tag, TimePicker, Typography, message } from "antd";
@@ -104,9 +102,6 @@ export default function DailyActivityPage() {
   const [settingsSection, setSettingsSection] = useState<SettingsSection>("duty");
   const [workDate, setWorkDate] = useState(today());
   const [teamDateRange, setTeamDateRange] = useState<[string, string]>([today(), today()]);
-  const [activities, setActivities] = useState<string[]>([""]);
-  const [activityIds, setActivityIds] = useState<string[]>([]);
-  const [editingActivities, setEditingActivities] = useState(false);
   const [referenceDrafts, setReferenceDrafts] = useState<Record<number, { url: string; name: string }>>({});
   const [pendingReferences, setPendingReferences] = useState<Record<number, PendingReference[]>>({});
   const [pendingAttachments, setPendingAttachments] = useState<Record<number, PendingAttachment[]>>({});
@@ -158,13 +153,16 @@ export default function DailyActivityPage() {
   const { isSuperAdmin } = usePermissions();
   const accountQuery = useCurrentAccount();
   const currentUserId = accountQuery.data?.data?.id;
+  const draftEditor = useDailyActivityDraft(currentUserId, workDate, tab === "mine", Object.values(pendingReferences).some((items) => items.length > 0) || Object.values(pendingAttachments).some((items) => items.length > 0));
+  const { activities, setActivities, activityIds, setActivityIds, editingActivities, reportQuery } = draftEditor;
+  const saveGuard = useRef(false);
+  const [activityValidationError, setActivityValidationError] = useState<string | null>(null);
   const isAdmin = isSuperAdmin();
   const isHr = accountQuery.data?.data?.role?.name === "HR";
   const canManageHolidays = isAdmin || isHr;
   const activityFilterStorageKey = currentUserId && workspaceId ? `ozzy_daily_activity_filters_${currentUserId}_${workspaceId}` : null;
 
   const accessQuery = useQuery({ queryKey: ["daily-activity-access-status"], queryFn: getDailyActivityAccessStatus });
-  const reportQuery = useQuery({ queryKey: ["daily-activity-my-report", workDate], queryFn: () => getMyDailyActivity(workDate), enabled: tab === "mine" });
   const myLeaveRequestsQuery = useQuery({ queryKey: ["daily-activity-leave-requests", "mine"], queryFn: getMyDailyActivityLeaveRequests, enabled: tab === "mine", refetchInterval: 30_000 });
   const pendingLeaveRequestsQuery = useQuery({ queryKey: ["daily-activity-leave-requests", "inbox"], queryFn: getPendingDailyActivityLeaveRequests, refetchInterval: 30_000 });
   const allLeaveRequestsQuery = useQuery({ queryKey: ["daily-activity-leave-requests", "admin"], queryFn: getAllDailyActivityLeaveRequests, enabled: isAdmin && tab === "leave", refetchInterval: 30_000 });
@@ -319,13 +317,6 @@ export default function DailyActivityPage() {
     if (currentDeadline) setDeadline(currentDeadline.deadline_time.slice(0, 5));
   }, [configQuery.data, effectiveFrom]);
 
-  useEffect(() => {
-    if (editingActivities || !reportQuery.data) return;
-    const report = reportQuery.data?.report;
-    setActivities(report?.activities?.length ? report.activities.map((item) => item.content) : [""]);
-    setActivityIds(report?.activities?.map((item) => item.id) || []);
-  }, [reportQuery.data, editingActivities]);
-
   const invalidateFeature = () => {
     void queryClient.invalidateQueries({ queryKey: ["daily-activity"] });
     void queryClient.invalidateQueries({ queryKey: ["daily-activity-access-status"] });
@@ -333,9 +324,7 @@ export default function DailyActivityPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (submit: boolean) => {
-      const report = submit
-        ? await submitDailyActivity(workDate, activities.map((content, index) => ({ id: activityIds[index] || undefined, content })))
-        : await saveDailyActivityDraft(workDate, activities.map((content, index) => ({ id: activityIds[index] || undefined, content })));
+      const report = await draftEditor.save(submit);
       const failedReferences: Array<{ index: number; pending: PendingReference }> = [];
       const failedAttachments: Array<{ index: number; pending: PendingAttachment }> = [];
       for (let index = 0; index < activities.length; index += 1) {
@@ -365,9 +354,7 @@ export default function DailyActivityPage() {
       }
       return { report, submit, failedReferences, failedAttachments };
     },
-    onSuccess: ({ report, submit, failedReferences, failedAttachments }) => {
-      const idsByOrder = new Map(report.activities.map((item) => [item.order, item.id]));
-      setActivityIds(activities.map((_, index) => idsByOrder.get(index) || ""));
+    onSuccess: ({ submit, failedReferences, failedAttachments }) => {
       const failedReferenceIds = new Set(failedReferences.map(({ pending }) => pending.id));
       const failedAttachmentIds = new Set(failedAttachments.map(({ pending }) => pending.id));
       setPendingReferences((current) => Object.fromEntries(Object.entries(current).map(([index, items]) => [Number(index), items.filter((item) => failedReferenceIds.has(item.id))])));
@@ -375,14 +362,16 @@ export default function DailyActivityPage() {
       if (failedReferences.length || failedAttachments.length) {
         message.warning(`${submit ? "Daily terkirim" : "Draft tersimpan"}, tetapi ${failedReferences.length + failedAttachments.length} referensi/lampiran gagal ditambahkan. Coba simpan lagi.`);
       } else {
-        setEditingActivities(false);
+        draftEditor.finishEdit();
         message.success(submit ? "Daily Activity terkirim" : "Draft tersimpan");
       }
       invalidateFeature();
-      void queryClient.invalidateQueries({ queryKey: ["daily-activity-my-report", workDate] });
+      void queryClient.invalidateQueries({ queryKey: draftEditor.queryKey });
     },
-    onError: (error: any) => message.error(error?.response?.data?.message || "Gagal menyimpan Daily Activity"),
+    onError: (error: any) => message.error(error?.response?.data?.message || error?.message || "Gagal menyimpan Daily Activity"),
+    onSettled: () => { saveGuard.current = false; },
   });
+  const isSavingActivities = saveMutation.isPending || draftEditor.saving;
 
   const commentMutation = useMutation({
     mutationFn: ({ itemId, content }: { itemId: string; content: string }) => addDailyActivityItemComment(itemId, content, workspaceId),
@@ -459,10 +448,10 @@ export default function DailyActivityPage() {
     onSuccess: () => { message.success("Pengajuan cuti dihapus"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-leave-requests"] }); void queryClient.invalidateQueries({ queryKey: ["daily-activity-reports"] }); void queryClient.invalidateQueries({ queryKey: ["daily-activity-access-status"] }); },
     onError: (error: any) => message.error(error?.response?.data?.message || "Gagal menghapus pengajuan cuti"),
   });
-  const removeReferenceMutation = useMutation({ mutationFn: ({ itemId, referenceId }: { itemId: string; referenceId: string }) => removeDailyActivityReference(itemId, referenceId), onSuccess: () => { message.success("Lampiran dihapus"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-my-report", workDate] }); if (selectedReportId) void queryClient.invalidateQueries({ queryKey: ["daily-activity-report", selectedReportId] }); } });
+  const removeReferenceMutation = useMutation({ mutationFn: ({ itemId, referenceId }: { itemId: string; referenceId: string }) => removeDailyActivityReference(itemId, referenceId), onSuccess: () => { message.success("Lampiran dihapus"); void queryClient.invalidateQueries({ queryKey: draftEditor.queryKey }); if (selectedReportId) void queryClient.invalidateQueries({ queryKey: ["daily-activity-report", selectedReportId] }); } });
   const renameReferenceMutation = useMutation({
     mutationFn: ({ itemId, referenceId, name }: { itemId: string; referenceId: string; name: string }) => renameDailyActivityReference(itemId, referenceId, name),
-    onSuccess: () => { setRenameTarget(null); message.success("Nama link diperbarui"); void queryClient.invalidateQueries({ queryKey: ["daily-activity-my-report", workDate] }); if (selectedReportId) void queryClient.invalidateQueries({ queryKey: ["daily-activity-report", selectedReportId] }); },
+    onSuccess: () => { setRenameTarget(null); message.success("Nama link diperbarui"); void queryClient.invalidateQueries({ queryKey: draftEditor.queryKey }); if (selectedReportId) void queryClient.invalidateQueries({ queryKey: ["daily-activity-report", selectedReportId] }); },
     onError: (error: any) => message.error(error?.response?.data?.message || "Gagal mengubah nama link"),
   });
   const scopePreviewMutation = useMutation({ mutationFn: previewDailyActivityScope, onSuccess: (result) => { setScopePreview(result.user_ids); setTeamScopePreviewIds(result.user_ids); }, onError: (error: any) => message.error(error?.response?.data?.message || "Gagal memuat cakupan") });
@@ -579,6 +568,7 @@ export default function DailyActivityPage() {
     );
   };
   const uploadActivityImage = async (index: number, file?: File) => {
+    if (saveGuard.current) return;
     const itemId = activityIds[index];
     if (!file) return;
     if (file.size > 50 * 1024 * 1024) {
@@ -596,7 +586,7 @@ export default function DailyActivityPage() {
     try {
       await uploadDailyActivityAttachment(itemId, file);
       message.success("Attachment ditambahkan");
-      await queryClient.invalidateQueries({ queryKey: ["daily-activity-my-report", workDate] });
+      await queryClient.invalidateQueries({ queryKey: draftEditor.queryKey });
     } catch (error: any) {
       message.error(error?.response?.data?.message || error?.message || "Upload lampiran gagal");
     } finally {
@@ -604,6 +594,7 @@ export default function DailyActivityPage() {
     }
   };
   const saveActivityReference = async (index: number, reference: PendingReference["reference"]) => {
+    if (saveGuard.current) return;
     const itemId = activityIds[index];
     if (!itemId) {
       setPendingReferences((current) => ({
@@ -615,7 +606,7 @@ export default function DailyActivityPage() {
     try {
       await addDailyActivityReference(itemId, reference);
       message.success(reference.type === "link" ? "Link ditambahkan" : "Referensi ditambahkan");
-      await queryClient.invalidateQueries({ queryKey: ["daily-activity-my-report", workDate] });
+      await queryClient.invalidateQueries({ queryKey: draftEditor.queryKey });
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Gagal menambahkan referensi");
     }
@@ -638,37 +629,44 @@ export default function DailyActivityPage() {
     void saveActivityReference(index, { type: "notulensi", notulensi_id: task.id, workspace_id: workspaceId, display_text: `${task.code} · ${task.title}` });
     setTaskSearch("");
   };
-  const openActivityEditor = () => {
-    const savedActivities = reportQuery.data?.report?.activities || [];
-    const nextActivities = savedActivities.map((activity) => activity.content);
-    const nextActivityIds = savedActivities.map((activity) => activity.id);
-    if (!savedActivities.length) {
-      nextActivities.push("");
-      nextActivityIds.push("");
-    }
-    setActivities(nextActivities);
-    setActivityIds(nextActivityIds);
+  const resetPendingActivityReferences = () => {
     setPendingReferences({});
     setPendingAttachments({});
     setReferenceDrafts({});
     setOpenAttachmentIndex(null);
-    setEditingActivities(true);
+    setActivityValidationError(null);
+  };
+  const openActivityEditor = async () => {
+    if (await draftEditor.openEditor()) resetPendingActivityReferences();
+  };
+  const copyActivityDraft = async () => {
+    const text = activities.map((content, index) => `${index + 1}. ${content}`).join("\n\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      message.success("Tulisan draft disalin. Simpan salinannya sebelum memuat versi terbaru.");
+    } catch {
+      Modal.info({ title: "Salin tulisan draft", content: <Input.TextArea readOnly autoSize={{ minRows: 6, maxRows: 16 }} value={text} /> });
+    }
   };
   const cancelActivityEdit = () => {
-    const savedActivities = reportQuery.data?.report?.activities || [];
-    setActivities(savedActivities.length ? savedActivities.map((activity) => activity.content) : [""]);
-    setActivityIds(savedActivities.map((activity) => activity.id));
-    setPendingReferences({});
-    setPendingAttachments({});
-    setReferenceDrafts({});
-    setOpenAttachmentIndex(null);
-    setEditingActivities(false);
+    const discard = () => { draftEditor.discard(); resetPendingActivityReferences(); };
+    if (draftEditor.dirty) {
+      Modal.confirm({
+        title: "Buang perubahan yang belum tersimpan?",
+        content: "Tulisan dan lampiran yang belum dikirim akan dibuang. Pilih Lanjut edit untuk mempertahankannya.",
+        okText: "Buang perubahan", cancelText: "Lanjut edit", okButtonProps: { danger: true }, onOk: discard,
+      });
+    } else discard();
   };
   const runSaveActivities = (submit: boolean) => {
+    if (saveGuard.current) return;
     if (activities.some((content) => !content.trim())) {
+      setActivityValidationError("Belum tersimpan: isi atau hapus semua baris aktivitas yang kosong, lalu tekan Simpan lagi.");
       message.error("Isi atau hapus semua baris aktivitas sebelum menyimpan.");
       return;
     }
+    setActivityValidationError(null);
+    saveGuard.current = true;
     saveMutation.mutate(submit);
   };
   const shiftIndexedRecord = <T,>(current: Record<number, T>, fromIndex: number) =>
@@ -677,13 +675,12 @@ export default function DailyActivityPage() {
       return [index >= fromIndex ? index + 1 : index, value];
     })) as Record<number, T>;
   const handleActivityKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>, index: number, content: string) => {
-    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229 || saveMutation.isPending) return;
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229 || isSavingActivities) return;
     if (event.key === "Backspace" && !content && index > 0) {
       const savedActivity = reportQuery.data?.report?.activities.find((item) => item.id === activityIds[index]);
       if (savedActivity?.references?.length || pendingReferences[index]?.length || pendingAttachments[index]?.length) return;
       event.preventDefault();
-      setActivities((current) => current.filter((_, itemIndex) => itemIndex !== index));
-      setActivityIds((current) => current.filter((_, itemIndex) => itemIndex !== index));
+      draftEditor.removeActivity(index);
       const shiftIndexes = <T,>(current: Record<number, T>) => Object.fromEntries(Object.entries(current).filter(([key]) => Number(key) !== index).map(([key, value]) => [Number(key) > index ? Number(key) - 1 : Number(key), value])) as Record<number, T>;
       setPendingReferences(shiftIndexes);
       setPendingAttachments(shiftIndexes);
@@ -821,10 +818,16 @@ export default function DailyActivityPage() {
             <div className="flex flex-wrap items-end justify-between gap-3"><label className="flex flex-col gap-1 text-xs">Tanggal kerja<DatePicker value={dayjs(workDate)} onChange={(value) => value && setWorkDate(value.format("YYYY-MM-DD"))} disabled={editingActivities} disabledDate={(date) => date.format("YYYY-MM-DD") > today()} /></label><Button disabled={editingActivities || !canActOnSelectedDate} onClick={openLeaveRequest}>Ajukan Cuti</Button></div>
             {reportQuery.data && !canActOnSelectedDate && <Alert type="info" showIcon message="Daily Activity tidak wajib diisi pada tanggal ini. Laporan hanya dapat dilihat." />}
           </div>
+          {!editingActivities && draftEditor.recoveryAvailable && <Alert type="warning" showIcon message="Ada draft di perangkat ini yang belum terkirim" action={<Button onClick={openActivityEditor} loading={reportQuery.isFetching}>Pulihkan draft</Button>} />}
+          {draftEditor.saveError && <Alert type="error" showIcon message="Daily Activity belum tersimpan" description={draftEditor.saveError} action={editingActivities ? <Button onClick={copyActivityDraft}>Salin draft</Button> : undefined} />}
           {activeLeave && <Alert showIcon type={activeLeave.status === "approved" ? "success" : activeLeave.status === "pending" ? "warning" : "error"} message={activeLeave.status === "approved" ? "Cuti disetujui" : activeLeave.status === "pending" ? "Cuti menunggu persetujuan" : "Pengajuan cuti ditolak"} description={activeLeave.status === "approved" ? "Daily Activity tidak wajib pada tanggal ini." : activeLeave.status === "pending" ? "Daily Activity tetap wajib sampai atasan menyetujui pengajuan." : activeLeave.decision_note || "Daily Activity tetap wajib diisi."} />}
           {reportQuery.isLoading ? <Spin /> : <>
             {editingActivities ? <>
               <div className="mb-1 flex items-center justify-between"><Typography.Title level={4} className="!mb-0">Aktivitas yang dikerjakan</Typography.Title>{reportQuery.data?.report && <Tag color={reportQuery.data.report.status === "submitted" ? "green" : "gold"}>{reportQuery.data.report.status === "submitted" ? "Sudah Kirim" : "Draft"}</Tag>}</div>
+              {draftEditor.dirty && <Alert type="info" showIcon message="Ada perubahan yang belum dikirim ke server" description="Tekan Simpan Draft atau Simpan Aktivitas sampai muncul konfirmasi berhasil." />}
+              {draftEditor.restored && <Alert type="warning" showIcon message="Draft yang belum terkirim dipulihkan dari perangkat ini" description="Periksa isi draft lalu simpan. File lampiran yang belum terkirim perlu dipilih kembali." />}
+              {draftEditor.storageWarning && <Alert type="warning" showIcon message={draftEditor.storageWarning} />}
+              {activityValidationError && <Alert type="error" showIcon message={activityValidationError} />}
               <Typography.Text id="daily-activity-keyboard-help" type="secondary" className="text-xs">Enter untuk aktivitas baru · Shift + Enter untuk turun baris dalam aktivitas yang sama</Typography.Text>
               {activities.map((content, index) => {
                 const activityId = activityIds[index];
@@ -835,29 +838,28 @@ export default function DailyActivityPage() {
                 const referenceCount = (savedActivity?.references?.length || 0) + queuedReferences.length + queuedAttachments.length;
                 const attachmentOpen = openAttachmentIndex === index;
                 return <div key={activityId || `new-${index}`} className="ozactivity" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); Array.from(event.dataTransfer.files || []).forEach((file) => void uploadActivityImage(index, file)); }} onPaste={(event) => { const file = Array.from(event.clipboardData.files || [])[0]; if (file) { event.preventDefault(); void uploadActivityImage(index, file); } }}>
-                  <div className="ozactivityline"><span className="ozactivitynumber" aria-hidden="true">{index + 1}.</span><Input.TextArea className="ozactivityinput" aria-label={`Aktivitas ${index + 1}`} aria-describedby="daily-activity-keyboard-help" autoSize={{ minRows: 1 }} maxLength={20000} value={content} onChange={(event) => setActivities((items) => items.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} onKeyDown={(event) => handleActivityKeyDown(event, index, content)} placeholder="Tulis aktivitas…" disabled={saveMutation.isPending} /><div className="ozactivity-actions"><Button type={attachmentOpen ? "primary" : "text"} aria-label={`${attachmentOpen ? "Tutup" : "Kelola"} lampiran aktivitas ${index + 1}${referenceCount ? `, ${referenceCount} referensi` : ""}`} aria-expanded={attachmentOpen} onClick={() => setOpenAttachmentIndex((current) => current === index ? null : index)} icon={<PaperClipOutlined />}>{referenceCount ? <span className="ozattachment-count">{referenceCount}</span> : null}</Button><Button type="text" danger aria-label={`Hapus aktivitas ${index + 1}`} icon={<CloseOutlined />} disabled={activities.length === 1 || saveMutation.isPending} onClick={() => {
-                    setActivities((items) => items.filter((_, itemIndex) => itemIndex !== index));
-                    setActivityIds((items) => items.filter((_, itemIndex) => itemIndex !== index));
+                  <div className="ozactivityline"><span className="ozactivitynumber" aria-hidden="true">{index + 1}.</span><Input.TextArea className="ozactivityinput" status={activityValidationError && !content.trim() ? "error" : undefined} aria-label={`Aktivitas ${index + 1}`} aria-describedby="daily-activity-keyboard-help" autoSize={{ minRows: 1 }} maxLength={20000} value={content} onChange={(event) => setActivities((items) => items.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} onKeyDown={(event) => handleActivityKeyDown(event, index, content)} placeholder="Tulis aktivitas…" disabled={isSavingActivities} /><div className="ozactivity-actions"><Button type={attachmentOpen ? "primary" : "text"} aria-label={`${attachmentOpen ? "Tutup" : "Kelola"} lampiran aktivitas ${index + 1}${referenceCount ? `, ${referenceCount} referensi` : ""}`} aria-expanded={attachmentOpen} onClick={() => setOpenAttachmentIndex((current) => current === index ? null : index)} icon={<PaperClipOutlined />}>{referenceCount ? <span className="ozattachment-count">{referenceCount}</span> : null}</Button><Button type="text" danger aria-label={`Hapus aktivitas ${index + 1}`} icon={<CloseOutlined />} disabled={activities.length === 1 || isSavingActivities} onClick={() => {
+                    draftEditor.removeActivity(index);
                     const shiftIndexes = <T,>(current: Record<number, T>) => Object.fromEntries(Object.entries(current).filter(([key]) => Number(key) !== index).map(([key, value]) => [Number(key) > index ? Number(key) - 1 : Number(key), value])) as Record<number, T>;
                     setPendingReferences(shiftIndexes);
                     setPendingAttachments(shiftIndexes);
                     setReferenceDrafts(shiftIndexes);
                     setOpenAttachmentIndex((current) => current === index ? null : current !== null && current > index ? current - 1 : current);
                   }} /></div></div>
-                  {attachmentOpen && <div className="ozattachment-panel"><div className="ozattachment-tools"><label className="inline-flex min-h-11 cursor-pointer items-center rounded border bg-white px-3 py-2 hover:bg-slate-50">+ Lampiran<input type="file" multiple className="sr-only" disabled={attachmentBusy || saveMutation.isPending} onChange={(event) => { Array.from(event.target.files || []).forEach((file) => void uploadActivityImage(index, file)); event.target.value = ""; }} /></label><span className="ozattachment-hint">Drag & drop atau paste · Maks 50 MB/file</span></div>
-                  {(savedActivity?.references?.length || queuedReferences.length || queuedAttachments.length) ? <div className="grid min-w-0 gap-2" aria-label="Lampiran dan referensi aktivitas">{savedActivity?.references?.length ? renderActivityReferences(savedActivity.references, activityId!) : null}<div className="flex flex-wrap gap-2">{queuedReferences.map((pending) => <span key={pending.id} className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1">{pending.reference.display_text || pending.reference.url || "Card terkait"}<Typography.Text type="secondary">Belum disimpan</Typography.Text><Button type="text" size="small" danger aria-label="Hapus referensi yang belum disimpan" onClick={() => setPendingReferences((current) => ({ ...current, [index]: (current[index] || []).filter((item) => item.id !== pending.id) }))}>×</Button></span>)}{queuedAttachments.map((pending) => <span key={pending.id} className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1">{pending.file.name}<Typography.Text type="secondary">Belum disimpan</Typography.Text><Button type="text" size="small" danger aria-label={`Hapus lampiran ${pending.file.name}`} onClick={() => setPendingAttachments((current) => ({ ...current, [index]: (current[index] || []).filter((item) => item.id !== pending.id) }))}>×</Button></span>)}</div></div> : null}
+                  {attachmentOpen && <div className="ozattachment-panel"><div className="ozattachment-tools"><label className="inline-flex min-h-11 cursor-pointer items-center rounded border bg-white px-3 py-2 hover:bg-slate-50">+ Lampiran<input type="file" multiple className="sr-only" disabled={attachmentBusy || isSavingActivities} onChange={(event) => { Array.from(event.target.files || []).forEach((file) => void uploadActivityImage(index, file)); event.target.value = ""; }} /></label><span className="ozattachment-hint">Drag & drop atau paste · Maks 50 MB/file</span></div>
+                  {(savedActivity?.references?.length || queuedReferences.length || queuedAttachments.length) ? <div className="grid min-w-0 gap-2" aria-label="Lampiran dan referensi aktivitas">{savedActivity?.references?.length ? renderActivityReferences(savedActivity.references, activityId!) : null}<div className="flex flex-wrap gap-2">{queuedReferences.map((pending) => <span key={pending.id} className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1">{pending.reference.display_text || pending.reference.url || "Card terkait"}<Typography.Text type="secondary">Belum disimpan</Typography.Text><Button type="text" size="small" danger disabled={isSavingActivities} aria-label="Hapus referensi yang belum disimpan" onClick={() => setPendingReferences((current) => ({ ...current, [index]: (current[index] || []).filter((item) => item.id !== pending.id) }))}>×</Button></span>)}{queuedAttachments.map((pending) => <span key={pending.id} className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1">{pending.file.name}<Typography.Text type="secondary">Belum disimpan</Typography.Text><Button type="text" size="small" danger disabled={isSavingActivities} aria-label={`Hapus lampiran ${pending.file.name}`} onClick={() => setPendingAttachments((current) => ({ ...current, [index]: (current[index] || []).filter((item) => item.id !== pending.id) }))}>×</Button></span>)}</div></div> : null}
                   <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
-                    <section className="grid min-w-0 gap-2 rounded border bg-slate-50 p-3 sm:col-span-2"><Typography.Text strong>Tambah tautan</Typography.Text><div className="grid min-w-0 gap-2 sm:grid-cols-[1fr_1fr_auto]"><Input aria-label="Alamat tautan" placeholder="https://..." value={referenceDraft.url} onChange={(event) => setReferenceDrafts((current) => ({ ...current, [index]: { ...referenceDraft, url: event.target.value } }))} onPressEnter={() => saveLinkDraft(index)} /><Input aria-label="Nama tautan opsional" placeholder="Nama tautan (opsional)" value={referenceDraft.name} onChange={(event) => setReferenceDrafts((current) => ({ ...current, [index]: { ...referenceDraft, name: event.target.value } }))} onPressEnter={() => saveLinkDraft(index)} /><Button disabled={!referenceDraft.url.trim()} onClick={() => saveLinkDraft(index)}>Tambah</Button></div></section>
-                    <label className="min-w-0 space-y-1"><Typography.Text type="secondary">Card di board</Typography.Text><Select className="w-full" showSearch filterOption={false} allowClear value={undefined} placeholder="Cari card di board" onSearch={setCardSearch} onChange={(cardId) => { const card = cardResults.find((candidate) => candidate.id === cardId); if (card) saveCardReference(index, card); }} loading={cardSearchQuery.isFetching} notFoundContent={cardSearch.trim().length < 3 ? "Ketik minimal 3 karakter" : cardSearchQuery.isError ? "Gagal mencari card" : "Card tidak ditemukan"} options={cardResults.map((card) => ({ value: card.id, label: `${card.name}${card.boardName ? ` · ${card.boardName}` : ""}` }))} /></label>
-                    <label className="min-w-0 space-y-1"><Typography.Text type="secondary">Task / Project</Typography.Text><Select className="w-full" showSearch filterOption={false} allowClear value={undefined} placeholder="Cari Task / Project" onSearch={setTaskSearch} onChange={(taskId) => { const task = taskResults.find((candidate) => candidate.id === taskId); if (task) saveTaskReference(index, task); }} loading={taskSearchQuery.isFetching} notFoundContent={taskSearch.trim().length < 2 ? "Ketik minimal 2 karakter" : taskSearchQuery.isError ? "Gagal mencari Task / Project" : "Task / Project tidak ditemukan"} options={taskResults.map((task) => ({ value: task.id, label: `${task.code} · ${task.title}` }))} /></label>
+                    <section className="grid min-w-0 gap-2 rounded border bg-slate-50 p-3 sm:col-span-2"><Typography.Text strong>Tambah tautan</Typography.Text><div className="grid min-w-0 gap-2 sm:grid-cols-[1fr_1fr_auto]"><Input disabled={isSavingActivities} aria-label="Alamat tautan" placeholder="https://..." value={referenceDraft.url} onChange={(event) => setReferenceDrafts((current) => ({ ...current, [index]: { ...referenceDraft, url: event.target.value } }))} onPressEnter={() => saveLinkDraft(index)} /><Input disabled={isSavingActivities} aria-label="Nama tautan opsional" placeholder="Nama tautan (opsional)" value={referenceDraft.name} onChange={(event) => setReferenceDrafts((current) => ({ ...current, [index]: { ...referenceDraft, name: event.target.value } }))} onPressEnter={() => saveLinkDraft(index)} /><Button disabled={isSavingActivities || !referenceDraft.url.trim()} onClick={() => saveLinkDraft(index)}>Tambah</Button></div></section>
+                    <label className="min-w-0 space-y-1"><Typography.Text type="secondary">Card di board</Typography.Text><Select disabled={isSavingActivities} className="w-full" showSearch filterOption={false} allowClear value={undefined} placeholder="Cari card di board" onSearch={setCardSearch} onChange={(cardId) => { const card = cardResults.find((candidate) => candidate.id === cardId); if (card) saveCardReference(index, card); }} loading={cardSearchQuery.isFetching} notFoundContent={cardSearch.trim().length < 3 ? "Ketik minimal 3 karakter" : cardSearchQuery.isError ? "Gagal mencari card" : "Card tidak ditemukan"} options={cardResults.map((card) => ({ value: card.id, label: `${card.name}${card.boardName ? ` · ${card.boardName}` : ""}` }))} /></label>
+                    <label className="min-w-0 space-y-1"><Typography.Text type="secondary">Task / Project</Typography.Text><Select disabled={isSavingActivities} className="w-full" showSearch filterOption={false} allowClear value={undefined} placeholder="Cari Task / Project" onSearch={setTaskSearch} onChange={(taskId) => { const task = taskResults.find((candidate) => candidate.id === taskId); if (task) saveTaskReference(index, task); }} loading={taskSearchQuery.isFetching} notFoundContent={taskSearch.trim().length < 2 ? "Ketik minimal 2 karakter" : taskSearchQuery.isError ? "Gagal mencari Task / Project" : "Task / Project tidak ditemukan"} options={taskResults.map((task) => ({ value: task.id, label: `${task.code} · ${task.title}` }))} /></label>
                   </div>
                   </div>}
                 </div>;
               })}
-              <div className="ozactions"><Button onClick={() => { setActivities((items) => [...items, ""]); setActivityIds((items) => [...items, ""]); }} disabled={saveMutation.isPending}>+ Aktivitas</Button><Button onClick={cancelActivityEdit} disabled={saveMutation.isPending}>Batal</Button>{reportQuery.data?.report?.status !== "submitted" && <Button onClick={() => runSaveActivities(false)} loading={saveMutation.isPending}>Simpan Draft</Button>}<Button type="primary" onClick={() => runSaveActivities(true)} loading={saveMutation.isPending}>{reportQuery.data?.report?.status === "submitted" ? "Simpan Perubahan" : "Simpan Aktivitas"}</Button></div>
+              <div className="ozactions"><Button onClick={() => { setActivities((items) => [...items, ""]); setActivityIds((items) => [...items, ""]); }} disabled={isSavingActivities}>+ Aktivitas</Button><Button onClick={cancelActivityEdit} disabled={isSavingActivities}>Batal</Button>{reportQuery.data?.report?.status !== "submitted" && <Button onClick={() => runSaveActivities(false)} loading={isSavingActivities}>Simpan Draft</Button>}<Button type="primary" onClick={() => runSaveActivities(true)} loading={isSavingActivities}>{reportQuery.data?.report?.status === "submitted" ? "Simpan Perubahan" : "Simpan Aktivitas"}</Button></div>
             </> : <>
-               <div className="mb-1 flex items-center justify-between"><div><Typography.Title level={4} className="!mb-0">Aktivitas saya</Typography.Title><Typography.Text type="secondary">{dayjs(workDate).format("dddd, D MMMM YYYY")}</Typography.Text></div><div className="flex items-center gap-2">{reportQuery.data?.report && <Tag color={reportQuery.data.report.status === "submitted" ? "green" : "gold"}>{reportQuery.data.report.status === "submitted" ? "Sudah Kirim" : "Draft"}</Tag>}{canActOnSelectedDate && Boolean(reportQuery.data?.report?.activities.length) && activeLeave?.status !== "approved" ? <Button size="small" onClick={openActivityEditor}>Edit Aktivitas</Button> : null}</div></div>
-                {reportQuery.data?.report?.activities.length ? <div className="grid gap-3">{reportQuery.data.report.activities.map((activity, index) => <article key={activity.id} className="rounded-lg border bg-white p-4"><div className="mb-2 flex items-start justify-between gap-3"><div className="flex min-w-0 flex-1 gap-3"><span className="shrink-0 text-sm text-slate-500">{index + 1}.</span><p className="min-w-0 whitespace-pre-wrap">{activity.content}</p></div>{reportQuery.data?.report?.status === "submitted" && <Button className="shrink-0" size="small" type={commentItemId === activity.id ? "primary" : "default"} onClick={() => setCommentItemId((current) => current === activity.id ? null : activity.id)} aria-expanded={commentItemId === activity.id}>Komentar{activity.comments_count ? ` · ${activity.comments_count}` : ""}{accessQuery.data?.oldest_unread_comment?.item_id === activity.id ? " · Belum Dibaca" : ""}</Button>}</div>{activity.references?.length ? renderActivityReferences(activity.references, activity.id, canActOnSelectedDate) : null}{renderCommentPanel(activity.id)}</article>)}</div> : activeLeave?.status === "approved" ? <div className="quiet">Cuti disetujui. Tidak perlu mencatat aktivitas.</div> : <div className="grid justify-items-center gap-3 rounded-lg border border-dashed p-8 text-center"><h3>Belum ada aktivitas yang dicatat</h3><p className="text-slate-500">Pilih tanggal dan catat aktivitas yang dikerjakan.</p>{canActOnSelectedDate && <Button type="primary" onClick={openActivityEditor}>+ Catat Aktivitas</Button>}</div>}
+               <div className="mb-1 flex items-center justify-between"><div><Typography.Title level={4} className="!mb-0">Aktivitas saya</Typography.Title><Typography.Text type="secondary">{dayjs(workDate).format("dddd, D MMMM YYYY")}</Typography.Text></div><div className="flex items-center gap-2">{reportQuery.data?.report && <Tag color={reportQuery.data.report.status === "submitted" ? "green" : "gold"}>{reportQuery.data.report.status === "submitted" ? "Sudah Kirim" : "Draft"}</Tag>}{canActOnSelectedDate && Boolean(reportQuery.data?.report?.activities.length) && activeLeave?.status !== "approved" ? <Button size="small" loading={reportQuery.isFetching} disabled={reportQuery.isFetching} onClick={openActivityEditor}>Edit Aktivitas</Button> : null}</div></div>
+                {reportQuery.data?.report?.activities.length ? <div className="grid gap-3">{reportQuery.data.report.activities.map((activity, index) => <article key={activity.id} className="rounded-lg border bg-white p-4"><div className="mb-2 flex items-start justify-between gap-3"><div className="flex min-w-0 flex-1 gap-3"><span className="shrink-0 text-sm text-slate-500">{index + 1}.</span><p className="min-w-0 whitespace-pre-wrap">{activity.content}</p></div>{reportQuery.data?.report?.status === "submitted" && <Button className="shrink-0" size="small" type={commentItemId === activity.id ? "primary" : "default"} onClick={() => setCommentItemId((current) => current === activity.id ? null : activity.id)} aria-expanded={commentItemId === activity.id}>Komentar{activity.comments_count ? ` · ${activity.comments_count}` : ""}{accessQuery.data?.oldest_unread_comment?.item_id === activity.id ? " · Belum Dibaca" : ""}</Button>}</div>{activity.references?.length ? renderActivityReferences(activity.references, activity.id, canActOnSelectedDate) : null}{renderCommentPanel(activity.id)}</article>)}</div> : activeLeave?.status === "approved" ? <div className="quiet">Cuti disetujui. Tidak perlu mencatat aktivitas.</div> : <div className="grid justify-items-center gap-3 rounded-lg border border-dashed p-8 text-center"><h3>Belum ada aktivitas yang dicatat</h3><p className="text-slate-500">Pilih tanggal dan catat aktivitas yang dikerjakan.</p>{canActOnSelectedDate && <Button type="primary" loading={reportQuery.isFetching} disabled={reportQuery.isFetching} onClick={openActivityEditor}>+ Catat Aktivitas</Button>}</div>}
                 {myLeaveRequests.length > 0 && <section className="rounded-lg border p-4"><Typography.Text strong>Pengajuan cuti saya</Typography.Text><div className="mt-2 grid gap-2">{myLeaveRequests.map((request) => <div key={request.id} className="flex flex-wrap items-center justify-between gap-2 border-t pt-2"><div><div><Typography.Text strong>{request.employee_name}</Typography.Text><Typography.Text className="ml-2" type="secondary">{request.employee_role_name || "-"}</Typography.Text></div><span>{leavePeriod(request.start_date, request.end_date)}</span><Tag className="ml-2" color={request.status === "approved" ? "green" : request.status === "pending" ? "gold" : request.status === "rejected" ? "red" : "default"}>{leaveStatusLabel(request.status)}</Tag><Typography.Text className="ml-2" type="secondary">{request.approver_role_name ? `Atasan: ${request.approver_role_name}` : "Atasan: Super Admin"}</Typography.Text>{request.note && <div className="mt-1 text-sm">{request.note}</div>}{request.decision_note && <div className="mt-1 text-sm text-slate-500">Catatan: {request.decision_note}</div>}</div>{request.status === "pending" && <div className="flex gap-2"><Button size="small" disabled={cancelLeaveMutation.isPending || updateLeaveMutation.isPending} onClick={() => { setEditingLeave(request.id); setLeaveStart(dayjs(request.start_date)); setLeaveEnd(dayjs(request.end_date)); setLeaveNote(request.note || ""); setLeaveModalOpen(true); }}>Ubah</Button><Button danger size="small" loading={cancelLeaveMutation.isPending} onClick={() => cancelLeaveMutation.mutate(request.id)}>Hapus</Button></div>}</div>)}</div></section>}
             </>}
           </>}

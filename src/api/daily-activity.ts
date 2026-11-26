@@ -9,6 +9,7 @@ import {
   DailyActivityStructureRole,
   DailyActivityUser,
   DailyActivityLeaveRequest,
+  DailyActivitySaveOptions,
 } from "@myTypes/daily-activity";
 
 const asArray = <T>(value: unknown): T[] => Array.isArray(value) ? value : [];
@@ -202,13 +203,13 @@ export async function deleteDailyActivityLeaveRequest(requestId: string) {
   return data.data;
 }
 
-export async function saveDailyActivityDraft(workDate: string, activities: Array<{ id?: string; content: string }>) {
-  const { data } = await api.put("/daily-activity/my-report/draft", { work_date: workDate, activities });
+export async function saveDailyActivityDraft(workDate: string, activities: Array<{ id?: string; content: string }>, options: DailyActivitySaveOptions) {
+  const { data } = await api.put("/daily-activity/my-report/draft", { work_date: workDate, activities, ...options });
   return normalizeReport(payloadOf(data));
 }
 
-export async function submitDailyActivity(workDate: string, activities: Array<{ id?: string; content: string }>) {
-  const { data } = await api.post("/daily-activity/my-report/submit", { work_date: workDate, activities });
+export async function submitDailyActivity(workDate: string, activities: Array<{ id?: string; content: string }>, options: DailyActivitySaveOptions) {
+  const { data } = await api.post("/daily-activity/my-report/submit", { work_date: workDate, activities, ...options });
   return normalizeReport(payloadOf(data));
 }
 
