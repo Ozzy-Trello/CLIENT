@@ -168,6 +168,8 @@ describe("notulensi api", () => {
       priority: "reg",
       dueDate: "2026-07-29T12:00:00.000Z",
       assigneeIds: ["user-1"],
+      taskOrigin: "General",
+      picProjectId: "user-1",
       checklist: {
         title: "Launch steps",
         items: [{ label: "Confirm artwork", checked: false }],
@@ -180,6 +182,8 @@ describe("notulensi api", () => {
       priority: "reg",
       dueDate: "2026-07-29T12:00:00.000Z",
       assigneeIds: ["user-1"],
+      taskOrigin: "General",
+      picProjectId: "user-1",
       checklist: {
         title: "Launch steps",
         items: [{ label: "Confirm artwork", checked: false }],

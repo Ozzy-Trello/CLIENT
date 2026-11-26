@@ -88,17 +88,14 @@ describe("useCardMove", () => {
     const targetCard2 = createCard("target-card-2", "Target 2", targetListId);
 
     queryClient.setQueryData<ApiResponse<Card[]>>(queryKeys.cards.list(sourceListId), {
-      status_code: 200,
       message: "ok",
       data: [sourceCard, movingCard],
     });
     queryClient.setQueryData<ApiResponse<Card[]>>(queryKeys.cards.list(targetListId), {
-      status_code: 200,
       message: "ok",
       data: [targetCard1, targetCard2],
     });
     queryClient.setQueryData<ApiResponse<Card>>(queryKeys.cards.detail(movingCardId), {
-      status_code: 200,
       message: "ok",
       data: movingCard,
     });

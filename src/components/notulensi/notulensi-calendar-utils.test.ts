@@ -21,6 +21,9 @@ const task = (
   title: `Task ${id}`,
   status: "in_progress",
   priority: "reg",
+  taskOrigin: "General",
+  picProject: null,
+  jabatan: null,
   dueDate,
   assignees: assignees.map(([userId, username]) => ({ userId, username })),
 });

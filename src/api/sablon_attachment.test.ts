@@ -29,7 +29,7 @@ describe("getSablonAttachments", () => {
     });
 
     const result = await getSablonAttachments("card-1");
-    expect(result.data[0].userId).toBe("user-abc");
+    expect(result.data?.[0].userId).toBe("user-abc");
     expect(result.data[0].amount).toBe(5);
   });
 
@@ -43,7 +43,7 @@ describe("getSablonAttachments", () => {
     });
 
     const result = await getSablonAttachments("card-1");
-    expect(result.data[0].userId).toBeNull();
+    expect(result.data?.[0].userId).toBeNull();
   });
 
   it("handles camelCase userId from response", async () => {
@@ -58,7 +58,7 @@ describe("getSablonAttachments", () => {
     });
 
     const result = await getSablonAttachments("card-1");
-    expect(result.data[0].userId).toBe("user-xyz");
+    expect(result.data?.[0].userId).toBe("user-xyz");
   });
 });
 
@@ -81,6 +81,6 @@ describe("bulkUpsertSablonAttachments", () => {
     expect(mockApi.post).toHaveBeenCalledWith("/sablon-attachment/bulk", {
       rows: [{ cardId: "card-1", attachmentId: "att-1", userId: "user-abc", amount: 5 }],
     });
-    expect(result.data[0].userId).toBe("user-abc");
+    expect(result.data?.[0].userId).toBe("user-abc");
   });
 });
