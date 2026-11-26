@@ -1,8 +1,30 @@
 import { QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@constants/query-keys";
-import { handleCardMoved, invalidateCardLabelQueries, invalidateNotulensiNotification } from "./websocket-event-handlers";
+import { BOARD_CARD_MOVED_EVENT, handleCardMoved, invalidateCardLabelQueries, invalidateNotulensiNotification } from "./websocket-event-handlers";
 
 describe("handleCardMoved", () => {
+  it("dispatches a board card moved event", async () => {
+    const queryClient = new QueryClient();
+    const listener = jest.fn();
+    window.addEventListener(BOARD_CARD_MOVED_EVENT, listener);
+
+    await handleCardMoved(queryClient, {
+      cardId: "card-1",
+      listId: "list-b",
+      boardId: "board-1",
+      changes: { oldListId: "list-a", newListId: "list-b" },
+    });
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener.mock.calls[0][0].detail).toEqual({
+      cardId: "card-1",
+      fromListId: "list-a",
+      toListId: "list-b",
+      boardId: "board-1",
+    });
+    window.removeEventListener(BOARD_CARD_MOVED_EVENT, listener);
+  });
+
   it("moves a payload card between list caches immediately", async () => {
     const queryClient = new QueryClient();
     const card = { id: "card-1", name: "Moved card", listId: "list-a" };

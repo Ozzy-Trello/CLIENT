@@ -47,6 +47,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@constants/query-keys";
 import { ApiResponse } from "@myTypes/type";
 import { useRealtimeUpdates } from "@hooks/websocket";
+import { BOARD_CARD_MOVED_EVENT } from "@utils/websocket-event-handlers";
 import HorizontalSlider from "@components/horizontal-slider";
 import { BoardPermissionsProvider } from "@providers/board-permissions-context";
 import { useRecentlyViewed } from "@hooks/recently-viewed";
@@ -1132,6 +1133,27 @@ const Board: React.FC = () => {
       unsubscribe();
     };
   }, [queryClient, localCardsInitialized, lists, selectedLabelIds]);
+
+  useEffect(() => {
+    const handleBoardCardMoved = (event: Event) => {
+      const { cardId, fromListId, toListId, boardId } = (event as CustomEvent).detail || {};
+      if (boardId && boardId !== resolvedBoardId) return;
+      if ((window as any).__DRAG_IN_PROGRESS__) return;
+
+      setLocalCards((prev) => {
+        const current = prev[fromListId];
+        if (!current || !current.some((card) => card.id === cardId)) return prev;
+        return { ...prev, [fromListId]: current.filter((card) => card.id !== cardId) };
+      });
+
+      loadedInitialCardListsRef.current.delete(toListId);
+      queryClient.removeQueries({ queryKey: queryKeys.cards.list(toListId) });
+      void fetchInitialCardsForList(toListId);
+    };
+
+    window.addEventListener(BOARD_CARD_MOVED_EVENT, handleBoardCardMoved);
+    return () => window.removeEventListener(BOARD_CARD_MOVED_EVENT, handleBoardCardMoved);
+  }, [fetchInitialCardsForList, queryClient, resolvedBoardId]);
 
   // Prefetch ALL dashcard counts in a single batch request at the board level.
   // This ensures all dashcard counts arrive together and are cached before
