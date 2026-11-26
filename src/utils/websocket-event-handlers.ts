@@ -7,6 +7,8 @@ import {
   WebSocketEventPayload,
 } from "@myTypes/event";
 
+export const BOARD_CARD_MOVED_EVENT = "board:card-moved";
+
 export function invalidateCardLabelQueries(
   queryClient: QueryClient,
   workspaceId: string,
@@ -173,6 +175,14 @@ export async function handleCardMoved(
     queryClient.invalidateQueries({
       queryKey: queryKeys.lists.board(boardId),
     });
+  }
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent(BOARD_CARD_MOVED_EVENT, {
+        detail: { cardId, fromListId, toListId, boardId },
+      })
+    );
   }
 }
 
