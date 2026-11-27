@@ -832,6 +832,8 @@ const Board: React.FC = () => {
     hasMore: boolean;
     totalCards: number;
   }>>({});
+  const cardsPaginationRef = useRef(cardsPagination);
+  cardsPaginationRef.current = cardsPagination;
   const [initialCardsLoadingByListId, setInitialCardsLoadingByListId] = useState<Record<string, boolean>>({});
   const lastViewedBoardIdRef = useRef<string | null>(null);
   const [loadingMoreByListId, setLoadingMoreByListId] = useState<Record<string, boolean>>({});
@@ -988,6 +990,56 @@ const Board: React.FC = () => {
     resolvedBoardId,
     selectedLabelIds,
   ]);
+
+  // Muat ulang list tujuan kartu yang dipindah tanpa mengosongkan tampilan dan
+  // tanpa mengembalikan paginasi ke halaman 1: seluruh halaman yang sudah
+  // termuat diminta sekaligus. Hanya dipakai list terurut/terfilter, jadi
+  // cache query tidak disentuh.
+  const refreshListAfterCardMoved = useCallback(async (listId: string) => {
+    if (!resolvedBoardId) return;
+    if (!sortPreferencesLoadedRef.current) return;
+
+    const labelIds = selectedLabelIds.length > 0 ? selectedLabelIds : undefined;
+    const { sortBy, sortOrder } = sortParams(listSortKeysRef.current[listId]);
+    const loadedPages = cardsPaginationRef.current[listId]?.currentPage ?? 1;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      const response = await cards(
+        listId,
+        resolvedBoardId,
+        1,
+        CARD_PAGE_SIZE * loadedPages,
+        labelIds,
+        sortBy,
+        sortOrder,
+        { view: "board", signal: controller.signal }
+      );
+      clearTimeout(timeoutId);
+
+      const nextCards = response?.data;
+      if (nextCards) {
+        setLocalCards((prev) => ({
+          ...prev,
+          [listId]: nextCards,
+        }));
+        setCardsPagination((prev) => ({
+          ...prev,
+          [listId]: buildCardsPagination(
+            nextCards.length,
+            response.paginate?.totalData,
+            loadedPages,
+            prev[listId]
+          ),
+        }));
+      }
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.error("[REFRESH CARDS] Error:", error);
+    }
+  }, [resolvedBoardId, selectedLabelIds]);
 
   // Dimuat sebelum kartu diambil supaya permintaan pertama sudah memakai
   // urutan yang benar, bukan mengambil urutan manual lalu menukar isinya.
@@ -1154,14 +1206,12 @@ const Board: React.FC = () => {
         selectedLabelIds.length === 0 && !listSortKeysRef.current[toListId];
       if (destinationCacheable) return;
 
-      loadedInitialCardListsRef.current.delete(toListId);
-      queryClient.removeQueries({ queryKey: queryKeys.cards.list(toListId) });
-      void fetchInitialCardsForList(toListId);
+      void refreshListAfterCardMoved(toListId);
     };
 
     window.addEventListener(BOARD_CARD_MOVED_EVENT, handleBoardCardMoved);
     return () => window.removeEventListener(BOARD_CARD_MOVED_EVENT, handleBoardCardMoved);
-  }, [fetchInitialCardsForList, queryClient, resolvedBoardId, selectedLabelIds]);
+  }, [refreshListAfterCardMoved, resolvedBoardId, selectedLabelIds]);
 
   // Prefetch ALL dashcard counts in a single batch request at the board level.
   // This ensures all dashcard counts arrive together and are cached before
