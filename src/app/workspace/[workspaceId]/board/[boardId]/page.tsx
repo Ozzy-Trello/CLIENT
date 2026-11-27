@@ -1146,6 +1146,14 @@ const Board: React.FC = () => {
         return { ...prev, [fromListId]: current.filter((card) => card.id !== cardId) };
       });
 
+      // List yang cacheable sudah diperbarui diam-diam oleh subscriber cache di atas,
+      // jadi memuat ulang di sini hanya menambah satu request dan satu kedip untuk
+      // setiap orang yang sedang membuka board. Yang terurut atau terfilter tidak
+      // menyentuh cache sama sekali, jadi hanya itu yang perlu dimuat ulang.
+      const destinationCacheable =
+        selectedLabelIds.length === 0 && !listSortKeysRef.current[toListId];
+      if (destinationCacheable) return;
+
       loadedInitialCardListsRef.current.delete(toListId);
       queryClient.removeQueries({ queryKey: queryKeys.cards.list(toListId) });
       void fetchInitialCardsForList(toListId);
@@ -1153,7 +1161,7 @@ const Board: React.FC = () => {
 
     window.addEventListener(BOARD_CARD_MOVED_EVENT, handleBoardCardMoved);
     return () => window.removeEventListener(BOARD_CARD_MOVED_EVENT, handleBoardCardMoved);
-  }, [fetchInitialCardsForList, queryClient, resolvedBoardId]);
+  }, [fetchInitialCardsForList, queryClient, resolvedBoardId, selectedLabelIds]);
 
   // Prefetch ALL dashcard counts in a single batch request at the board level.
   // This ensures all dashcard counts arrive together and are cached before
